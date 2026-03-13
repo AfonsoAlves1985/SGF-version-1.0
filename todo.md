@@ -82,3 +82,13 @@
 
 ## Bugs Conhecidos
 (Nenhum registado até ao momento)
+
+## Fase 3: Implementar Páginas Funcionais
+- [x] Página de Inventário com listagem, filtros e movimentações
+- [x] Página de Escala com calendário e atribuição de turnos
+- [x] Página de Salas com reservas e calendário visual
+- [x] Página de Manutenção com listagem e priorização
+- [x] Página de Fornecedores com gestão de contratos
+- [x] Dashboard Executivo com métricas e gráficos
+- [x] Navegação no DashboardLayout para todos os módulos
+- [x] Corrigir erro 404 na Página 2 (agora é "Início")
