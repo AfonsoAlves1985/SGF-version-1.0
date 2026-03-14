@@ -81,6 +81,7 @@
 - [ ] Testar performance do dashboard
 
 ## Fase 4: Melhorias Adicionais
+- [x] Adicionar funcionalidade de edição de salas cadastradas
 - [ ] Adicionar histórico de movimentações de inventário com rastreamento de utilizador
 - [ ] Implementar sistema de notificações em tempo real (stock baixo, chamados urgentes)
 - [ ] Adicionar exportação de relatórios em PDF/Excel
