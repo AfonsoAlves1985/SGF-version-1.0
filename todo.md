@@ -108,3 +108,7 @@
 - [x] Renomear projeto de SGA G4 Belém para SGA Grupo FRZ
 - [x] Implementar tema dark com paleta de laranja vibrante
 - [x] Adicionar logo FRZ nas telas de login e principal
+
+## Fase 5: Melhorias de Autenticação
+- [x] Remover tela 404 antes do login
+- [x] Redirecionar utilizadores não autenticados para página de login
