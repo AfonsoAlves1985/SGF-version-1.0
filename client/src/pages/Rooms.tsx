@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Plus, Building2, Users, Edit2, Trash2 } from "lucide-react";
@@ -15,6 +15,9 @@ export default function Rooms() {
   const [status, setStatus] = useState<string | undefined>();
   const [editingRoom, setEditingRoom] = useState<any>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [inlineEditingId, setInlineEditingId] = useState<number | null>(null);
+  const [inlineEditField, setInlineEditField] = useState<string | null>(null);
+  const [inlineEditValue, setInlineEditValue] = useState<string>("");
   const [formData, setFormData] = useState({
     name: "",
     capacity: 0,
@@ -48,6 +51,8 @@ export default function Rooms() {
       setEditingRoom(null);
       setFormData({ name: "", capacity: 0, location: "", type: "sala", status: "disponivel" });
       setIsDialogOpen(false);
+      setInlineEditingId(null);
+      setInlineEditField(null);
       refetch();
     },
     onError: (error) => {
@@ -83,6 +88,26 @@ export default function Rooms() {
     setIsDialogOpen(true);
   };
 
+  const handleInlineEdit = (room: any, field: string) => {
+    setInlineEditingId(room.id);
+    setInlineEditField(field);
+    setInlineEditValue(String(room[field]));
+  };
+
+  const handleInlineSubmit = () => {
+    if (inlineEditingId && inlineEditField) {
+      const updateData: any = {
+        id: inlineEditingId,
+      };
+      if (inlineEditField === "capacity") {
+        updateData[inlineEditField] = parseInt(inlineEditValue) || 0;
+      } else {
+        updateData[inlineEditField] = inlineEditValue;
+      }
+      updateMutation.mutate(updateData);
+    }
+  };
+
   const handleSubmit = () => {
     if (!formData.name || !formData.location || formData.capacity <= 0) {
       toast.error("Preencha todos os campos corretamente");
@@ -90,23 +115,38 @@ export default function Rooms() {
     }
 
     if (editingRoom) {
-      updateMutation.mutate({
+      const updateData: any = {
         id: editingRoom.id,
         ...formData,
-      });
+      };
+      updateMutation.mutate(updateData);
     } else {
-      createMutation.mutate({
+      const createData: any = {
         name: formData.name,
         capacity: formData.capacity,
         location: formData.location,
         type: formData.type,
-      });
+      };
+      createMutation.mutate(createData);
     }
   };
 
-  const handleDeleteRoom = (roomId: number) => {
-    if (confirm("Tem a certeza que deseja eliminar esta sala?")) {
-      deleteMutation.mutate(roomId);
+  const handleDelete = (id: number) => {
+    if (confirm("Tem certeza que deseja eliminar esta sala?")) {
+      deleteMutation.mutate(id);
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "disponivel":
+        return "bg-green-900/30 text-green-400 border border-green-700/30";
+      case "ocupada":
+        return "bg-red-900/30 text-red-400 border border-red-700/30";
+      case "manutencao":
+        return "bg-yellow-900/30 text-yellow-400 border border-yellow-700/30";
+      default:
+        return "bg-gray-900/30 text-gray-400 border border-gray-700/30";
     }
   };
 
@@ -114,8 +154,8 @@ export default function Rooms() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-white">Salas e Espaços</h1>
-          <p className="text-gray-400 mt-1">Gestão de reservas e disponibilidade</p>
+          <h1 className="text-3xl font-bold text-white">Salas</h1>
+          <p className="text-gray-400 mt-1">Gestão de espaços e reservas</p>
         </div>
         <Button onClick={handleCreateSample} className="bg-orange-600 hover:bg-orange-700">
           <Plus className="w-4 h-4 mr-2" />
@@ -123,49 +163,10 @@ export default function Rooms() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="bg-slate-800/50 border-orange-700/30">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-white">Total de Salas</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-orange-500">{rooms.length}</div>
-            <p className="text-xs text-gray-400 mt-1">Salas cadastradas</p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-slate-800/50 border-orange-700/30">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-white">Disponíveis</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-500">
-              {rooms.filter((r: any) => r.status === "disponivel").length}
-            </div>
-            <p className="text-xs text-gray-400 mt-1">Prontas para reserva</p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-slate-800/50 border-orange-700/30">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-white">Reservas Hoje</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-orange-500">
-              {reservations.filter((r: any) => {
-                const today = new Date().toDateString();
-                return new Date(r.startTime).toDateString() === today;
-              }).length}
-            </div>
-            <p className="text-xs text-gray-400 mt-1">Reservas confirmadas</p>
-          </CardContent>
-        </Card>
-      </div>
-
       <Card className="bg-slate-800/50 border-orange-700/30">
         <CardHeader>
           <CardTitle className="text-white">Filtros</CardTitle>
-          <CardDescription className="text-gray-400">Filtre salas por tipo e disponibilidade</CardDescription>
+          <CardDescription className="text-gray-400">Filtre salas por tipo e status</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -176,7 +177,7 @@ export default function Rooms() {
                   <SelectValue placeholder="Selecione um tipo" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="sala">Sala de Reuniões</SelectItem>
+                  <SelectItem value="sala">Sala</SelectItem>
                   <SelectItem value="auditorio">Auditório</SelectItem>
                   <SelectItem value="cozinha">Cozinha</SelectItem>
                   <SelectItem value="outro">Outro</SelectItem>
@@ -203,8 +204,8 @@ export default function Rooms() {
 
       <Card className="bg-slate-800/50 border-orange-700/30">
         <CardHeader>
-          <CardTitle className="text-white">Salas Cadastradas</CardTitle>
-          <CardDescription className="text-gray-400">{rooms.length} salas encontradas</CardDescription>
+          <CardTitle className="text-white">Salas Disponíveis</CardTitle>
+          <CardDescription className="text-gray-400">{rooms.length} salas registadas</CardDescription>
         </CardHeader>
         <CardContent>
           {isLoading ? (
@@ -226,67 +227,66 @@ export default function Rooms() {
                 <TableHeader>
                   <TableRow className="border-orange-700/30 hover:bg-slate-700/50">
                     <TableHead className="text-gray-300">Nome</TableHead>
-                    <TableHead className="text-gray-300">Tipo</TableHead>
-                    <TableHead className="text-gray-300">Capacidade</TableHead>
-                    <TableHead className="text-gray-300">Localização</TableHead>
-                    <TableHead className="text-gray-300">Status</TableHead>
-                    <TableHead className="text-gray-300">Próxima Reserva</TableHead>
+                    <TableHead className="text-gray-300 cursor-pointer hover:text-orange-400">Capacidade</TableHead>
+                    <TableHead className="text-gray-300 cursor-pointer hover:text-orange-400">Localização</TableHead>
+                    <TableHead className="text-gray-300 cursor-pointer hover:text-orange-400">Tipo</TableHead>
+                    <TableHead className="text-gray-300 cursor-pointer hover:text-orange-400">Status</TableHead>
                     <TableHead className="text-gray-300">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {rooms.map((room: any) => {
-                    const nextReservation = reservations.find((r: any) => r.roomId === room.id);
-                    return (
-                      <TableRow key={room.id} className="border-orange-700/20 hover:bg-slate-700/30">
-                        <TableCell className="font-medium text-white">{room.name}</TableCell>
-                        <TableCell>
-                          <span className="px-2 py-1 bg-orange-900/30 text-orange-400 rounded text-xs font-medium border border-orange-700/30">
-                            {room.type}
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-gray-300">
-                          <div className="flex items-center gap-1">
-                            <Users className="w-4 h-4 text-orange-500" />
-                            {room.capacity}
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-gray-300">{room.location}</TableCell>
-                        <TableCell>
-                          <span className={`px-2 py-1 rounded text-xs font-medium ${
-                            room.status === "disponivel" ? "bg-green-900/30 text-green-400 border border-green-700/30" :
-                            room.status === "ocupada" ? "bg-yellow-900/30 text-yellow-400 border border-yellow-700/30" :
-                            "bg-red-900/30 text-red-400 border border-red-700/30"
-                          }`}>
-                            {room.status}
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-gray-400">
-                          {nextReservation ? new Date(nextReservation.startTime).toLocaleDateString() : "-"}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex gap-2">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="border-orange-600 text-orange-500 hover:bg-orange-600/10"
-                              onClick={() => handleEditRoom(room)}
-                            >
-                              <Edit2 className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="border-red-600 text-red-500 hover:bg-red-600/10"
-                              onClick={() => handleDeleteRoom(room.id)}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
+                  {rooms.map((room: any) => (
+                    <TableRow key={room.id} className="border-orange-700/20 hover:bg-slate-700/30">
+                      <TableCell className="font-medium text-white">{room.name}</TableCell>
+                      <TableCell
+                        className="text-gray-300 cursor-pointer hover:text-orange-400 transition"
+                        onClick={() => handleInlineEdit(room, "capacity")}
+                      >
+                        <Users className="w-4 h-4 inline mr-1" />
+                        {room.capacity}
+                      </TableCell>
+                      <TableCell
+                        className="text-gray-300 cursor-pointer hover:text-orange-400 transition"
+                        onClick={() => handleInlineEdit(room, "location")}
+                      >
+                        {room.location}
+                      </TableCell>
+                      <TableCell
+                        className="text-gray-300 cursor-pointer hover:text-orange-400 transition capitalize"
+                        onClick={() => handleInlineEdit(room, "type")}
+                      >
+                        {room.type}
+                      </TableCell>
+                      <TableCell>
+                        <span
+                          className={`px-2 py-1 rounded text-xs font-medium cursor-pointer hover:opacity-80 transition ${getStatusColor(room.status)}`}
+                          onClick={() => handleInlineEdit(room, "status")}
+                        >
+                          {room.status}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="border-orange-600 text-orange-500 hover:bg-orange-600/10"
+                            onClick={() => handleEditRoom(room)}
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="border-red-600 text-red-500 hover:bg-red-600/10"
+                            onClick={() => handleDelete(room.id)}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
                 </TableBody>
               </Table>
             </div>
@@ -294,12 +294,13 @@ export default function Rooms() {
         </CardContent>
       </Card>
 
+      {/* Dialog de Edição Completa */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="bg-slate-800 border-orange-700/30">
           <DialogHeader>
             <DialogTitle className="text-white">{editingRoom ? "Editar Sala" : "Nova Sala"}</DialogTitle>
             <DialogDescription className="text-gray-400">
-              {editingRoom ? "Actualizar informações da sala" : "Criar uma nova sala no sistema"}
+              {editingRoom ? "Actualizar informações da sala" : "Criar uma nova sala"}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -321,56 +322,54 @@ export default function Rooms() {
                   id="capacity"
                   type="number"
                   value={formData.capacity}
-                  onChange={(e) => setFormData({ ...formData, capacity: parseInt(e.target.value) })}
-                  placeholder="10"
+                  onChange={(e) => setFormData({ ...formData, capacity: parseInt(e.target.value) || 0 })}
+                  placeholder="0"
                   className="mt-1 bg-slate-700 border-slate-600 text-white placeholder-gray-500"
                 />
               </div>
 
               <div>
-                <Label htmlFor="location" className="text-gray-300">Localização</Label>
-                <Input
-                  id="location"
-                  value={formData.location}
-                  onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                  placeholder="Ex: Piso 2"
-                  className="mt-1 bg-slate-700 border-slate-600 text-white placeholder-gray-500"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="type" className="text-gray-300">Tipo de Sala</Label>
+                <Label htmlFor="type" className="text-gray-300">Tipo</Label>
                 <Select value={formData.type} onValueChange={(value: any) => setFormData({ ...formData, type: value })}>
                   <SelectTrigger className="mt-1 bg-slate-700 border-slate-600 text-white">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="sala">Sala de Reuniões</SelectItem>
+                    <SelectItem value="sala">Sala</SelectItem>
                     <SelectItem value="auditorio">Auditório</SelectItem>
                     <SelectItem value="cozinha">Cozinha</SelectItem>
                     <SelectItem value="outro">Outro</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-
-              {editingRoom && (
-                <div>
-                  <Label htmlFor="status" className="text-gray-300">Status</Label>
-                  <Select value={formData.status} onValueChange={(value: any) => setFormData({ ...formData, status: value })}>
-                    <SelectTrigger className="mt-1 bg-slate-700 border-slate-600 text-white">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="disponivel">Disponível</SelectItem>
-                      <SelectItem value="ocupada">Ocupada</SelectItem>
-                      <SelectItem value="manutencao">Manutenção</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
             </div>
+
+            <div>
+              <Label htmlFor="location" className="text-gray-300">Localização</Label>
+              <Input
+                id="location"
+                value={formData.location}
+                onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                placeholder="Ex: Piso 2"
+                className="mt-1 bg-slate-700 border-slate-600 text-white placeholder-gray-500"
+              />
+            </div>
+
+            {editingRoom && (
+              <div>
+                <Label htmlFor="status" className="text-gray-300">Status</Label>
+                <Select value={formData.status} onValueChange={(value: any) => setFormData({ ...formData, status: value })}>
+                  <SelectTrigger className="mt-1 bg-slate-700 border-slate-600 text-white">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="disponivel">Disponível</SelectItem>
+                    <SelectItem value="ocupada">Ocupada</SelectItem>
+                    <SelectItem value="manutencao">Manutenção</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             <div className="flex gap-3 pt-4">
               <Button
@@ -382,6 +381,81 @@ export default function Rooms() {
               </Button>
               <Button
                 onClick={() => setIsDialogOpen(false)}
+                variant="outline"
+                className="border-slate-600 text-gray-300 hover:bg-slate-700"
+              >
+                Cancelar
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de Edição Inline */}
+      <Dialog open={inlineEditingId !== null} onOpenChange={(open) => !open && setInlineEditingId(null)}>
+        <DialogContent className="bg-slate-800 border-orange-700/30 max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-white">Editar {inlineEditField?.charAt(0).toUpperCase()}{inlineEditField?.slice(1)}</DialogTitle>
+            <DialogDescription className="text-gray-400">
+              Selecione o novo valor para este campo
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {inlineEditField === "capacity" && (
+              <Input
+                type="number"
+                value={inlineEditValue}
+                onChange={(e) => setInlineEditValue(e.target.value)}
+                className="bg-slate-700 border-slate-600 text-white"
+              />
+            )}
+
+            {inlineEditField === "location" && (
+              <Input
+                value={inlineEditValue}
+                onChange={(e) => setInlineEditValue(e.target.value)}
+                placeholder="Ex: Piso 2"
+                className="bg-slate-700 border-slate-600 text-white"
+              />
+            )}
+
+            {inlineEditField === "type" && (
+              <Select value={inlineEditValue} onValueChange={setInlineEditValue}>
+                <SelectTrigger className="bg-slate-700 border-slate-600 text-white">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="sala">Sala</SelectItem>
+                  <SelectItem value="auditorio">Auditório</SelectItem>
+                  <SelectItem value="cozinha">Cozinha</SelectItem>
+                  <SelectItem value="outro">Outro</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
+
+            {inlineEditField === "status" && (
+              <Select value={inlineEditValue} onValueChange={setInlineEditValue}>
+                <SelectTrigger className="bg-slate-700 border-slate-600 text-white">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="disponivel">Disponível</SelectItem>
+                  <SelectItem value="ocupada">Ocupada</SelectItem>
+                  <SelectItem value="manutencao">Manutenção</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
+
+            <div className="flex gap-3 pt-4">
+              <Button
+                onClick={handleInlineSubmit}
+                className="bg-orange-600 hover:bg-orange-700 text-white flex-1"
+                disabled={updateMutation.isPending}
+              >
+                {updateMutation.isPending ? "Guardando..." : "Guardar"}
+              </Button>
+              <Button
+                onClick={() => setInlineEditingId(null)}
                 variant="outline"
                 className="border-slate-600 text-gray-300 hover:bg-slate-700"
               >

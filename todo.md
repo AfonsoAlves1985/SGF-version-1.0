@@ -118,3 +118,9 @@
 - [x] Implementar edição inline para Prioridade em Manutenção
 - [x] Implementar edição inline para Status em Manutenção
 - [x] Implementar edição inline para Data em Manutenção
+
+## Fase 7: Edição Inline em Todos os Módulos
+- [x] Implementar edição inline em Inventário
+- [x] Implementar edição inline em Salas
+- [x] Implementar edição inline em Escala
+- [x] Implementar edição inline em Fornecedores

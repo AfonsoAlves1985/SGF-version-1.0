@@ -15,6 +15,9 @@ export default function Suppliers() {
   const [status, setStatus] = useState<string | undefined>();
   const [editingSupplier, setEditingSupplier] = useState<any>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [inlineEditingId, setInlineEditingId] = useState<number | null>(null);
+  const [inlineEditField, setInlineEditField] = useState<string | null>(null);
+  const [inlineEditValue, setInlineEditValue] = useState<string>("");
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -48,6 +51,8 @@ export default function Suppliers() {
       setEditingSupplier(null);
       setFormData({ name: "", email: "", phone: "", category: "Limpeza", status: "ativo" });
       setIsDialogOpen(false);
+      setInlineEditingId(null);
+      setInlineEditField(null);
       refetch();
     },
     onError: (error) => {
@@ -83,48 +88,60 @@ export default function Suppliers() {
     setIsDialogOpen(true);
   };
 
+  const handleInlineEdit = (supplier: any, field: string) => {
+    setInlineEditingId(supplier.id);
+    setInlineEditField(field);
+    setInlineEditValue(String(supplier[field]));
+  };
+
+  const handleInlineSubmit = () => {
+    if (inlineEditingId && inlineEditField) {
+      const updateData: any = {
+        id: inlineEditingId,
+      };
+      updateData[inlineEditField] = inlineEditValue;
+      updateMutation.mutate(updateData);
+    }
+  };
+
   const handleSubmit = () => {
     if (!formData.name || !formData.email || !formData.phone) {
-      toast.error("Preencha todos os campos obrigatórios");
+      toast.error("Preencha todos os campos corretamente");
       return;
     }
 
     if (editingSupplier) {
-      updateMutation.mutate({
+      const updateData: any = {
         id: editingSupplier.id,
         ...formData,
-      });
+      };
+      updateMutation.mutate(updateData);
     } else {
-      createMutation.mutate({
+      const createData: any = {
         name: formData.name,
         email: formData.email,
         phone: formData.phone,
         category: formData.category,
-      });
+      };
+      createMutation.mutate(createData);
     }
   };
 
-  const handleDeleteSupplier = (id: number) => {
+  const handleDelete = (id: number) => {
     if (confirm("Tem certeza que deseja eliminar este fornecedor?")) {
       deleteMutation.mutate(id);
     }
   };
 
-  const getSupplierContracts = (supplierId: number) => {
-    return contracts.filter((c: any) => c.supplierId === supplierId);
-  };
-
-  const isContractExpiring = (endDate: string) => {
-    const today = new Date();
-    const end = new Date(endDate);
-    const daysUntilExpiry = Math.floor((end.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-    return daysUntilExpiry <= 30 && daysUntilExpiry >= 0;
-  };
-
-  const isContractExpired = (endDate: string) => {
-    const today = new Date();
-    const end = new Date(endDate);
-    return end < today;
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "ativo":
+        return "bg-green-900/30 text-green-400 border border-green-700/30";
+      case "inativo":
+        return "bg-red-900/30 text-red-400 border border-red-700/30";
+      default:
+        return "bg-gray-900/30 text-gray-400 border border-gray-700/30";
+    }
   };
 
   return (
@@ -138,42 +155,6 @@ export default function Suppliers() {
           <Plus className="w-4 h-4 mr-2" />
           Novo Fornecedor
         </Button>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="bg-slate-800/50 border-orange-700/30">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-white">Total de Fornecedores</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-orange-500">{suppliers.length}</div>
-            <p className="text-xs text-gray-400 mt-1">Fornecedores cadastrados</p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-slate-800/50 border-orange-700/30">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-white">Contratos Ativos</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-500">
-              {contracts.filter((c: any) => c.status === "ativo").length}
-            </div>
-            <p className="text-xs text-gray-400 mt-1">Contratos em vigor</p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-slate-800/50 border-orange-700/30">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-white">Vencimentos Próximos</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-yellow-500">
-              {contracts.filter((c: any) => isContractExpiring(c.endDate)).length}
-            </div>
-            <p className="text-xs text-gray-400 mt-1">Próximos 30 dias</p>
-          </CardContent>
-        </Card>
       </div>
 
       <Card className="bg-slate-800/50 border-orange-700/30">
@@ -192,8 +173,8 @@ export default function Suppliers() {
                 <SelectContent>
                   <SelectItem value="Limpeza">Limpeza</SelectItem>
                   <SelectItem value="Manutenção">Manutenção</SelectItem>
-                  <SelectItem value="Consumíveis">Consumíveis</SelectItem>
                   <SelectItem value="Segurança">Segurança</SelectItem>
+                  <SelectItem value="Alimentação">Alimentação</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -216,7 +197,7 @@ export default function Suppliers() {
 
       <Card className="bg-slate-800/50 border-orange-700/30">
         <CardHeader>
-          <CardTitle className="text-white">Fornecedores Cadastrados</CardTitle>
+          <CardTitle className="text-white">Fornecedores Registados</CardTitle>
           <CardDescription className="text-gray-400">{suppliers.length} fornecedores encontrados</CardDescription>
         </CardHeader>
         <CardContent>
@@ -239,70 +220,65 @@ export default function Suppliers() {
                 <TableHeader>
                   <TableRow className="border-orange-700/30 hover:bg-slate-700/50">
                     <TableHead className="text-gray-300">Nome</TableHead>
-                    <TableHead className="text-gray-300">Email</TableHead>
-                    <TableHead className="text-gray-300">Telefone</TableHead>
-                    <TableHead className="text-gray-300">Categoria</TableHead>
-                    <TableHead className="text-gray-300">Contratos</TableHead>
-                    <TableHead className="text-gray-300">Status</TableHead>
+                    <TableHead className="text-gray-300 cursor-pointer hover:text-orange-400">Email</TableHead>
+                    <TableHead className="text-gray-300 cursor-pointer hover:text-orange-400">Telefone</TableHead>
+                    <TableHead className="text-gray-300 cursor-pointer hover:text-orange-400">Categoria</TableHead>
+                    <TableHead className="text-gray-300 cursor-pointer hover:text-orange-400">Status</TableHead>
                     <TableHead className="text-gray-300">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {suppliers.map((supplier: any) => {
-                    const supplierContracts = getSupplierContracts(supplier.id);
-                    const expiringContracts = supplierContracts.filter((c: any) => isContractExpiring(c.endDate));
-                    return (
-                      <TableRow key={supplier.id} className="border-orange-700/20 hover:bg-slate-700/30">
-                        <TableCell className="font-medium text-white">{supplier.name}</TableCell>
-                        <TableCell className="text-gray-300">{supplier.email}</TableCell>
-                        <TableCell className="text-gray-300">{supplier.phone}</TableCell>
-                        <TableCell>
-                          <span className="px-2 py-1 bg-orange-900/30 text-orange-400 rounded text-xs font-medium border border-orange-700/30">
-                            {supplier.category}
-                          </span>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <FileText className="w-4 h-4 text-orange-500" />
-                            <span className="text-gray-300">{supplierContracts.length}</span>
-                            {expiringContracts.length > 0 && (
-                              <span className="text-xs px-2 py-1 bg-yellow-900/30 text-yellow-400 rounded border border-yellow-700/30">
-                                {expiringContracts.length} vencendo
-                              </span>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <span className={`px-2 py-1 rounded text-xs font-medium ${
-                            supplier.status === "ativo" ? "bg-green-900/30 text-green-400 border border-green-700/30" :
-                            "bg-red-900/30 text-red-400 border border-red-700/30"
-                          }`}>
-                            {supplier.status}
-                          </span>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex gap-2">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="border-orange-600 text-orange-500 hover:bg-orange-600/10"
-                              onClick={() => handleEditSupplier(supplier)}
-                            >
-                              <Edit2 className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="border-red-600 text-red-500 hover:bg-red-600/10"
-                              onClick={() => handleDeleteSupplier(supplier.id)}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
+                  {suppliers.map((supplier: any) => (
+                    <TableRow key={supplier.id} className="border-orange-700/20 hover:bg-slate-700/30">
+                      <TableCell className="font-medium text-white">{supplier.name}</TableCell>
+                      <TableCell
+                        className="text-gray-300 cursor-pointer hover:text-orange-400 transition"
+                        onClick={() => handleInlineEdit(supplier, "email")}
+                      >
+                        {supplier.email}
+                      </TableCell>
+                      <TableCell
+                        className="text-gray-300 cursor-pointer hover:text-orange-400 transition"
+                        onClick={() => handleInlineEdit(supplier, "phone")}
+                      >
+                        {supplier.phone}
+                      </TableCell>
+                      <TableCell
+                        className="text-gray-300 cursor-pointer hover:text-orange-400 transition"
+                        onClick={() => handleInlineEdit(supplier, "category")}
+                      >
+                        {supplier.category}
+                      </TableCell>
+                      <TableCell>
+                        <span
+                          className={`px-2 py-1 rounded text-xs font-medium cursor-pointer hover:opacity-80 transition ${getStatusColor(supplier.status)}`}
+                          onClick={() => handleInlineEdit(supplier, "status")}
+                        >
+                          {supplier.status}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="border-orange-600 text-orange-500 hover:bg-orange-600/10"
+                            onClick={() => handleEditSupplier(supplier)}
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="border-red-600 text-red-500 hover:bg-red-600/10"
+                            onClick={() => handleDelete(supplier.id)}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
                 </TableBody>
               </Table>
             </div>
@@ -310,6 +286,7 @@ export default function Suppliers() {
         </CardContent>
       </Card>
 
+      {/* Dialog de Edição Completa */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="bg-slate-800 border-orange-700/30">
           <DialogHeader>
@@ -320,12 +297,12 @@ export default function Suppliers() {
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label htmlFor="name" className="text-gray-300">Nome</Label>
+              <Label htmlFor="name" className="text-gray-300">Nome do Fornecedor</Label>
               <Input
                 id="name"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="Ex: Fornecedor XYZ"
+                placeholder="Ex: Limpeza Pro"
                 className="mt-1 bg-slate-700 border-slate-600 text-white placeholder-gray-500"
               />
             </div>
@@ -338,7 +315,7 @@ export default function Suppliers() {
                   type="email"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  placeholder="contato@fornecedor.com"
+                  placeholder="Ex: contato@empresa.com"
                   className="mt-1 bg-slate-700 border-slate-600 text-white placeholder-gray-500"
                 />
               </div>
@@ -349,7 +326,7 @@ export default function Suppliers() {
                   id="phone"
                   value={formData.phone}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  placeholder="212345678"
+                  placeholder="Ex: +351 XXX XXX XXX"
                   className="mt-1 bg-slate-700 border-slate-600 text-white placeholder-gray-500"
                 />
               </div>
@@ -364,8 +341,8 @@ export default function Suppliers() {
                 <SelectContent>
                   <SelectItem value="Limpeza">Limpeza</SelectItem>
                   <SelectItem value="Manutenção">Manutenção</SelectItem>
-                  <SelectItem value="Consumíveis">Consumíveis</SelectItem>
                   <SelectItem value="Segurança">Segurança</SelectItem>
+                  <SelectItem value="Alimentação">Alimentação</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -395,6 +372,71 @@ export default function Suppliers() {
               </Button>
               <Button
                 onClick={() => setIsDialogOpen(false)}
+                variant="outline"
+                className="border-slate-600 text-gray-300 hover:bg-slate-700"
+              >
+                Cancelar
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de Edição Inline */}
+      <Dialog open={inlineEditingId !== null} onOpenChange={(open) => !open && setInlineEditingId(null)}>
+        <DialogContent className="bg-slate-800 border-orange-700/30 max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-white">Editar {inlineEditField?.charAt(0).toUpperCase()}{inlineEditField?.slice(1)}</DialogTitle>
+            <DialogDescription className="text-gray-400">
+              Selecione o novo valor para este campo
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {(inlineEditField === "email" || inlineEditField === "phone") && (
+              <Input
+                value={inlineEditValue}
+                onChange={(e) => setInlineEditValue(e.target.value)}
+                placeholder={inlineEditField === "email" ? "Ex: contato@empresa.com" : "Ex: +351 XXX XXX XXX"}
+                className="bg-slate-700 border-slate-600 text-white"
+              />
+            )}
+
+            {inlineEditField === "category" && (
+              <Select value={inlineEditValue} onValueChange={setInlineEditValue}>
+                <SelectTrigger className="bg-slate-700 border-slate-600 text-white">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Limpeza">Limpeza</SelectItem>
+                  <SelectItem value="Manutenção">Manutenção</SelectItem>
+                  <SelectItem value="Segurança">Segurança</SelectItem>
+                  <SelectItem value="Alimentação">Alimentação</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
+
+            {inlineEditField === "status" && (
+              <Select value={inlineEditValue} onValueChange={setInlineEditValue}>
+                <SelectTrigger className="bg-slate-700 border-slate-600 text-white">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ativo">Ativo</SelectItem>
+                  <SelectItem value="inativo">Inativo</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
+
+            <div className="flex gap-3 pt-4">
+              <Button
+                onClick={handleInlineSubmit}
+                className="bg-orange-600 hover:bg-orange-700 text-white flex-1"
+                disabled={updateMutation.isPending}
+              >
+                {updateMutation.isPending ? "Guardando..." : "Guardar"}
+              </Button>
+              <Button
+                onClick={() => setInlineEditingId(null)}
                 variant="outline"
                 className="border-slate-600 text-gray-300 hover:bg-slate-700"
               >

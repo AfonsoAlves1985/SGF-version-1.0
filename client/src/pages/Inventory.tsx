@@ -16,6 +16,9 @@ export default function Inventory() {
   const [status, setStatus] = useState<string | undefined>();
   const [editingItem, setEditingItem] = useState<any>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [inlineEditingId, setInlineEditingId] = useState<number | null>(null);
+  const [inlineEditField, setInlineEditField] = useState<string | null>(null);
+  const [inlineEditValue, setInlineEditValue] = useState<string>("");
   const [formData, setFormData] = useState({
     name: "",
     category: "Consumíveis",
@@ -50,6 +53,8 @@ export default function Inventory() {
       setEditingItem(null);
       setFormData({ name: "", category: "Consumíveis", quantity: 0, minQuantity: 0, unit: "unidade", location: "", status: "ativo" });
       setIsDialogOpen(false);
+      setInlineEditingId(null);
+      setInlineEditField(null);
       refetch();
     },
     onError: (error) => {
@@ -87,6 +92,26 @@ export default function Inventory() {
     setIsDialogOpen(true);
   };
 
+  const handleInlineEdit = (item: any, field: string) => {
+    setInlineEditingId(item.id);
+    setInlineEditField(field);
+    setInlineEditValue(String(item[field]));
+  };
+
+  const handleInlineSubmit = () => {
+    if (inlineEditingId && inlineEditField) {
+      const updateData: any = {
+        id: inlineEditingId,
+      };
+      if (inlineEditField === "quantity" || inlineEditField === "minQuantity") {
+        updateData[inlineEditField] = parseInt(inlineEditValue) || 0;
+      } else {
+        updateData[inlineEditField] = inlineEditValue;
+      }
+      updateMutation.mutate(updateData);
+    }
+  };
+
   const handleSubmit = () => {
     if (!formData.name || !formData.location || formData.quantity < 0 || formData.minQuantity < 0) {
       toast.error("Preencha todos os campos corretamente");
@@ -94,19 +119,21 @@ export default function Inventory() {
     }
 
     if (editingItem) {
-      updateMutation.mutate({
+      const updateData: any = {
         id: editingItem.id,
         ...formData,
-      });
+      };
+      updateMutation.mutate(updateData);
     } else {
-      createMutation.mutate({
+      const createData: any = {
         name: formData.name,
         category: formData.category,
         quantity: formData.quantity,
         minQuantity: formData.minQuantity,
         unit: formData.unit,
         location: formData.location,
-      });
+      };
+      createMutation.mutate(createData);
     }
   };
 
@@ -203,11 +230,11 @@ export default function Inventory() {
                 <TableHeader>
                   <TableRow className="border-orange-700/30 hover:bg-slate-700/50">
                     <TableHead className="text-gray-300">Nome</TableHead>
-                    <TableHead className="text-gray-300">Categoria</TableHead>
-                    <TableHead className="text-gray-300">Quantidade</TableHead>
-                    <TableHead className="text-gray-300">Mínimo</TableHead>
-                    <TableHead className="text-gray-300">Localização</TableHead>
-                    <TableHead className="text-gray-300">Status</TableHead>
+                    <TableHead className="text-gray-300 cursor-pointer hover:text-orange-400">Categoria</TableHead>
+                    <TableHead className="text-gray-300 cursor-pointer hover:text-orange-400">Quantidade</TableHead>
+                    <TableHead className="text-gray-300 cursor-pointer hover:text-orange-400">Mínimo</TableHead>
+                    <TableHead className="text-gray-300 cursor-pointer hover:text-orange-400">Localização</TableHead>
+                    <TableHead className="text-gray-300 cursor-pointer hover:text-orange-400">Status</TableHead>
                     <TableHead className="text-gray-300">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -215,18 +242,39 @@ export default function Inventory() {
                   {items.map((item: any) => (
                     <TableRow key={item.id} className="border-orange-700/20 hover:bg-slate-700/30">
                       <TableCell className="font-medium text-white">{item.name}</TableCell>
-                      <TableCell className="text-gray-300">{item.category}</TableCell>
-                      <TableCell className={item.quantity < item.minQuantity ? "text-red-400 font-semibold" : "text-gray-300"}>
+                      <TableCell
+                        className="text-gray-300 cursor-pointer hover:text-orange-400 transition"
+                        onClick={() => handleInlineEdit(item, "category")}
+                      >
+                        {item.category}
+                      </TableCell>
+                      <TableCell
+                        className={`cursor-pointer hover:text-orange-400 transition ${item.quantity < item.minQuantity ? "text-red-400 font-semibold" : "text-gray-300"}`}
+                        onClick={() => handleInlineEdit(item, "quantity")}
+                      >
                         {item.quantity} {item.unit}
                       </TableCell>
-                      <TableCell className="text-gray-300">{item.minQuantity}</TableCell>
-                      <TableCell className="text-gray-300">{item.location}</TableCell>
+                      <TableCell
+                        className="text-gray-300 cursor-pointer hover:text-orange-400 transition"
+                        onClick={() => handleInlineEdit(item, "minQuantity")}
+                      >
+                        {item.minQuantity}
+                      </TableCell>
+                      <TableCell
+                        className="text-gray-300 cursor-pointer hover:text-orange-400 transition"
+                        onClick={() => handleInlineEdit(item, "location")}
+                      >
+                        {item.location}
+                      </TableCell>
                       <TableCell>
-                        <span className={`px-2 py-1 rounded text-xs font-medium ${
-                          item.status === "ativo" ? "bg-green-900/30 text-green-400 border border-green-700/30" :
-                          item.status === "inativo" ? "bg-yellow-900/30 text-yellow-400 border border-yellow-700/30" :
-                          "bg-red-900/30 text-red-400 border border-red-700/30"
-                        }`}>
+                        <span
+                          className={`px-2 py-1 rounded text-xs font-medium cursor-pointer hover:opacity-80 transition ${
+                            item.status === "ativo" ? "bg-green-900/30 text-green-400 border border-green-700/30" :
+                            item.status === "inativo" ? "bg-yellow-900/30 text-yellow-400 border border-yellow-700/30" :
+                            "bg-red-900/30 text-red-400 border border-red-700/30"
+                          }`}
+                          onClick={() => handleInlineEdit(item, "status")}
+                        >
                           {item.status}
                         </span>
                       </TableCell>
@@ -259,6 +307,7 @@ export default function Inventory() {
         </CardContent>
       </Card>
 
+      {/* Dialog de Edição Completa */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="bg-slate-800 border-orange-700/30">
           <DialogHeader>
@@ -370,6 +419,81 @@ export default function Inventory() {
               </Button>
               <Button
                 onClick={() => setIsDialogOpen(false)}
+                variant="outline"
+                className="border-slate-600 text-gray-300 hover:bg-slate-700"
+              >
+                Cancelar
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de Edição Inline */}
+      <Dialog open={inlineEditingId !== null} onOpenChange={(open) => !open && setInlineEditingId(null)}>
+        <DialogContent className="bg-slate-800 border-orange-700/30 max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-white">Editar {inlineEditField?.charAt(0).toUpperCase()}{inlineEditField?.slice(1)}</DialogTitle>
+            <DialogDescription className="text-gray-400">
+              Selecione o novo valor para este campo
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {inlineEditField === "category" && (
+              <Select value={inlineEditValue} onValueChange={setInlineEditValue}>
+                <SelectTrigger className="bg-slate-700 border-slate-600 text-white">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Consumíveis">Consumíveis</SelectItem>
+                  <SelectItem value="Equipamentos">Equipamentos</SelectItem>
+                  <SelectItem value="Ferramentas">Ferramentas</SelectItem>
+                  <SelectItem value="Limpeza">Limpeza</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
+
+            {(inlineEditField === "quantity" || inlineEditField === "minQuantity") && (
+              <Input
+                type="number"
+                value={inlineEditValue}
+                onChange={(e) => setInlineEditValue(e.target.value)}
+                className="bg-slate-700 border-slate-600 text-white"
+              />
+            )}
+
+            {inlineEditField === "location" && (
+              <Input
+                value={inlineEditValue}
+                onChange={(e) => setInlineEditValue(e.target.value)}
+                placeholder="Ex: Armazém A"
+                className="bg-slate-700 border-slate-600 text-white"
+              />
+            )}
+
+            {inlineEditField === "status" && (
+              <Select value={inlineEditValue} onValueChange={setInlineEditValue}>
+                <SelectTrigger className="bg-slate-700 border-slate-600 text-white">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ativo">Ativo</SelectItem>
+                  <SelectItem value="inativo">Inativo</SelectItem>
+                  <SelectItem value="descontinuado">Descontinuado</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
+
+            <div className="flex gap-3 pt-4">
+              <Button
+                onClick={handleInlineSubmit}
+                className="bg-orange-600 hover:bg-orange-700 text-white flex-1"
+                disabled={updateMutation.isPending}
+              >
+                {updateMutation.isPending ? "Guardando..." : "Guardar"}
+              </Button>
+              <Button
+                onClick={() => setInlineEditingId(null)}
                 variant="outline"
                 className="border-slate-600 text-gray-300 hover:bg-slate-700"
               >
