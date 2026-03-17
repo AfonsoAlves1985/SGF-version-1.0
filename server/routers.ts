@@ -90,6 +90,11 @@ export const appRouter = router({
       .query(async ({ input }) => {
         return db.getInventoryMovements(input);
       }),
+
+    getAllMovements: protectedProcedure
+      .query(async () => {
+        return db.getAllInventoryMovements();
+      }),
   }),
 
   // ============ EQUIPA ============

@@ -142,3 +142,9 @@
 ## Fase 11: Correções Finais
 - [x] Mover logo para o lugar de "Navigation" na sidebar
 - [x] Corrigir seletor de idioma para mostrar apenas bandeiras (sem siglas)
+
+## Fase 12: Histórico de Movimentações
+- [x] Criar tabela de histórico de movimentações no inventário
+- [x] Adicionar gráficos de consumo por período
+- [x] Implementar filtros de data e categoria no histórico
+- [x] Criar análise de tendências de consumo

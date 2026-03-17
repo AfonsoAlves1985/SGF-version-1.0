@@ -149,6 +149,13 @@ export async function getInventoryMovements(inventoryId: number) {
   return await db.select().from(inventoryMovements).where(eq(inventoryMovements.inventoryId, inventoryId)).orderBy(desc(inventoryMovements.createdAt));
 }
 
+export async function getAllInventoryMovements() {
+  const db = await getDb();
+  if (!db) return [];
+  // @ts-ignore
+  return await db.select().from(inventoryMovements).orderBy(desc(inventoryMovements.createdAt));
+}
+
 export async function addInventoryMovement(data: InsertInventoryMovement) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
