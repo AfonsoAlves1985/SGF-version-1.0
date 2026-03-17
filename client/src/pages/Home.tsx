@@ -75,7 +75,7 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <img 
-              src="https://cdn.manus.im/sgag4belem-ztp8t7vp/logo-frz-white.png" 
+              src="https://d2xsxph8kpxj0f.cloudfront.net/310419663029190932/Ztp8T7Vpr2FQpGULvKFpsw/frz-logo-transparent-AWr7s2XLxYDAMKK7YwWNKU.webp" 
               alt="FRZ Logo" 
               className="h-10 bg-transparent" 
               style={{ filter: 'drop-shadow(0 0 2px rgba(249, 115, 22, 0.3))' }}
