@@ -176,10 +176,9 @@ function DashboardLayoutContent({
               {!isCollapsed ? (
                 <div className="flex items-center gap-2 min-w-0">
                   <img 
-                    src="https://d2xsxph8kpxj0f.cloudfront.net/310419663029190932/Ztp8T7Vpr2FQpGULvKFpsw/frz-logo-transparent-AWr7s2XLxYDAMKK7YwWNKU.webp" 
+                    src="https://d2xsxph8kpxj0f.cloudfront.net/310419663029190932/Ztp8T7Vpr2FQpGULvKFpsw/frz-logo-gold-3fS8xoBHwRKChvSMDViXhP.webp" 
                     alt="FRZ Logo" 
                     className="h-8 bg-transparent" 
-                    style={{ filter: 'drop-shadow(0 0 2px rgba(249, 115, 22, 0.3))' }}
                   />
                 </div>
               ) : null}
