@@ -295,14 +295,14 @@ export default function Consumables() {
               onChange={(e) => setFilters({ ...filters, search: e.target.value })}
               className="bg-slate-700 border-slate-600 text-white"
             />
-            <Select value={filters.category} onValueChange={(value) => setFilters({ ...filters, category: value })}>
+            <Select value={filters.category || ""} onValueChange={(value) => setFilters({ ...filters, category: value })}>
               <SelectTrigger className="w-48 bg-slate-700 border-slate-600 text-white">
                 <SelectValue placeholder="Todas as categorias" />
               </SelectTrigger>
               <SelectContent className="bg-slate-700 border-slate-600">
                 <SelectItem value="">Todas as categorias</SelectItem>
                 {categories.map((cat: any) => (
-                  <SelectItem key={cat} value={cat}>
+                  <SelectItem key={cat} value={String(cat)}>
                     {cat}
                   </SelectItem>
                 ))}
