@@ -158,3 +158,11 @@
 - [ ] Adicionar edição inline para campos de consumíveis
 - [x] Adicionar testes Vitest para o módulo de consumíveis
 - [x] Adicionar navegação para Estoque de Consumíveis no DashboardLayout
+
+
+## Fase 14: CRUD de Membros na Escala
+- [x] Implementar funcionalidade de cadastro de membros na página Schedule
+- [x] Implementar funcionalidade de edição de membros
+- [x] Implementar funcionalidade de exclusão de membros
+- [x] Adicionar testes Vitest para CRUD de membros
+- [ ] Integrar com geração automática de escala
