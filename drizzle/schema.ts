@@ -1,4 +1,4 @@
-import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, decimal, boolean, datetime, foreignKey } from "drizzle-orm/mysql-core";
+import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, decimal, boolean, datetime, foreignKey, date } from "drizzle-orm/mysql-core";
 
 /**
  * Core user table backing auth flow.
@@ -298,3 +298,68 @@ export const consumablesWithSpace = mysqlTable("consumables_with_space", {
 
 export type ConsumableWithSpace = typeof consumablesWithSpace.$inferSelect;
 export type InsertConsumableWithSpace = typeof consumablesWithSpace.$inferInsert;
+
+// Tabelas Semanais de Consumíveis
+export const consumableWeeklyMovements = mysqlTable("consumable_weekly_movements", {
+  id: int("id").autoincrement().primaryKey(),
+  consumableId: int("consumableId").notNull(),
+  spaceId: int("spaceId").notNull(),
+  weekStartDate: date("weekStartDate").notNull(),
+  weekNumber: int("weekNumber").notNull(),
+  year: int("year").notNull(),
+  mondayStock: int("mondayStock").notNull().default(0),
+  tuesdayStock: int("tuesdayStock").notNull().default(0),
+  wednesdayStock: int("wednesdayStock").notNull().default(0),
+  thursdayStock: int("thursdayStock").notNull().default(0),
+  fridayStock: int("fridayStock").notNull().default(0),
+  saturdayStock: int("saturdayStock").notNull().default(0),
+  sundayStock: int("sundayStock").notNull().default(0),
+  totalMovement: int("totalMovement").notNull().default(0),
+  status: mysqlEnum("status", ["ESTOQUE_OK", "ACIMA_DO_ESTOQUE", "REPOR_ESTOQUE"]).default("ESTOQUE_OK").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (table) => ({
+  consumableFk: foreignKey({
+    columns: [table.consumableId],
+    foreignColumns: [consumablesWithSpace.id],
+  }),
+  spaceFk: foreignKey({
+    columns: [table.spaceId],
+    foreignColumns: [consumableSpaces.id],
+  }),
+}));
+
+export type ConsumableWeeklyMovement = typeof consumableWeeklyMovements.$inferSelect;
+export type InsertConsumableWeeklyMovement = typeof consumableWeeklyMovements.$inferInsert;
+
+// Tabelas Mensais de Consumíveis (agregação de semanais)
+export const consumableMonthlyMovements = mysqlTable("consumable_monthly_movements", {
+  id: int("id").autoincrement().primaryKey(),
+  consumableId: int("consumableId").notNull(),
+  spaceId: int("spaceId").notNull(),
+  monthStartDate: date("monthStartDate").notNull(),
+  month: int("month").notNull(),
+  year: int("year").notNull(),
+  week1Stock: int("week1Stock").notNull().default(0),
+  week2Stock: int("week2Stock").notNull().default(0),
+  week3Stock: int("week3Stock").notNull().default(0),
+  week4Stock: int("week4Stock").notNull().default(0),
+  week5Stock: int("week5Stock").notNull().default(0),
+  totalMovement: int("totalMovement").notNull().default(0),
+  averageStock: int("averageStock").notNull().default(0),
+  status: mysqlEnum("status", ["ESTOQUE_OK", "ACIMA_DO_ESTOQUE", "REPOR_ESTOQUE"]).default("ESTOQUE_OK").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (table) => ({
+  consumableFk: foreignKey({
+    columns: [table.consumableId],
+    foreignColumns: [consumablesWithSpace.id],
+  }),
+  spaceFk: foreignKey({
+    columns: [table.spaceId],
+    foreignColumns: [consumableSpaces.id],
+  }),
+}));
+
+export type ConsumableMonthlyMovement = typeof consumableMonthlyMovements.$inferSelect;
+export type InsertConsumableMonthlyMovement = typeof consumableMonthlyMovements.$inferInsert;

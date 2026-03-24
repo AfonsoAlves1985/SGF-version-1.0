@@ -201,3 +201,11 @@
 - [x] Atualizar Dashboard para consultar estoque crítico de Consumíveis por unidade
 - [x] Remover referências ao Inventário no Dashboard
 - [x] Testar e validar exibição de alertas de estoque crítico
+
+
+## Fase 20: Tabelas Semanais Interdependentes em Consumíveis
+- [x] Criar schema Drizzle para tabelas semanais de consumíveis
+- [x] Implementar procedures tRPC para CRUD de movimentações semanais
+- [x] Criar interface de tabelas semanais na página Consumables
+- [x] Implementar sincronização entre tabela base e tabelas semanais
+- [x] Adicionar testes Vitest para tabelas semanais

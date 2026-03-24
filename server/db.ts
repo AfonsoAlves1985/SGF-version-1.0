@@ -8,7 +8,8 @@ import {
   maintenanceRequests, InsertMaintenanceRequest,
   suppliers, contracts, InsertSupplier, InsertContract,
   consumables, consumablesWeekly, consumablesMonthly, InsertConsumable, InsertConsumableWeekly, InsertConsumableMonthly,
-  consumableSpaces, consumablesWithSpace, InsertConsumableSpace, InsertConsumableWithSpace
+  consumableSpaces, consumablesWithSpace, InsertConsumableSpace, InsertConsumableWithSpace,
+  consumableWeeklyMovements, consumableMonthlyMovements, InsertConsumableWeeklyMovement, InsertConsumableMonthlyMovement
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -641,4 +642,87 @@ export async function deleteConsumableWithSpace(id: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   return db.delete(consumablesWithSpace).where(eq(consumablesWithSpace.id, id));
+}
+
+
+// Movimentações Semanais de Consumíveis
+export async function getConsumableWeeklyMovements(spaceId?: number, consumableId?: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  let query = db.select().from(consumableWeeklyMovements);
+  const conditions = [];
+
+  if (spaceId) {
+    conditions.push(eq(consumableWeeklyMovements.spaceId, spaceId));
+  }
+  if (consumableId) {
+    conditions.push(eq(consumableWeeklyMovements.consumableId, consumableId));
+  }
+
+  if (conditions.length > 0) {
+    // @ts-ignore - Drizzle ORM type inference issue
+    query = query.where(and(...conditions));
+  }
+
+  return (await query.orderBy(desc(consumableWeeklyMovements.weekStartDate))) as any;
+}
+
+export async function createConsumableWeeklyMovement(data: InsertConsumableWeeklyMovement) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  return db.insert(consumableWeeklyMovements).values(data);
+}
+
+export async function updateConsumableWeeklyMovement(id: number, data: Partial<InsertConsumableWeeklyMovement>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  return db.update(consumableWeeklyMovements).set(data).where(eq(consumableWeeklyMovements.id, id));
+}
+
+export async function deleteConsumableWeeklyMovement(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  return db.delete(consumableWeeklyMovements).where(eq(consumableWeeklyMovements.id, id));
+}
+
+// Movimentações Mensais de Consumíveis
+export async function getConsumableMonthlyMovements(spaceId?: number, consumableId?: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  let query = db.select().from(consumableMonthlyMovements);
+  const conditions = [];
+
+  if (spaceId) {
+    conditions.push(eq(consumableMonthlyMovements.spaceId, spaceId));
+  }
+  if (consumableId) {
+    conditions.push(eq(consumableMonthlyMovements.consumableId, consumableId));
+  }
+
+  if (conditions.length > 0) {
+    // @ts-ignore - Drizzle ORM type inference issue
+    query = query.where(and(...conditions));
+  }
+
+  return (await query.orderBy(desc(consumableMonthlyMovements.monthStartDate))) as any;
+}
+
+export async function createConsumableMonthlyMovement(data: InsertConsumableMonthlyMovement) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  return db.insert(consumableMonthlyMovements).values(data);
+}
+
+export async function updateConsumableMonthlyMovement(id: number, data: Partial<InsertConsumableMonthlyMovement>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  return db.update(consumableMonthlyMovements).set(data).where(eq(consumableMonthlyMovements.id, id));
+}
+
+export async function deleteConsumableMonthlyMovement(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  return db.delete(consumableMonthlyMovements).where(eq(consumableMonthlyMovements.id, id));
 }

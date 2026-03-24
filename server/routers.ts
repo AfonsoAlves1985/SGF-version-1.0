@@ -667,6 +667,116 @@ export const appRouter = router({
         return db.deleteConsumableWithSpace(input);
       }),
   }),
+
+  consumableWeeklyMovements: router({
+    list: protectedProcedure
+      .input(z.object({
+        spaceId: z.number().optional(),
+        consumableId: z.number().optional(),
+      }).optional())
+      .query(async ({ input }) => {
+        return db.getConsumableWeeklyMovements(input?.spaceId, input?.consumableId);
+      }),
+
+    create: protectedProcedure
+      .input(z.object({
+        consumableId: z.number(),
+        spaceId: z.number(),
+        weekStartDate: z.date(),
+        weekNumber: z.number(),
+        year: z.number(),
+        mondayStock: z.number().default(0),
+        tuesdayStock: z.number().default(0),
+        wednesdayStock: z.number().default(0),
+        thursdayStock: z.number().default(0),
+        fridayStock: z.number().default(0),
+        saturdayStock: z.number().default(0),
+        sundayStock: z.number().default(0),
+        totalMovement: z.number().default(0),
+        status: z.enum(["ESTOQUE_OK", "ACIMA_DO_ESTOQUE", "REPOR_ESTOQUE"]).default("ESTOQUE_OK"),
+      }))
+      .mutation(async ({ input }) => {
+        return db.createConsumableWeeklyMovement(input);
+      }),
+
+    update: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        mondayStock: z.number().optional(),
+        tuesdayStock: z.number().optional(),
+        wednesdayStock: z.number().optional(),
+        thursdayStock: z.number().optional(),
+        fridayStock: z.number().optional(),
+        saturdayStock: z.number().optional(),
+        sundayStock: z.number().optional(),
+        totalMovement: z.number().optional(),
+        status: z.enum(["ESTOQUE_OK", "ACIMA_DO_ESTOQUE", "REPOR_ESTOQUE"]).optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const { id, ...data } = input;
+        return db.updateConsumableWeeklyMovement(id, data);
+      }),
+
+    delete: protectedProcedure
+      .input(z.number())
+      .mutation(async ({ input }) => {
+        return db.deleteConsumableWeeklyMovement(input);
+      }),
+  }),
+
+  consumableMonthlyMovements: router({
+    list: protectedProcedure
+      .input(z.object({
+        spaceId: z.number().optional(),
+        consumableId: z.number().optional(),
+      }).optional())
+      .query(async ({ input }) => {
+        return db.getConsumableMonthlyMovements(input?.spaceId, input?.consumableId);
+      }),
+
+    create: protectedProcedure
+      .input(z.object({
+        consumableId: z.number(),
+        spaceId: z.number(),
+        monthStartDate: z.date(),
+        month: z.number(),
+        year: z.number(),
+        week1Stock: z.number().default(0),
+        week2Stock: z.number().default(0),
+        week3Stock: z.number().default(0),
+        week4Stock: z.number().default(0),
+        week5Stock: z.number().default(0),
+        totalMovement: z.number().default(0),
+        averageStock: z.number().default(0),
+        status: z.enum(["ESTOQUE_OK", "ACIMA_DO_ESTOQUE", "REPOR_ESTOQUE"]).default("ESTOQUE_OK"),
+      }))
+      .mutation(async ({ input }) => {
+        return db.createConsumableMonthlyMovement(input);
+      }),
+
+    update: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        week1Stock: z.number().optional(),
+        week2Stock: z.number().optional(),
+        week3Stock: z.number().optional(),
+        week4Stock: z.number().optional(),
+        week5Stock: z.number().optional(),
+        totalMovement: z.number().optional(),
+        averageStock: z.number().optional(),
+        status: z.enum(["ESTOQUE_OK", "ACIMA_DO_ESTOQUE", "REPOR_ESTOQUE"]).optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const { id, ...data } = input;
+        return db.updateConsumableMonthlyMovement(id, data);
+      }),
+
+    delete: protectedProcedure
+      .input(z.number())
+      .mutation(async ({ input }) => {
+        return db.deleteConsumableMonthlyMovement(input);
+      }),
+  }),
 });
 
 export type AppRouter = typeof appRouter;

@@ -23,6 +23,10 @@ import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { EditableCell } from "@/components/EditableCell";
+import { WeeklyMovementsTable } from "@/components/WeeklyMovementsTable";
+import { MonthlyMovementsTable } from "@/components/MonthlyMovementsTable";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
 
 export default function Consumables() {
   const { t } = useLanguage();
@@ -645,6 +649,38 @@ export default function Consumables() {
               )}
             </CardContent>
           </Card>
+
+          {/* Movimentações Semanais e Mensais */}
+          {consumables.length > 0 && (
+            <div className="space-y-6">
+              <Tabs defaultValue="weekly" className="w-full">
+                <TabsList className="grid w-full grid-cols-2 bg-slate-800/50 border border-orange-700/20">
+                  <TabsTrigger value="weekly">Movimentações Semanais</TabsTrigger>
+                  <TabsTrigger value="monthly">Movimentações Mensais</TabsTrigger>
+                </TabsList>
+                <TabsContent value="weekly" className="space-y-4">
+                  {consumables.map((item: any) => (
+                    <WeeklyMovementsTable
+                      key={`weekly-${item.id}`}
+                      consumableId={item.id}
+                      spaceId={selectedSpace}
+                      consumableName={item.name}
+                    />
+                  ))}
+                </TabsContent>
+                <TabsContent value="monthly" className="space-y-4">
+                  {consumables.map((item: any) => (
+                    <MonthlyMovementsTable
+                      key={`monthly-${item.id}`}
+                      consumableId={item.id}
+                      spaceId={selectedSpace}
+                      consumableName={item.name}
+                    />
+                  ))}
+                </TabsContent>
+              </Tabs>
+            </div>
+          )}
         </>
       )}
 
