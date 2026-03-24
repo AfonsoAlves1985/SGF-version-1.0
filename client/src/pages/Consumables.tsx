@@ -22,6 +22,7 @@ import { Plus, Edit2, Trash2, AlertCircle, CheckCircle, AlertTriangle, X, Buildi
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { EditableCell } from "@/components/EditableCell";
 
 export default function Consumables() {
   const { t } = useLanguage();
@@ -570,8 +571,30 @@ export default function Consumables() {
                           <TableCell className="text-gray-300">{item.unit}</TableCell>
                           <TableCell className="text-right text-gray-300">{item.minStock}</TableCell>
                           <TableCell className="text-right text-gray-300 text-green-400">{item.maxStock}</TableCell>
-                          <TableCell className="text-right text-gray-300 font-semibold">{item.currentStock}</TableCell>
-                          <TableCell className="text-right text-gray-300">{item.replenishStock}</TableCell>
+                          <TableCell className="text-right text-gray-300 font-semibold">
+                            <EditableCell
+                              value={item.currentStock}
+                              type="number"
+                              onSave={(value) => {
+                                updateMutation.mutate({
+                                  id: item.id,
+                                  currentStock: Number(value),
+                                });
+                              }}
+                            />
+                          </TableCell>
+                          <TableCell className="text-right text-gray-300">
+                            <EditableCell
+                              value={item.replenishStock}
+                              type="number"
+                              onSave={(value) => {
+                                updateMutation.mutate({
+                                  id: item.id,
+                                  replenishStock: Number(value),
+                                });
+                              }}
+                            />
+                          </TableCell>
                           <TableCell>
                             <div className={`inline-flex items-center gap-2 px-2 py-1 rounded ${getStatusColor(item.status)}`}>
                               {getStatusIcon(item.status)}

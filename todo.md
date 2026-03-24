@@ -182,3 +182,10 @@
 - [x] Implementar CRUD de unidades (cadastro, edição, exclusão)
 - [x] Associar consumíveis a unidades específicas
 - [x] Adicionar testes Vitest para o novo sistema
+
+
+## Fase 17: Edição Inline em Consumíveis
+- [x] Criar componente de célula editável para tabela
+- [x] Integrar edição inline na tabela de consumíveis
+- [x] Implementar salvamento automático ao perder foco
+- [x] Adicionar testes Vitest para edição inline
