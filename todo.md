@@ -229,3 +229,14 @@
 - [x] Adicionar feedback visual claro
 - [x] Remover sobreposição de elementos
 - [x] Testar usabilidade do drawer
+
+
+## Fase 23: Refatoração para Tabela Única com Seletor de Semana
+- [x] Remover drawers individuais de cada consumível
+- [x] Adicionar seletor de semana no topo/canto da página
+- [x] Implementar carregamento de movimentações por semana
+- [x] Adicionar coluna(s) de movimentações semanais na tabela
+- [x] Implementar comparação entre semanas (atual vs. anteriores)
+- [x] Permitir edição de movimentações diretamente na tabela
+- [x] Testar navegação entre semanas
+- [x] Testar sincronização de dados
