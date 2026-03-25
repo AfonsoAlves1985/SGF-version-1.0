@@ -25,7 +25,6 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { EditableCell } from "@/components/EditableCell";
 import { WeeklyMovementsDrawer } from "@/components/WeeklyMovementsDrawer";
 
-
 export default function Consumables() {
   const { t } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
@@ -53,10 +52,13 @@ export default function Consumables() {
 
   // Queries
   const { data: spaces = [], isLoading: spacesLoading, refetch: refetchSpaces } = trpc.consumableSpaces.list.useQuery();
-  const { data: consumables = [], isLoading, refetch } = trpc.consumablesWithSpace.list.useQuery({
-    spaceId: selectedSpace || undefined,
-    ...filters,
-  });
+  const { data: consumables = [], isLoading, refetch } = trpc.consumablesWithSpace.list.useQuery(
+    {
+      spaceId: selectedSpace || undefined,
+      ...filters,
+    },
+    { enabled: !!selectedSpace }
+  );
 
   // Mutations for Consumables
   const createMutation = trpc.consumablesWithSpace.create.useMutation({
@@ -270,6 +272,14 @@ export default function Consumables() {
 
   const criticalItems = consumables.filter((item: any) => item.status === "REPOR_ESTOQUE");
 
+  if (spacesLoading) {
+    return (
+      <div className="flex items-center justify-center h-96 text-gray-400">
+        <p>Carregando unidades...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -290,7 +300,7 @@ export default function Consumables() {
               Novo Consumível
             </Button>
           </DialogTrigger>
-          <DialogContent className="bg-slate-800 border-orange-700/30">
+          <DialogContent className="bg-slate-800 border-orange-700/30 max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="text-white">{editingId ? "Editar" : "Novo"} Consumível</DialogTitle>
             </DialogHeader>
@@ -373,107 +383,106 @@ export default function Consumables() {
         </Dialog>
       </div>
 
-      {spacesLoading ? (
-        <div className="text-center py-8 text-gray-400">Carregando unidades...</div>
-      ) : (
-        selectedSpace && (
-          <>
-            {/* Spaces Management */}
-            <Card className="bg-slate-800/50 border-orange-700/20">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Building2 className="h-5 w-5 text-orange-500" />
-                <CardTitle className="text-white">Unidades</CardTitle>
+      {/* Spaces Management - Always visible */}
+      <Card className="bg-slate-800/50 border-orange-700/20">
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Building2 className="h-5 w-5 text-orange-500" />
+            <CardTitle className="text-white">Unidades</CardTitle>
+          </div>
+          <Dialog open={isSpaceDialogOpen} onOpenChange={setIsSpaceDialogOpen}>
+            <DialogTrigger asChild>
+              <Button
+                onClick={() => {
+                  setSpaceFormData({ name: "", description: "", location: "" });
+                  setEditingSpaceId(null);
+                }}
+                className="bg-orange-600 hover:bg-orange-700 text-white"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Nova Unidade
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="bg-slate-800 border-orange-700/30">
+              <DialogHeader>
+                <DialogTitle className="text-white">{editingSpaceId ? "Editar" : "Nova"} Unidade</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium text-gray-300">Nome</label>
+                  <Input
+                    value={spaceFormData.name}
+                    onChange={(e) => setSpaceFormData({ ...spaceFormData, name: e.target.value })}
+                    className="bg-slate-700 border-slate-600 text-white mt-1"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-300">Descrição</label>
+                  <Input
+                    value={spaceFormData.description}
+                    onChange={(e) => setSpaceFormData({ ...spaceFormData, description: e.target.value })}
+                    className="bg-slate-700 border-slate-600 text-white mt-1"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-300">Localização</label>
+                  <Input
+                    value={spaceFormData.location}
+                    onChange={(e) => setSpaceFormData({ ...spaceFormData, location: e.target.value })}
+                    className="bg-slate-700 border-slate-600 text-white mt-1"
+                  />
+                </div>
+                <Button onClick={handleSubmitSpace} className="w-full bg-orange-600 hover:bg-orange-700">
+                  {editingSpaceId ? "Atualizar" : "Criar"} Unidade
+                </Button>
               </div>
-              <Dialog open={isSpaceDialogOpen} onOpenChange={setIsSpaceDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button
-                    onClick={() => {
-                      setSpaceFormData({ name: "", description: "", location: "" });
-                      setEditingSpaceId(null);
-                    }}
-                    className="bg-orange-600 hover:bg-orange-700 text-white"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Nova Unidade
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="bg-slate-800 border-orange-700/30">
-                  <DialogHeader>
-                    <DialogTitle className="text-white">{editingSpaceId ? "Editar" : "Nova"} Unidade</DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-4">
-                    <div>
-                      <label className="text-sm font-medium text-gray-300">Nome</label>
-                      <Input
-                        value={spaceFormData.name}
-                        onChange={(e) => setSpaceFormData({ ...spaceFormData, name: e.target.value })}
-                        className="bg-slate-700 border-slate-600 text-white mt-1"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-300">Descrição</label>
-                      <Input
-                        value={spaceFormData.description}
-                        onChange={(e) => setSpaceFormData({ ...spaceFormData, description: e.target.value })}
-                        className="bg-slate-700 border-slate-600 text-white mt-1"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-300">Localização</label>
-                      <Input
-                        value={spaceFormData.location}
-                        onChange={(e) => setSpaceFormData({ ...spaceFormData, location: e.target.value })}
-                        className="bg-slate-700 border-slate-600 text-white mt-1"
-                      />
-                    </div>
-                    <Button onClick={handleSubmitSpace} className="w-full bg-orange-600 hover:bg-orange-700">
-                      {editingSpaceId ? "Atualizar" : "Criar"} Unidade
-                    </Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
-            </CardHeader>
-            <CardContent>
-              <div className="flex gap-2 flex-wrap">
-                {spaces.map((space: any) => (
-                  <div
-                    key={space.id}
-                    className={`px-4 py-2 rounded-lg border-2 transition-all cursor-pointer ${
-                      selectedSpace === space.id
-                        ? "bg-orange-600 border-orange-500 text-white"
-                        : "bg-slate-700 border-slate-600 text-gray-300 hover:border-orange-500"
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
+            </DialogContent>
+          </Dialog>
+        </CardHeader>
+        <CardContent>
+          <div className="flex gap-2 flex-wrap">
+            {spaces.length === 0 ? (
+              <p className="text-gray-400 w-full">Nenhuma unidade cadastrada. Crie uma para começar!</p>
+            ) : (
+              spaces.map((space: any) => (
+                <div
+                  key={space.id}
+                  className={`px-4 py-2 rounded-lg border-2 transition-all cursor-pointer ${
+                    selectedSpace === space.id
+                      ? "bg-orange-600 border-orange-500 text-white"
+                      : "bg-slate-700 border-slate-600 text-gray-300 hover:border-orange-500"
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => setSelectedSpace(space.id)} className="flex-1">
+                      <div className="font-medium">{space.name}</div>
+                      {space.location && <div className="text-xs opacity-75">{space.location}</div>}
+                    </button>
+                    <div className="flex gap-1">
                       <button
-                        onClick={() => setSelectedSpace(space.id)}
-                        className="flex-1"
+                        onClick={() => handleEditSpace(space)}
+                        className="text-orange-400 hover:text-orange-300 transition-colors"
                       >
-                        <div className="font-medium">{space.name}</div>
-                        {space.location && <div className="text-xs opacity-75">{space.location}</div>}
+                        <Edit2 className="h-4 w-4" />
                       </button>
-                      <div className="flex gap-1">
-                        <button
-                          onClick={() => handleEditSpace(space)}
-                          className="text-orange-400 hover:text-orange-300 transition-colors"
-                        >
-                          <Edit2 className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteSpace(space.id)}
-                          className="text-red-400 hover:text-red-300 transition-colors"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
+                      <button
+                        onClick={() => handleDeleteSpace(space.id)}
+                        className="text-red-400 hover:text-red-300 transition-colors"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
                     </div>
                   </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+                </div>
+              ))
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
+      {/* Consumables Content - Only shown when space is selected */}
+      {selectedSpace ? (
+        <>
           {/* Critical Stock Alert */}
           {criticalItems.length > 0 && (
             <Card className="bg-red-900/20 border-red-700/50">
@@ -489,7 +498,9 @@ export default function Consumables() {
                     <div key={item.id} className="flex justify-between items-center p-2 bg-slate-700/50 rounded">
                       <div>
                         <p className="text-white font-medium">{item.name}</p>
-                        <p className="text-xs text-gray-400">{item.category} • Atual: {item.currentStock}/{item.minStock}</p>
+                        <p className="text-xs text-gray-400">
+                          {item.category} • Atual: {item.currentStock}/{item.minStock}
+                        </p>
                       </div>
                       <button
                         onClick={() => handleEdit(item)}
@@ -507,8 +518,8 @@ export default function Consumables() {
           {/* Filters */}
           <Card className="bg-slate-800/50 border-orange-700/20">
             <CardContent className="pt-6">
-              <div className="flex gap-4 items-end">
-                <div className="flex-1">
+              <div className="flex gap-4 items-end flex-wrap">
+                <div className="flex-1 min-w-[200px]">
                   <label className="text-sm font-medium text-gray-300 block mb-2">Pesquisar</label>
                   <Input
                     placeholder="Pesquisar por produto..."
@@ -518,7 +529,7 @@ export default function Consumables() {
                   />
                 </div>
                 {categories.length > 0 && (
-                  <div className="flex gap-2 items-end">
+                  <div className="flex gap-2 items-end flex-wrap">
                     <div>
                       <label className="text-sm font-medium text-gray-300 block mb-2">Categoria</label>
                       <div className="flex gap-2 flex-wrap">
@@ -647,15 +658,12 @@ export default function Consumables() {
                 </div>
               )}
             </CardContent>
-            </Card>
-          </>
-        )
-      )}
-
-      {!spacesLoading && !selectedSpace && spaces.length > 0 && (
+          </Card>
+        </>
+      ) : (
         <Card className="bg-slate-800/50 border-orange-700/20">
           <CardContent className="pt-6">
-            <p className="text-gray-400 text-center">Selecione uma unidade para visualizar e gerenciar consumíveis</p>
+            <p className="text-gray-400 text-center">Selecione uma unidade acima para visualizar e gerenciar consumíveis</p>
           </CardContent>
         </Card>
       )}
