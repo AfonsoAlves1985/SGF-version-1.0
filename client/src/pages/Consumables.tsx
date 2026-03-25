@@ -18,20 +18,20 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Plus, Edit2, Trash2, AlertCircle, CheckCircle, AlertTriangle, X, Building2 } from "lucide-react";
+import { Plus, Edit2, Trash2, AlertCircle, CheckCircle, AlertTriangle, X, Building2, Calendar } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { EditableCell } from "@/components/EditableCell";
-import { WeeklyMovementsTable } from "@/components/WeeklyMovementsTable";
-import { MonthlyMovementsTable } from "@/components/MonthlyMovementsTable";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { WeeklyMovementsDrawer } from "@/components/WeeklyMovementsDrawer";
 
 
 export default function Consumables() {
   const { t } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
   const [isSpaceDialogOpen, setIsSpaceDialogOpen] = useState(false);
+  const [isWeeklyDrawerOpen, setIsWeeklyDrawerOpen] = useState(false);
+  const [selectedConsumableForWeekly, setSelectedConsumableForWeekly] = useState<any>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editingSpaceId, setEditingSpaceId] = useState<number | null>(null);
   const [selectedSpace, setSelectedSpace] = useState<number | null>(null);
@@ -154,6 +154,11 @@ export default function Consumables() {
     setIsOpen(true);
   };
 
+  const handleOpenWeeklyDrawer = (item: any) => {
+    setSelectedConsumableForWeekly(item);
+    setIsWeeklyDrawerOpen(true);
+  };
+
   const handleSubmit = async () => {
     if (!formData.name || !formData.category || !formData.unit || !selectedSpace) {
       toast.error(t("app.required_fields"));
@@ -271,7 +276,7 @@ export default function Consumables() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-white">Estoque de Consumíveis</h1>
-          <p className="text-gray-400 mt-1">Gestão de consumíveis por unidade com histórico semanal e mensal</p>
+          <p className="text-gray-400 mt-1">Gestão de consumíveis por unidade com histórico semanal</p>
         </div>
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
           <DialogTrigger asChild>
@@ -316,7 +321,7 @@ export default function Consumables() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm font-medium text-gray-300">Estoque Mínimo</label>
+                  <label className="text-sm font-medium text-gray-300">Est. Mínimo</label>
                   <Input
                     type="number"
                     value={formData.minStock}
@@ -325,179 +330,166 @@ export default function Consumables() {
                   />
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-300">Estoque Máximo</label>
+                  <label className="text-sm font-medium text-gray-300">Est. Máximo</label>
                   <Input
                     type="number"
                     value={formData.maxStock}
-                    onChange={(e) => {
-                      const newMaxStock = parseInt(e.target.value) || 0;
-                      const newReplenish = calculateReplenishStock(newMaxStock, formData.currentStock);
-                      setFormData({ ...formData, maxStock: newMaxStock, replenishStock: newReplenish });
-                    }}
+                    onChange={(e) => setFormData({ ...formData, maxStock: parseInt(e.target.value) || 0 })}
                     className="bg-slate-700 border-slate-600 text-white mt-1"
                   />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium text-gray-300">Estoque Atual</label>
-                  <Input
-                    type="number"
-                    value={formData.currentStock}
-                    onChange={(e) => {
-                      const newCurrentStock = parseInt(e.target.value) || 0;
-                      const newReplenish = calculateReplenishStock(formData.maxStock, newCurrentStock);
-                      setFormData({ ...formData, currentStock: newCurrentStock, replenishStock: newReplenish });
-                    }}
-                    className="bg-slate-700 border-slate-600 text-white mt-1"
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-300">Repor Estoque (Automático)</label>
-                  <Input
-                    type="number"
-                    value={formData.replenishStock}
-                    disabled
-                    className="bg-slate-600 border-slate-600 text-gray-400 mt-1 cursor-not-allowed"
-                  />
-                  <p className="text-xs text-gray-400 mt-1">Calculado automaticamente baseado no estoque máximo e atual</p>
-                </div>
+              <div>
+                <label className="text-sm font-medium text-gray-300">Est. Atual</label>
+                <Input
+                  type="number"
+                  value={formData.currentStock}
+                  onChange={(e) => {
+                    const value = parseInt(e.target.value) || 0;
+                    setFormData({
+                      ...formData,
+                      currentStock: value,
+                      replenishStock: calculateReplenishStock(formData.maxStock, value),
+                    });
+                  }}
+                  className="bg-slate-700 border-slate-600 text-white mt-1"
+                />
               </div>
-              <Button
-                onClick={handleSubmit}
-                className="w-full bg-orange-600 hover:bg-orange-700 text-white"
-                disabled={createMutation.isPending || updateMutation.isPending}
-              >
-                {editingId ? "Atualizar" : "Criar"}
+              <div>
+                <label className="text-sm font-medium text-gray-300">Repor Estoque (Automático)</label>
+                <Input
+                  type="number"
+                  value={formData.replenishStock}
+                  disabled
+                  className="bg-slate-700 border-slate-600 text-gray-500 mt-1 opacity-50 cursor-not-allowed"
+                />
+                <p className="text-xs text-gray-400 mt-1">Calculado automaticamente: máximo - atual</p>
+              </div>
+              <Button onClick={handleSubmit} className="w-full bg-orange-600 hover:bg-orange-700">
+                {editingId ? "Atualizar" : "Criar"} Consumível
               </Button>
             </div>
           </DialogContent>
         </Dialog>
       </div>
 
-      {/* Spaces Management */}
-      <Card className="bg-slate-800/50 border-orange-700/20">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Building2 className="h-5 w-5 text-orange-500" />
-              <CardTitle className="text-white">Unidades</CardTitle>
-            </div>
-            <Dialog open={isSpaceDialogOpen} onOpenChange={setIsSpaceDialogOpen}>
-              <DialogTrigger asChild>
-                <Button
-                  onClick={() => {
-                    setEditingSpaceId(null);
-                    setSpaceFormData({ name: "", description: "", location: "" });
-                  }}
-                  className="bg-orange-600 hover:bg-orange-700 text-white"
-                  size="sm"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Nova Unidade
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="bg-slate-800 border-orange-700/30">
-                <DialogHeader>
-                  <DialogTitle className="text-white">{editingSpaceId ? "Editar" : "Nova"} Unidade</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4">
-                  <div>
-                    <label className="text-sm font-medium text-gray-300">Nome</label>
-                    <Input
-                      value={spaceFormData.name}
-                      onChange={(e) => setSpaceFormData({ ...spaceFormData, name: e.target.value })}
-                      className="bg-slate-700 border-slate-600 text-white mt-1"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-300">Descrição</label>
-                    <Input
-                      value={spaceFormData.description}
-                      onChange={(e) => setSpaceFormData({ ...spaceFormData, description: e.target.value })}
-                      className="bg-slate-700 border-slate-600 text-white mt-1"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-300">Localização</label>
-                    <Input
-                      value={spaceFormData.location}
-                      onChange={(e) => setSpaceFormData({ ...spaceFormData, location: e.target.value })}
-                      className="bg-slate-700 border-slate-600 text-white mt-1"
-                    />
-                  </div>
+      {spacesLoading ? (
+        <div className="text-center py-8 text-gray-400">Carregando unidades...</div>
+      ) : (
+        selectedSpace && (
+          <>
+            {/* Spaces Management */}
+            <Card className="bg-slate-800/50 border-orange-700/20">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Building2 className="h-5 w-5 text-orange-500" />
+                <CardTitle className="text-white">Unidades</CardTitle>
+              </div>
+              <Dialog open={isSpaceDialogOpen} onOpenChange={setIsSpaceDialogOpen}>
+                <DialogTrigger asChild>
                   <Button
-                    onClick={handleSubmitSpace}
-                    className="w-full bg-orange-600 hover:bg-orange-700 text-white"
-                    disabled={createSpaceMutation.isPending || updateSpaceMutation.isPending}
+                    onClick={() => {
+                      setSpaceFormData({ name: "", description: "", location: "" });
+                      setEditingSpaceId(null);
+                    }}
+                    className="bg-orange-600 hover:bg-orange-700 text-white"
                   >
-                    {editingSpaceId ? "Atualizar" : "Criar"}
+                    <Plus className="h-4 w-4 mr-2" />
+                    Nova Unidade
                   </Button>
-                </div>
-              </DialogContent>
-            </Dialog>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="flex gap-2 flex-wrap">
-            {spacesLoading ? (
-              <p className="text-gray-400">Carregando unidades...</p>
-            ) : spaces.length === 0 ? (
-              <p className="text-gray-400">Nenhuma unidade cadastrada</p>
-            ) : (
-              spaces.map((space: any) => (
-                <div
-                  key={space.id}
-                  className={`flex items-center gap-2 px-3 py-2 rounded border transition-colors ${
-                    selectedSpace === space.id
-                      ? "bg-orange-600 text-white border-orange-600"
-                      : "bg-slate-700 text-gray-300 border-slate-600 hover:bg-slate-600"
-                  }`}
-                >
-                  <button
-                    onClick={() => setSelectedSpace(selectedSpace === space.id ? null : space.id)}
-                    className="flex-1 text-left font-medium"
+                </DialogTrigger>
+                <DialogContent className="bg-slate-800 border-orange-700/30">
+                  <DialogHeader>
+                    <DialogTitle className="text-white">{editingSpaceId ? "Editar" : "Nova"} Unidade</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-sm font-medium text-gray-300">Nome</label>
+                      <Input
+                        value={spaceFormData.name}
+                        onChange={(e) => setSpaceFormData({ ...spaceFormData, name: e.target.value })}
+                        className="bg-slate-700 border-slate-600 text-white mt-1"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-300">Descrição</label>
+                      <Input
+                        value={spaceFormData.description}
+                        onChange={(e) => setSpaceFormData({ ...spaceFormData, description: e.target.value })}
+                        className="bg-slate-700 border-slate-600 text-white mt-1"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-300">Localização</label>
+                      <Input
+                        value={spaceFormData.location}
+                        onChange={(e) => setSpaceFormData({ ...spaceFormData, location: e.target.value })}
+                        className="bg-slate-700 border-slate-600 text-white mt-1"
+                      />
+                    </div>
+                    <Button onClick={handleSubmitSpace} className="w-full bg-orange-600 hover:bg-orange-700">
+                      {editingSpaceId ? "Atualizar" : "Criar"} Unidade
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </CardHeader>
+            <CardContent>
+              <div className="flex gap-2 flex-wrap">
+                {spaces.map((space: any) => (
+                  <div
+                    key={space.id}
+                    className={`px-4 py-2 rounded-lg border-2 transition-all cursor-pointer ${
+                      selectedSpace === space.id
+                        ? "bg-orange-600 border-orange-500 text-white"
+                        : "bg-slate-700 border-slate-600 text-gray-300 hover:border-orange-500"
+                    }`}
                   >
-                    {space.name}
-                  </button>
-                  <button
-                    onClick={() => handleEditSpace(space)}
-                    className="text-orange-400 hover:text-orange-300 transition-colors"
-                  >
-                    <Edit2 className="h-4 w-4" />
-                  </button>
-                  <button
-                    onClick={() => handleDeleteSpace(space.id)}
-                    className="text-red-400 hover:text-red-300 transition-colors"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
-              ))
-            )}
-          </div>
-        </CardContent>
-      </Card>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setSelectedSpace(space.id)}
+                        className="flex-1"
+                      >
+                        <div className="font-medium">{space.name}</div>
+                        {space.location && <div className="text-xs opacity-75">{space.location}</div>}
+                      </button>
+                      <div className="flex gap-1">
+                        <button
+                          onClick={() => handleEditSpace(space)}
+                          className="text-orange-400 hover:text-orange-300 transition-colors"
+                        >
+                          <Edit2 className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteSpace(space.id)}
+                          className="text-red-400 hover:text-red-300 transition-colors"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
 
-      {selectedSpace && (
-        <>
-          {/* Critical Stock Alerts */}
+          {/* Critical Stock Alert */}
           {criticalItems.length > 0 && (
-            <Card className="bg-red-900/30 border-red-700/50">
+            <Card className="bg-red-900/20 border-red-700/50">
               <CardHeader>
                 <CardTitle className="text-red-400 flex items-center gap-2">
                   <AlertCircle className="h-5 w-5" />
-                  Alertas de Stock Crítico
+                  Consumíveis com Estoque Crítico
                 </CardTitle>
-                <CardDescription className="text-red-300/70">Consumíveis que necessitam reposição imediata</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
-                  {criticalItems.map((item: any) => (
-                    <div key={item.id} className="flex items-center justify-between bg-red-900/20 p-3 rounded border border-red-700/30">
-                      <div className="flex-1">
+                  {criticalItems.slice(0, 10).map((item: any) => (
+                    <div key={item.id} className="flex justify-between items-center p-2 bg-slate-700/50 rounded">
+                      <div>
                         <p className="text-white font-medium">{item.name}</p>
-                        <p className="text-red-300/70 text-sm">Estoque: {item.currentStock} {item.unit} (Mínimo: {item.minStock})</p>
+                        <p className="text-xs text-gray-400">{item.category} • Atual: {item.currentStock}/{item.minStock}</p>
                       </div>
                       <button
                         onClick={() => handleEdit(item)}
@@ -625,6 +617,13 @@ export default function Consumables() {
                           <TableCell className="text-right">
                             <div className="flex gap-2 justify-end">
                               <button
+                                onClick={() => handleOpenWeeklyDrawer(item)}
+                                className="text-blue-500 hover:text-blue-400 transition-colors"
+                                title="Ver movimentações semanais"
+                              >
+                                <Calendar className="h-4 w-4" />
+                              </button>
+                              <button
                                 onClick={() => handleEdit(item)}
                                 className="text-orange-500 hover:text-orange-400 transition-colors"
                               >
@@ -648,48 +647,28 @@ export default function Consumables() {
                 </div>
               )}
             </CardContent>
-          </Card>
-
-          {/* Movimentações Semanais e Mensais */}
-          {consumables.length > 0 && (
-            <div className="space-y-6">
-              <Tabs defaultValue="weekly" className="w-full">
-                <TabsList className="grid w-full grid-cols-2 bg-slate-800/50 border border-orange-700/20">
-                  <TabsTrigger value="weekly">Movimentações Semanais</TabsTrigger>
-                  <TabsTrigger value="monthly">Movimentações Mensais</TabsTrigger>
-                </TabsList>
-                <TabsContent value="weekly" className="space-y-4">
-                  {consumables.map((item: any) => (
-                    <WeeklyMovementsTable
-                      key={`weekly-${item.id}`}
-                      consumableId={item.id}
-                      spaceId={selectedSpace}
-                      consumableName={item.name}
-                    />
-                  ))}
-                </TabsContent>
-                <TabsContent value="monthly" className="space-y-4">
-                  {consumables.map((item: any) => (
-                    <MonthlyMovementsTable
-                      key={`monthly-${item.id}`}
-                      consumableId={item.id}
-                      spaceId={selectedSpace}
-                      consumableName={item.name}
-                    />
-                  ))}
-                </TabsContent>
-              </Tabs>
-            </div>
-          )}
-        </>
+            </Card>
+          </>
+        )
       )}
 
-      {!selectedSpace && spaces.length > 0 && (
+      {!spacesLoading && !selectedSpace && spaces.length > 0 && (
         <Card className="bg-slate-800/50 border-orange-700/20">
           <CardContent className="pt-6">
             <p className="text-gray-400 text-center">Selecione uma unidade para visualizar e gerenciar consumíveis</p>
           </CardContent>
         </Card>
+      )}
+
+      {/* Weekly Movements Drawer */}
+      {selectedConsumableForWeekly && (
+        <WeeklyMovementsDrawer
+          isOpen={isWeeklyDrawerOpen}
+          onOpenChange={setIsWeeklyDrawerOpen}
+          consumableId={selectedConsumableForWeekly.id}
+          spaceId={selectedSpace}
+          consumableName={selectedConsumableForWeekly.name}
+        />
       )}
     </div>
   );

@@ -209,3 +209,14 @@
 - [x] Criar interface de tabelas semanais na página Consumables
 - [x] Implementar sincronização entre tabela base e tabelas semanais
 - [x] Adicionar testes Vitest para tabelas semanais
+
+
+## Fase 21: Refatoração da Interface de Consumíveis
+- [x] Remover abas (semanal/mensal) da página Consumables
+- [x] Manter tabela única de consumíveis com colunas padrão
+- [x] Implementar seletor de semana (date picker)
+- [x] Criar drawer/painel lateral para movimentações diárias
+- [x] Implementar edição de movimentações diárias no drawer
+- [x] Remover tabela mensal por enquanto
+- [x] Testar sincronização automática com drawer
+- [x] Adicionar calendário visual para seleção de semanas
