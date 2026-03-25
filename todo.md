@@ -220,3 +220,12 @@
 - [x] Remover tabela mensal por enquanto
 - [x] Testar sincronização automática com drawer
 - [x] Adicionar calendário visual para seleção de semanas
+
+
+## Fase 22: Refatoração de Usabilidade do Drawer de Movimentações
+- [x] Reorganizar layout do drawer para melhor legibilidade
+- [x] Aumentar e melhorar visualização do calendário
+- [x] Melhorar campos de entrada de movimentações
+- [x] Adicionar feedback visual claro
+- [x] Remover sobreposição de elementos
+- [x] Testar usabilidade do drawer
