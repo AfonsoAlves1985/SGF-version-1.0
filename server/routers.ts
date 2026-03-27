@@ -775,18 +775,16 @@ export const appRouter = router({
         return db.getConsumableStockAnalysis(input);
       }),
 
-    exportReportPDF: protectedProcedure
+    exportReportExcel: protectedProcedure
       .input(z.object({
         spaceId: z.number(),
         weekStartDate: z.string(),
       }))
       .mutation(async ({ input }) => {
-        const { generateWeeklyReportPDF } = await import('./pdf-report');
-        const pdfPath = await generateWeeklyReportPDF({
-          spaceId: input.spaceId,
-          weekStartDate: input.weekStartDate,
-        });
-        return { success: true, pdfPath };
+        const { generateReportData, generateExcelReport } = await import('./excel-report');
+        const reportData = await generateReportData(input.spaceId, input.weekStartDate);
+        const excelPath = await generateExcelReport(reportData);
+        return { success: true, excelPath };
       }),
   }),
 

@@ -294,9 +294,9 @@ export default function Consumables() {
     setSelectedDate(newDate);
   };
 
-  const exportReportMutation = trpc.consumableWeeklyMovements.exportReportPDF.useMutation();
+  const exportReportMutation = trpc.consumableWeeklyMovements.exportReportExcel.useMutation();
 
-  const handleExportPDF = () => {
+  const handleExportExcel = () => {
     if (!selectedSpace) {
       toast.error("Selecione uma unidade primeiro");
       return;
@@ -312,19 +312,19 @@ export default function Consumables() {
         weekStartDate: weekStartDateStr,
       },
       {
-        onSuccess: (result) => {
-          if (result.success && result.pdfPath) {
+        onSuccess: (result: any) => {
+          if (result.success && result.excelPath) {
             const link = document.createElement('a');
-            link.href = `/api/download-pdf?path=${encodeURIComponent(result.pdfPath)}`;
-            link.download = `relatorio_consumo_${weekStartDateStr}.pdf`;
+            link.href = `/api/download-excel?path=${encodeURIComponent(result.excelPath)}`;
+            link.download = `relatorio_consumo_${weekStartDateStr}.xlsx`;
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
             toast.success("Relatório exportado com sucesso!");
           }
         },
-        onError: (error) => {
-          console.error("Erro ao exportar PDF:", error);
+        onError: (error: any) => {
+          console.error("Erro ao exportar Excel:", error);
           toast.error("Erro ao exportar relatório");
         },
       }
@@ -483,7 +483,7 @@ export default function Consumables() {
         </div>
         <div className="flex gap-2">
           <Button
-            onClick={handleExportPDF}
+            onClick={handleExportExcel}
             disabled={!selectedSpace || consumables.length === 0}
             className="bg-orange-600 hover:bg-orange-700 text-white"
           >

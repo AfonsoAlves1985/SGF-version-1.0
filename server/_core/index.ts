@@ -61,6 +61,29 @@ async function startServer() {
     }
   });
   
+  // Endpoint para download de Excel
+  app.get("/api/download-excel", (req, res) => {
+    try {
+      const excelPath = req.query.path as string;
+      if (!excelPath) {
+        return res.status(400).json({ error: "Path parameter is required" });
+      }
+      
+      // Validar que o caminho está em /tmp para segurança
+      if (!excelPath.startsWith("/tmp/")) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      
+      const fileContent = readFileSync(excelPath);
+      res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+      res.setHeader("Content-Disposition", `attachment; filename="${excelPath.split('/').pop()}"`);
+      res.send(fileContent);
+    } catch (error) {
+      console.error("Erro ao fazer download do Excel:", error);
+      res.status(500).json({ error: "Failed to download Excel" });
+    }
+  });
+  
   // tRPC API
   app.use(
     "/api/trpc",

@@ -352,3 +352,14 @@
 - [ ] Implementar botão de exportação na página de consumíveis
 - [ ] Testar geração e download de PDF
 - [ ] Validar formatação e legibilidade do PDF
+
+
+## Fase 35: Exportação de Relatórios em Excel
+- [x] Instalar biblioteca xlsx para geração de Excel
+- [x] Criar helper para formatar dados de consumíveis para Excel
+- [x] Implementar função de geração de arquivo Excel
+- [x] Adicionar procedimento tRPC para exportação
+- [x] Integrar botão de exportação na página Consumíveis
+- [x] Testar download e validar arquivo Excel
+- [x] Adicionar formatação visual (cores, bordas, cabeçalhos)
+- [x] Validar compatibilidade com Excel/LibreOffice
