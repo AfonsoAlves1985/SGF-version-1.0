@@ -363,3 +363,39 @@ export const consumableMonthlyMovements = mysqlTable("consumable_monthly_movemen
 
 export type ConsumableMonthlyMovement = typeof consumableMonthlyMovements.$inferSelect;
 export type InsertConsumableMonthlyMovement = typeof consumableMonthlyMovements.$inferInsert;
+
+
+// Histórico de Alterações de Estoque
+export const consumableStockAuditLog = mysqlTable("consumable_stock_audit_log", {
+  id: int("id").autoincrement().primaryKey(),
+  consumableWeeklyMovementId: int("consumableWeeklyMovementId").notNull(),
+  consumableId: int("consumableId").notNull(),
+  spaceId: int("spaceId").notNull(),
+  weekStartDate: date("weekStartDate").notNull(),
+  userId: int("userId").notNull(),
+  previousValue: int("previousValue").notNull(),
+  newValue: int("newValue").notNull(),
+  fieldName: varchar("fieldName", { length: 50 }).notNull(), // "totalMovement", "mondayStock", etc
+  changeReason: text("changeReason"), // Motivo da alteração (opcional)
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (table) => ({
+  consumableWeeklyMovementFk: foreignKey({
+    columns: [table.consumableWeeklyMovementId],
+    foreignColumns: [consumableWeeklyMovements.id],
+  }),
+  consumableFk: foreignKey({
+    columns: [table.consumableId],
+    foreignColumns: [consumablesWithSpace.id],
+  }),
+  spaceFk: foreignKey({
+    columns: [table.spaceId],
+    foreignColumns: [consumableSpaces.id],
+  }),
+  userFk: foreignKey({
+    columns: [table.userId],
+    foreignColumns: [users.id],
+  }),
+}));
+
+export type ConsumableStockAuditLog = typeof consumableStockAuditLog.$inferSelect;
+export type InsertConsumableStockAuditLog = typeof consumableStockAuditLog.$inferInsert;

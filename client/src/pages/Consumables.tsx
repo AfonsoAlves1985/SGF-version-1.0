@@ -37,6 +37,8 @@ export default function Consumables() {
   const [showCalendar, setShowCalendar] = useState(false);
   const [editingStockCell, setEditingStockCell] = useState<number | null>(null);
   const [editingStockValue, setEditingStockValue] = useState<number>(0);
+  const [showAuditLog, setShowAuditLog] = useState(false);
+  const [selectedConsumableForAudit, setSelectedConsumableForAudit] = useState<number | null>(null);
   const [formData, setFormData] = useState({
     name: "",
     category: "",
@@ -70,6 +72,16 @@ export default function Consumables() {
       ...filters,
     },
     { enabled: !!selectedSpace }
+  );
+
+  // Query para histórico de alterações
+  const { data: auditLog = [], isLoading: auditLoading } = trpc.consumableStockAuditLog.list.useQuery(
+    {
+      spaceId: selectedSpace || undefined,
+      consumableId: selectedConsumableForAudit || undefined,
+      weekStartDate: weekStartDate,
+    },
+    { enabled: !!selectedSpace && showAuditLog }
   );
 
   // Mutation para atualizar estoque semanal
@@ -694,3 +706,4 @@ export default function Consumables() {
     </div>
   );
 }
+

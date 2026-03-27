@@ -9,7 +9,8 @@ import {
   suppliers, contracts, InsertSupplier, InsertContract,
   consumables, consumablesWeekly, consumablesMonthly, InsertConsumable, InsertConsumableWeekly, InsertConsumableMonthly,
   consumableSpaces, consumablesWithSpace, InsertConsumableSpace, InsertConsumableWithSpace,
-  consumableWeeklyMovements, consumableMonthlyMovements, InsertConsumableWeeklyMovement, InsertConsumableMonthlyMovement
+  consumableWeeklyMovements, consumableMonthlyMovements, InsertConsumableWeeklyMovement, InsertConsumableMonthlyMovement,
+  consumableStockAuditLog, InsertConsumableStockAuditLog
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -823,4 +824,54 @@ export async function upsertConsumableWeeklyStock(data: {
       status: "ESTOQUE_OK",
     });
   }
+}
+
+
+// Histórico de Alterações de Estoque
+export async function getStockAuditLog(filters?: { spaceId?: number; consumableId?: number; weekStartDate?: Date; limit?: number }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const conditions = [];
+
+  if (filters?.spaceId) {
+    conditions.push(eq(consumableStockAuditLog.spaceId, filters.spaceId));
+  }
+  if (filters?.consumableId) {
+    conditions.push(eq(consumableStockAuditLog.consumableId, filters.consumableId));
+  }
+  if (filters?.weekStartDate) {
+    conditions.push(eq(consumableStockAuditLog.weekStartDate, filters.weekStartDate));
+  }
+
+  let query = db.select().from(consumableStockAuditLog);
+  if (conditions.length > 0) {
+    // @ts-ignore - Drizzle ORM type inference issue
+    query = query.where(and(...conditions));
+  }
+
+  // @ts-ignore - Drizzle ORM type inference issue
+  query = query.orderBy(desc(consumableStockAuditLog.createdAt));
+
+  if (filters?.limit) {
+    // @ts-ignore - Drizzle ORM type inference issue
+    query = query.limit(filters.limit);
+  }
+
+  return (await query) as any;
+}
+
+export async function createStockAuditLog(data: InsertConsumableStockAuditLog) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  return db.insert(consumableStockAuditLog).values(data);
+}
+
+export async function getStockAuditLogByWeeklyMovement(consumableWeeklyMovementId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  return (await db.select().from(consumableStockAuditLog)
+    .where(eq(consumableStockAuditLog.consumableWeeklyMovementId, consumableWeeklyMovementId))
+    .orderBy(desc(consumableStockAuditLog.createdAt))) as any;
 }

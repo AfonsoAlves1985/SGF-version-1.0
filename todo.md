@@ -266,3 +266,13 @@
 - [x] Modificar UI para carregar dados semanais independentes
 - [x] Testar navegação entre semanas com dados diferentes
 - [x] Garantir que cada semana tem seus próprios dados
+
+
+## Fase 27: Histórico de Alterações de Estoque
+- [x] Criar schema Drizzle para tabela de histórico de alterações
+- [x] Implementar procedures tRPC para listar histórico
+- [x] Implementar mutations para registrar alterações
+- [x] Integrar registro automático ao editar estoque
+- [x] Criar interface de visualização do histórico
+- [x] Adicionar filtros de data e usuário no histórico
+- [x] Adicionar testes Vitest para histórico

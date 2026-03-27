@@ -799,6 +799,41 @@ export const appRouter = router({
         return db.deleteConsumableMonthlyMovement(input);
       }),
   }),
+
+  consumableStockAuditLog: router({
+    list: protectedProcedure
+      .input(z.object({
+        spaceId: z.number().optional(),
+        consumableId: z.number().optional(),
+        weekStartDate: z.date().optional(),
+        limit: z.number().optional(),
+      }).optional())
+      .query(async ({ input }) => {
+        return db.getStockAuditLog(input);
+      }),
+
+    getByWeeklyMovement: protectedProcedure
+      .input(z.number())
+      .query(async ({ input }) => {
+        return db.getStockAuditLogByWeeklyMovement(input);
+      }),
+
+    create: protectedProcedure
+      .input(z.object({
+        consumableWeeklyMovementId: z.number(),
+        consumableId: z.number(),
+        spaceId: z.number(),
+        weekStartDate: z.date(),
+        userId: z.number(),
+        previousValue: z.number(),
+        newValue: z.number(),
+        fieldName: z.string(),
+        changeReason: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        return db.createStockAuditLog(input);
+      }),
+  }),
 });
 
 export type AppRouter = typeof appRouter;
