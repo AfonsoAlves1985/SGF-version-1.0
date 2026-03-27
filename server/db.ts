@@ -786,35 +786,45 @@ export async function listConsumablesWithWeeklyData(filters?: { spaceId?: number
       )
     );
 
+  // Para cada consumível, buscar dados da semana anterior como fallback
+  const previousWeekDate = new Date((weekStartDate as Date).getTime() - 7 * 24 * 60 * 60 * 1000);
+  const previousWeekData = await db.select().from(consumableWeeklyMovements)
+    .where(
+      and(
+        eq(consumableWeeklyMovements.spaceId, filters.spaceId),
+        eq(consumableWeeklyMovements.weekStartDate, previousWeekDate)
+      )
+    );
+
   // Mapear dados semanais aos consumiveis com estoque cumulativo
-  const result = await Promise.all(
-    consumables.map(async (consumable: any) => {
-      const weeklyRecord = weekData.find((w: any) => w.consumableId === consumable.id);
-      
-      // Buscar estoque da semana anterior
-      const previousWeekStock = await getPreviousWeekStock({
-        consumableId: consumable.id,
-        spaceId: filters.spaceId!,
-        weekStartDate: weekStartDate as Date,
-      });
-      
-      if (weeklyRecord) {
-        return {
-          ...consumable,
-          currentStock: weeklyRecord.totalMovement || consumable.currentStock,
-          previousWeekStock: previousWeekStock || 0,
-          weeklyData: weeklyRecord,
-        };
-      }
-      
+  return consumables.map((consumable: any) => {
+    const weeklyRecord = weekData.find((w: any) => w.consumableId === consumable.id);
+    
+    if (weeklyRecord) {
+      // Se houver registro da semana, usar seu valor
       return {
         ...consumable,
-        previousWeekStock: previousWeekStock || 0,
+        currentStock: weeklyRecord.totalMovement || consumable.currentStock,
+        weeklyData: weeklyRecord,
       };
-    })
-  );
-  
-  return result;
+    }
+    
+    // Se não houver registro da semana, buscar da semana anterior
+    const previousRecord = previousWeekData.find((w: any) => w.consumableId === consumable.id);
+    if (previousRecord) {
+      return {
+        ...consumable,
+        currentStock: previousRecord.totalMovement || consumable.currentStock,
+        weeklyData: null,
+      };
+    }
+    
+    // Se não houver em nenhuma semana, usar estoque atual do consumível
+    return {
+      ...consumable,
+      currentStock: consumable.currentStock,
+    };
+  });
 
 
 
@@ -1065,4 +1075,3 @@ export async function getPreviousWeekStock(data: {
 }
 
 
-// Buscar estoque cumulativo (estoque final da semana anterior)

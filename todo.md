@@ -312,3 +312,11 @@
 - [ ] Garantir que estoque final de uma semana = estoque inicial da próxima
 - [ ] Testar timeline de estoque em múltiplas semanas
 - [ ] Validar histórico cumulativo de consumo
+
+
+## Fase 32: Correção de Estoque Cumulativo Semanal
+- [ ] Modificar query listConsumablesWithWeeklyData para carregar estoque da semana anterior
+- [ ] Atualizar UI para mostrar estoque inicial da semana anterior
+- [ ] Garantir que estoque final de uma semana = estoque inicial da próxima
+- [ ] Testar timeline de estoque em múltiplas semanas
+- [ ] Validar que edições refletem corretamente na próxima semana
