@@ -887,3 +887,90 @@ export async function getStockAuditLogByWeeklyMovement(consumableWeeklyMovementI
     .where(eq(consumableStockAuditLog.consumableWeeklyMovementId, consumableWeeklyMovementId))
     .orderBy(desc(consumableStockAuditLog.createdAt))) as any;
 }
+
+
+
+// Listar consumíveis com consumo mensal
+export async function listConsumablesWithMonthlyConsumption(data: {
+  spaceId: number;
+  month: number;
+  year: number;
+}) {
+  const db = await getDb();
+  if (!db) return [];
+
+  // Buscar todos os consumíveis da unidade
+  const consumables = await db.select().from(consumablesWithSpace)
+    .where(eq(consumablesWithSpace.spaceId, data.spaceId))
+    .orderBy(asc(consumablesWithSpace.name));
+
+  // Para cada consumível, calcular consumo mensal
+  const result = await Promise.all(
+    consumables.map(async (consumable) => {
+      const monthlyData = await calculateMonthlyConsumption({
+        consumableId: consumable.id,
+        spaceId: data.spaceId,
+        month: data.month,
+        year: data.year,
+      });
+
+      return {
+        ...consumable,
+        monthlyConsumption: monthlyData?.totalConsumption || 0,
+        averageWeeklyConsumption: monthlyData?.averagePerWeek || 0,
+        recommendedReplenishment: (consumable.maxStock || 0) - (monthlyData?.totalConsumption || 0),
+      };
+    })
+  );
+
+  return result;
+}
+
+
+// Calcular consumo mensal baseado no histórico semanal
+export async function calculateMonthlyConsumption(data: {
+  consumableId: number;
+  spaceId: number;
+  month: number;
+  year: number;
+}) {
+  const db = await getDb();
+  if (!db) return null;
+
+  // Calcular semanas do mês
+  const firstDay = new Date(data.year, data.month - 1, 1);
+  const lastDay = new Date(data.year, data.month, 0);
+  const firstWeek = Math.ceil(firstDay.getDate() / 7);
+  const lastWeek = Math.ceil(lastDay.getDate() / 7);
+
+  // Buscar todas as semanas do ano
+  const allWeeklyRecords = await db.select().from(consumableWeeklyMovements)
+    .where(
+      and(
+        eq(consumableWeeklyMovements.consumableId, data.consumableId),
+        eq(consumableWeeklyMovements.spaceId, data.spaceId),
+        eq(consumableWeeklyMovements.year, data.year)
+      )
+    );
+
+  // Filtrar apenas as semanas do mês
+  const weeklyRecords = allWeeklyRecords.filter((r: any) => r.weekNumber >= firstWeek && r.weekNumber <= lastWeek);
+
+  // Calcular consumo total
+  const totalMonthlyConsumption = weeklyRecords.reduce((sum: number, record: any) => {
+    return sum + (record.totalMovement || 0);
+  }, 0);
+
+  return {
+    consumableId: data.consumableId,
+    spaceId: data.spaceId,
+    month: data.month,
+    year: data.year,
+    totalConsumption: totalMonthlyConsumption,
+    weekCount: weeklyRecords.length,
+    averagePerWeek: weeklyRecords.length > 0 ? Math.round(totalMonthlyConsumption / weeklyRecords.length) : 0,
+    weeklyBreakdown: weeklyRecords,
+  };
+}
+
+// Listar consumíveis com consumo mensal

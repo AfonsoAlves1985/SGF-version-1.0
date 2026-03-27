@@ -285,3 +285,12 @@
 - [x] Garantir que dados sejam independentes por semana
 - [x] Testar persistência de dados no banco
 - [x] Validar sincronização entre semanas
+
+
+## Fase 29: Rastreamento de Estoque Mensal
+- [x] Criar queries para calcular consumo mensal do histórico semanal
+- [x] Adicionar coluna "Consumo Mensal" na tabela de consumíveis
+- [x] Implementar cálculo automático de reposição mensal (baseado em consumo real)
+- [x] Integrar histórico de alterações no cálculo mensal
+- [x] Adicionar indicador visual de consumo vs. reposição recomendada
+- [x] Testar coerência de dados entre semanas e mês

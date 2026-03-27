@@ -688,6 +688,16 @@ export const appRouter = router({
       .mutation(async ({ input }) => {
         return db.deleteConsumableWithSpace(input);
       }),
+
+    listWithMonthlyConsumption: protectedProcedure
+      .input(z.object({
+        spaceId: z.number(),
+        month: z.number(),
+        year: z.number(),
+      }))
+      .query(async ({ input }) => {
+        return db.listConsumablesWithMonthlyConsumption(input);
+      }),
   }),
 
   consumableWeeklyMovements: router({
