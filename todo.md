@@ -331,3 +331,13 @@
 - [x] Implementar análise de padrões de consumo
 - [ ] Adicionar testes Vitest para cálculos de consumo
 - [x] Testar visualização em diferentes tamanhos de tela
+
+
+## Bugs Encontrados
+
+### Bug: Estoque Zero Não É Permitido
+- [x] Investigar por que estoque 0 retorna ao valor inicial
+- [x] Corrigir lógica de atualização de estoque
+- [x] Permitir valores zero sem restrição
+- [x] Testar sequência: 7 → 5 → 3 → 0
+- [x] Validar que 0 é salvo corretamente no banco

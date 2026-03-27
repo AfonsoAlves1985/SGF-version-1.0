@@ -772,10 +772,11 @@ export async function listConsumablesWithWeeklyData(filters?: { spaceId?: number
   }
 
   // Para cada consumível, buscar dados da semana específica
-  // Converter weekStartDate para Date se for string
+  // Converter weekStartDate para Date se for string (YYYY-MM-DD)
   let weekStartDate = filters.weekStartDate;
   if (typeof weekStartDate === 'string') {
-    weekStartDate = new Date(weekStartDate + 'T00:00:00Z');
+    const [year, month, day] = weekStartDate.split('-').map(Number);
+    weekStartDate = new Date(year, month - 1, day);
   }
   
   const weekData = await db.select().from(consumableWeeklyMovements)
@@ -801,10 +802,10 @@ export async function listConsumablesWithWeeklyData(filters?: { spaceId?: number
     const weeklyRecord = weekData.find((w: any) => w.consumableId === consumable.id);
     
     if (weeklyRecord) {
-      // Se houver registro da semana, usar seu valor
+      // Se houver registro da semana, usar seu valor (permitir 0)
       return {
         ...consumable,
-        currentStock: weeklyRecord.totalMovement || consumable.currentStock,
+        currentStock: weeklyRecord.totalMovement !== null && weeklyRecord.totalMovement !== undefined ? weeklyRecord.totalMovement : consumable.currentStock,
         weeklyData: weeklyRecord,
       };
     }
@@ -814,7 +815,7 @@ export async function listConsumablesWithWeeklyData(filters?: { spaceId?: number
     if (previousRecord) {
       return {
         ...consumable,
-        currentStock: previousRecord.totalMovement || consumable.currentStock,
+        currentStock: previousRecord.totalMovement !== null && previousRecord.totalMovement !== undefined ? previousRecord.totalMovement : consumable.currentStock,
         weeklyData: null,
       };
     }
