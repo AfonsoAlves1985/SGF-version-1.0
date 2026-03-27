@@ -730,7 +730,7 @@ export async function deleteConsumableMonthlyMovement(id: number) {
 
 
 // Carregar consumíveis com dados semanais específicos
-export async function listConsumablesWithWeeklyData(filters?: { spaceId?: number; search?: string; category?: string; weekStartDate?: Date }) {
+export async function listConsumablesWithWeeklyData(filters?: { spaceId?: number; search?: string; category?: string; weekStartDate?: string | Date }) {
   const db = await getDb();
   if (!db) return [];
 
@@ -754,11 +754,17 @@ export async function listConsumablesWithWeeklyData(filters?: { spaceId?: number
   }
 
   // Para cada consumível, buscar dados da semana específica
+  // Converter weekStartDate para Date se for string
+  let weekStartDate = filters.weekStartDate;
+  if (typeof weekStartDate === 'string') {
+    weekStartDate = new Date(weekStartDate + 'T00:00:00Z');
+  }
+  
   const weekData = await db.select().from(consumableWeeklyMovements)
     .where(
       and(
         eq(consumableWeeklyMovements.spaceId, filters.spaceId),
-        eq(consumableWeeklyMovements.weekStartDate, filters.weekStartDate)
+        eq(consumableWeeklyMovements.weekStartDate, weekStartDate as Date)
       )
     );
 
@@ -781,14 +787,20 @@ export async function listConsumablesWithWeeklyData(filters?: { spaceId?: number
 export async function upsertConsumableWeeklyStock(data: {
   consumableId: number;
   spaceId: number;
-  weekStartDate: Date;
+  weekStartDate: string | Date;
   currentStock: number;
 }) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
-  const weekStart = new Date(data.weekStartDate);
-  weekStart.setHours(0, 0, 0, 0);
+  // Converter weekStartDate para Date se for string
+  let weekStart: Date;
+  if (typeof data.weekStartDate === 'string') {
+    weekStart = new Date(data.weekStartDate + 'T00:00:00Z');
+  } else {
+    weekStart = new Date(data.weekStartDate);
+    weekStart.setHours(0, 0, 0, 0);
+  }
 
   // Verificar se já existe registro para esta semana
   const existing = await db.select().from(consumableWeeklyMovements)

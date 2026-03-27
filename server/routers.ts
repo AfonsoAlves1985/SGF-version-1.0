@@ -632,9 +632,9 @@ export const appRouter = router({
     listWithWeeklyData: protectedProcedure
       .input(z.object({
         spaceId: z.number().optional(),
-        search: z.string().optional(),
+        weekStartDate: z.string().optional(),
         category: z.string().optional(),
-        weekStartDate: z.date().optional(),
+        search: z.string().optional(),
       }).optional())
       .query(async ({ input }) => {
         return db.listConsumablesWithWeeklyData(input);
@@ -644,7 +644,7 @@ export const appRouter = router({
       .input(z.object({
         consumableId: z.number(),
         spaceId: z.number(),
-        weekStartDate: z.date(),
+        weekStartDate: z.string(),
         currentStock: z.number(),
       }))
       .mutation(async ({ input }) => {

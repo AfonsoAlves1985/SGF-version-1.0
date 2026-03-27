@@ -65,10 +65,13 @@ export default function Consumables() {
 
   // Queries
   const { data: spaces = [], isLoading: spacesLoading, refetch: refetchSpaces } = trpc.consumableSpaces.list.useQuery();
+  // Converter weekStartDate para string YYYY-MM-DD para garantir consistência
+  const weekStartDateStr = weekStartDate.toISOString().split('T')[0];
+  
   const { data: consumables = [], isLoading, refetch } = trpc.consumablesWithSpace.listWithWeeklyData.useQuery(
     {
       spaceId: selectedSpace || undefined,
-      weekStartDate: weekStartDate,
+      weekStartDate: weekStartDateStr as any,
       ...filters,
     },
     { enabled: !!selectedSpace }
@@ -221,10 +224,13 @@ export default function Consumables() {
   const handleUpdateStock = async (consumableId: number, newStock: number) => {
     if (!selectedSpace) return;
 
+    // Converter weekStartDate para string YYYY-MM-DD para garantir consistência
+    const weekStartDateStr = weekStartDate.toISOString().split('T')[0];
+
     updateWeeklyStockMutation.mutate({
       consumableId,
       spaceId: selectedSpace,
-      weekStartDate,
+      weekStartDate: weekStartDateStr as any,
       currentStock: newStock,
     });
 

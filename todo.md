@@ -276,3 +276,12 @@
 - [x] Criar interface de visualização do histórico
 - [x] Adicionar filtros de data e usuário no histórico
 - [x] Adicionar testes Vitest para histórico
+
+
+## Fase 28: Correção de Edição Inline e Independência Semanal
+- [x] Debugar por que edição inline não está salvando
+- [x] Verificar mutation updateWeeklyStock
+- [x] Corrigir query de carregamento semanal
+- [x] Garantir que dados sejam independentes por semana
+- [x] Testar persistência de dados no banco
+- [x] Validar sincronização entre semanas
