@@ -1,0 +1,9 @@
+{
+  "query": "CREATE TABLE `suppliers_with_space` (\n\t`id` int AUTO_INCREMENT NOT NULL,\n\t`spaceId` int NOT NULL,\n\t`companyName` varchar(255) NOT NULL,\n\t`serviceTypes` json NOT NULL,\n\t`contact` varchar(255) NOT NULL,\n\t`contactPerson` varchar(255) NOT NULL,\n\t`status` enum('ativo','inativo','suspenso') NOT NULL DEFAULT 'ativo',\n\t`notes` text,\n\t`createdAt` timestamp NOT NULL DEFAULT (now()),\n\t`updatedAt` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,\n\tCONSTRAINT `suppliers_with_space_id` PRIMARY KEY(`id`)\n);\nALTER TABLE `suppliers_with_space` ADD CONSTRAINT `suppliers_with_space_spaceId_consumable_spaces_id_fk` FOREIGN KEY (`spaceId`) REFERENCES `consumable_spaces`(`id`) ON DELETE no action ON UPDATE no action;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user r9CVoJ25nh9Ssfd.root --database Ztp8T7Vpr2FQpGULvKFpsw --execute CREATE TABLE `suppliers_with_space` (\n\t`id` int AUTO_INCREMENT NOT NULL,\n\t`spaceId` int NOT NULL,\n\t`companyName` varchar(255) NOT NULL,\n\t`serviceTypes` json NOT NULL,\n\t`contact` varchar(255) NOT NULL,\n\t`contactPerson` varchar(255) NOT NULL,\n\t`status` enum('ativo','inativo','suspenso') NOT NULL DEFAULT 'ativo',\n\t`notes` text,\n\t`createdAt` timestamp NOT NULL DEFAULT (now()),\n\t`updatedAt` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,\n\tCONSTRAINT `suppliers_with_space_id` PRIMARY KEY(`id`)\n);\nALTER TABLE `suppliers_with_space` ADD CONSTRAINT `suppliers_with_space_spaceId_consumable_spaces_id_fk` FOREIGN KEY (`spaceId`) REFERENCES `consumable_spaces`(`id`) ON DELETE no action ON UPDATE no action;",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 732
+}

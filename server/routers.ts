@@ -399,6 +399,58 @@ export const appRouter = router({
       }),
   }),
 
+  // Fornecedores por Espaço
+  suppliersWithSpace: router({
+    list: protectedProcedure
+      .input(z.object({
+        spaceId: z.number().optional(),
+      }).optional())
+      .query(async ({ input }) => {
+        return db.listSuppliersWithSpace(input?.spaceId);
+      }),
+
+    getById: protectedProcedure
+      .input(z.number())
+      .query(async ({ input }) => {
+        return db.getSupplierWithSpaceById(input);
+      }),
+
+    create: protectedProcedure
+      .input(z.object({
+        spaceId: z.number(),
+        companyName: z.string(),
+        serviceTypes: z.array(z.string()),
+        contact: z.string(),
+        contactPerson: z.string(),
+        status: z.enum(["ativo", "inativo", "suspenso"]).optional(),
+        notes: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        return db.createSupplierWithSpace(input);
+      }),
+
+    update: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        companyName: z.string().optional(),
+        serviceTypes: z.array(z.string()).optional(),
+        contact: z.string().optional(),
+        contactPerson: z.string().optional(),
+        status: z.enum(["ativo", "inativo", "suspenso"]).optional(),
+        notes: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const { id, ...data } = input;
+        return db.updateSupplierWithSpace(id, data);
+      }),
+
+    delete: protectedProcedure
+      .input(z.number())
+      .mutation(async ({ input }) => {
+        return db.deleteSupplierWithSpace(input);
+      }),
+  }),
+
   // ============ CONTRATOS ============
   contracts: router({
     list: protectedProcedure

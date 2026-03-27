@@ -7,6 +7,7 @@ import {
   rooms, roomReservations, InsertRoom, InsertRoomReservation,
   maintenanceRequests, InsertMaintenanceRequest,
   suppliers, contracts, InsertSupplier, InsertContract,
+  suppliersWithSpace, InsertSupplierWithSpace,
   consumables, consumablesWeekly, consumablesMonthly, InsertConsumable, InsertConsumableWeekly, InsertConsumableMonthly,
   consumableSpaces, consumablesWithSpace, InsertConsumableSpace, InsertConsumableWithSpace,
   consumableWeeklyMovements, consumableMonthlyMovements, InsertConsumableWeeklyMovement, InsertConsumableMonthlyMovement,
@@ -1270,4 +1271,44 @@ export async function generateWeeklyReportData(data: {
     },
     generatedAt: new Date(),
   };
+}
+
+
+// ============ FORNECEDORES POR ESPAÇO ============
+
+export async function listSuppliersWithSpace(spaceId?: number) {
+  const db = await getDb();
+  if (!db) return [];
+
+  if (spaceId) {
+    return db.select().from(suppliersWithSpace)
+      .where(eq(suppliersWithSpace.spaceId, spaceId))
+      .orderBy(asc(suppliersWithSpace.companyName));
+  }
+  return db.select().from(suppliersWithSpace).orderBy(asc(suppliersWithSpace.companyName));
+}
+
+export async function getSupplierWithSpaceById(id: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const result = await db.select().from(suppliersWithSpace).where(eq(suppliersWithSpace.id, id)).limit(1);
+  return result[0] || null;
+}
+
+export async function createSupplierWithSpace(data: InsertSupplierWithSpace) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  return db.insert(suppliersWithSpace).values(data);
+}
+
+export async function updateSupplierWithSpace(id: number, data: Partial<InsertSupplierWithSpace>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  return db.update(suppliersWithSpace).set(data).where(eq(suppliersWithSpace.id, id));
+}
+
+export async function deleteSupplierWithSpace(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  return db.delete(suppliersWithSpace).where(eq(suppliersWithSpace.id, id));
 }

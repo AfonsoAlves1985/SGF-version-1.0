@@ -181,6 +181,28 @@ export const suppliers = mysqlTable("suppliers", {
 export type Supplier = typeof suppliers.$inferSelect;
 export type InsertSupplier = typeof suppliers.$inferInsert;
 
+// Fornecedores por Espaço (Febracis, Lead Fit, etc.)
+export const suppliersWithSpace = mysqlTable("suppliers_with_space", {
+  id: int("id").autoincrement().primaryKey(),
+  spaceId: int("spaceId").notNull(),
+  companyName: varchar("companyName", { length: 255 }).notNull(),
+  serviceTypes: json("serviceTypes").$type<string[]>().notNull(),
+  contact: varchar("contact", { length: 255 }).notNull(),
+  contactPerson: varchar("contactPerson", { length: 255 }).notNull(),
+  status: mysqlEnum("status", ["ativo", "inativo", "suspenso"]).default("ativo").notNull(),
+  notes: text("notes"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (table) => ({
+  spaceFk: foreignKey({
+    columns: [table.spaceId],
+    foreignColumns: [consumableSpaces.id],
+  }),
+}));
+
+export type SupplierWithSpace = typeof suppliersWithSpace.$inferSelect;
+export type InsertSupplierWithSpace = typeof suppliersWithSpace.$inferInsert;
+
 // Contratos
 export const contracts = mysqlTable("contracts", {
   id: int("id").autoincrement().primaryKey(),

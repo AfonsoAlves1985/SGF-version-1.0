@@ -384,3 +384,12 @@
 - [x] Adicionar testes Vitest para procedimentos de fornecedores
 - [x] Integrar ao menu lateral (já estava integrado)
 - [x] Validar funcionalidade completa do módulo
+
+
+## Fase 36: Fornecedores por Unidade (Febracis, Lead Fit, etc.)
+- [x] Criar tabela suppliers_with_space no schema Drizzle
+- [x] Criar procedures tRPC para CRUD de fornecedores por espaço
+- [x] Implementar seletor de unidades na página Suppliers
+- [x] Implementar CRUD de fornecedores por unidade com edição inline
+- [x] Adicionar testes Vitest para fornecedores por espaço
+- [x] Validar funcionalidade completa
