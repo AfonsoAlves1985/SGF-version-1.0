@@ -392,7 +392,6 @@ export async function listSuppliers(filters?: { category?: string; status?: stri
 
   const conditions = [];
 
-  if (filters?.category) conditions.push(eq(suppliers.category, filters.category));
   if (filters?.status) conditions.push(eq(suppliers.status, filters.status as any));
 
   let query = db.select().from(suppliers);
@@ -401,7 +400,7 @@ export async function listSuppliers(filters?: { category?: string; status?: stri
     query = query.where(and(...conditions));
   }
 
-  return (await query.orderBy(asc(suppliers.name))) as any;
+  return (await query.orderBy(asc(suppliers.companyName))) as any;
 }
 
 export async function getSupplierById(id: number) {

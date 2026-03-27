@@ -43,6 +43,13 @@
       "when": 1774615991371,
       "tag": "0005_unusual_otto_octavius",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1774638237480,
+      "tag": "0006_spotty_king_cobra",
+      "breakpoints": true
     }
   ]
 }

@@ -1,0 +1,9 @@
+{
+  "query": "ALTER TABLE `suppliers` ADD `serviceTypes` json NOT NULL;\nALTER TABLE `suppliers` ADD `contact` varchar(255) NOT NULL;\nALTER TABLE `suppliers` ADD `contactPerson` varchar(255) NOT NULL;\nALTER TABLE `suppliers` ADD `notes` text;\nALTER TABLE `suppliers` ADD `updatedAt` timestamp DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP NOT NULL;\nALTER TABLE `suppliers` DROP COLUMN `name`;\nALTER TABLE `suppliers` DROP COLUMN `email`;\nALTER TABLE `suppliers` DROP COLUMN `phone`;\nALTER TABLE `suppliers` DROP COLUMN `category`;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user r9CVoJ25nh9Ssfd.root --database Ztp8T7Vpr2FQpGULvKFpsw --execute ALTER TABLE `suppliers` ADD `serviceTypes` json NOT NULL;\nALTER TABLE `suppliers` ADD `contact` varchar(255) NOT NULL;\nALTER TABLE `suppliers` ADD `contactPerson` varchar(255) NOT NULL;\nALTER TABLE `suppliers` ADD `notes` text;\nALTER TABLE `suppliers` ADD `updatedAt` timestamp DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP NOT NULL;\nALTER TABLE `suppliers` DROP COLUMN `name`;\nALTER TABLE `suppliers` DROP COLUMN `email`;\nALTER TABLE `suppliers` DROP COLUMN `phone`;\nALTER TABLE `suppliers` DROP COLUMN `category`;",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 8028
+}

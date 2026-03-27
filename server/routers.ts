@@ -366,10 +366,12 @@ export const appRouter = router({
 
     create: protectedProcedure
       .input(z.object({
-        name: z.string(),
-        email: z.string().email().optional(),
-        phone: z.string().optional(),
-        category: z.string().optional(),
+        companyName: z.string(),
+        serviceTypes: z.array(z.string()),
+        contact: z.string(),
+        contactPerson: z.string(),
+        status: z.enum(["ativo", "inativo", "suspenso"]).optional(),
+        notes: z.string().optional(),
       }))
       .mutation(async ({ input }) => {
         return db.createSupplier(input);
@@ -378,11 +380,12 @@ export const appRouter = router({
     update: protectedProcedure
       .input(z.object({
         id: z.number(),
-        name: z.string().optional(),
-        email: z.string().email().optional(),
-        phone: z.string().optional(),
-        category: z.string().optional(),
-        status: z.enum(["ativo", "inativo"]).optional(),
+        companyName: z.string().optional(),
+        serviceTypes: z.array(z.string()).optional(),
+        contact: z.string().optional(),
+        contactPerson: z.string().optional(),
+        status: z.enum(["ativo", "inativo", "suspenso"]).optional(),
+        notes: z.string().optional(),
       }))
       .mutation(async ({ input }) => {
         const { id, ...data } = input;

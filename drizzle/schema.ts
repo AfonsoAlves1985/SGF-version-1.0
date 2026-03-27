@@ -1,4 +1,4 @@
-import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, decimal, boolean, datetime, foreignKey, date } from "drizzle-orm/mysql-core";
+import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, decimal, boolean, datetime, foreignKey, date, json } from "drizzle-orm/mysql-core";
 
 /**
  * Core user table backing auth flow.
@@ -168,12 +168,14 @@ export type InsertMaintenanceRequest = typeof maintenanceRequests.$inferInsert;
 // Fornecedores
 export const suppliers = mysqlTable("suppliers", {
   id: int("id").autoincrement().primaryKey(),
-  name: varchar("name", { length: 255 }).notNull(),
-  email: varchar("email", { length: 320 }),
-  phone: varchar("phone", { length: 20 }),
-  category: varchar("category", { length: 100 }),
-  status: mysqlEnum("status", ["ativo", "inativo"]).default("ativo").notNull(),
+  companyName: varchar("companyName", { length: 255 }).notNull(),
+  serviceTypes: json("serviceTypes").$type<string[]>().default([]).notNull(), // Seleção múltipla de tipos de serviço
+  contact: varchar("contact", { length: 255 }).notNull(), // Telefone, email ou outro contato
+  contactPerson: varchar("contactPerson", { length: 255 }).notNull(), // Com quem falar
+  status: mysqlEnum("status", ["ativo", "inativo", "suspenso"]).default("ativo").notNull(),
+  notes: text("notes"), // Notas adicionais
   createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
 
 export type Supplier = typeof suppliers.$inferSelect;

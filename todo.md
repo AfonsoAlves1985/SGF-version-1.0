@@ -363,3 +363,24 @@
 - [x] Testar download e validar arquivo Excel
 - [x] Adicionar formatação visual (cores, bordas, cabeçalhos)
 - [x] Validar compatibilidade com Excel/LibreOffice
+
+
+## Fase 35: Módulo de Fornecedores Avançado
+- [ ] Atualizar schema Drizzle com tabela de fornecedores (nome empresa, tipo de serviço, contato, responsável, status)
+- [ ] Implementar seleção múltipla de tipos de serviço
+- [ ] Criar procedures tRPC para CRUD de fornecedores
+- [ ] Implementar página de gestão de fornecedores com edição inline
+- [ ] Adicionar campos: nome empresa (texto), tipo de serviço (seleção múltipla), contato (texto), responsável (texto), status (select)
+- [ ] Implementar edição inline para todos os campos
+- [ ] Adicionar testes Vitest para procedures de fornecedores
+- [ ] Integrar módulo ao menu lateral
+- [ ] Testar funcionalidade completa e salvar checkpoint
+
+
+## Fase 35: Módulo de Fornecedores (Atualizado)
+- [x] Atualizar schema com novos campos (companyName, serviceTypes, contact, contactPerson, status, notes)
+- [x] Criar queries e mutations tRPC para fornecedores
+- [x] Implementar página UI com edição inline e seleção múltipla
+- [x] Adicionar testes Vitest para procedimentos de fornecedores
+- [x] Integrar ao menu lateral (já estava integrado)
+- [x] Validar funcionalidade completa do módulo
