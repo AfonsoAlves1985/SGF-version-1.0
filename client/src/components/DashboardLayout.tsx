@@ -35,7 +35,8 @@ const menuItems = [
   { icon: Calendar, label: "Escala", path: "/schedule" },
   { icon: Building2, label: "Salas", path: "/rooms" },
   { icon: Wrench, label: "Manutenção", path: "/maintenance" },
-  { icon: FileText, label: "Fornecedores", path: "/suppliers" },
+  { icon: FileText, label: "Fornecedores e Compras", path: "/suppliers" },
+  { icon: FileText, label: "Contratos", path: "/contracts" },
 ];
 
 const SIDEBAR_WIDTH_KEY = "sidebar-width";

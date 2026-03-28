@@ -1,0 +1,19 @@
+{
+  "query": "SHOW TABLES LIKE 'contract%';",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user r9CVoJ25nh9Ssfd.root --database Ztp8T7Vpr2FQpGULvKFpsw --execute SHOW TABLES LIKE 'contract%';",
+  "rows": [
+    {
+      "Tables_in_Ztp8T7Vpr2FQpGULvKFpsw (contract%)": "contract_alerts"
+    },
+    {
+      "Tables_in_Ztp8T7Vpr2FQpGULvKFpsw (contract%)": "contracts"
+    },
+    {
+      "Tables_in_Ztp8T7Vpr2FQpGULvKFpsw (contract%)": "contracts_with_space"
+    }
+  ],
+  "messages": [],
+  "stdout": "Tables_in_Ztp8T7Vpr2FQpGULvKFpsw (contract%)\ncontract_alerts\ncontracts\ncontracts_with_space\n",
+  "stderr": "",
+  "execution_time_ms": 57
+}

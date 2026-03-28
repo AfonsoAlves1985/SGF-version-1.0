@@ -203,26 +203,7 @@ export const suppliersWithSpace = mysqlTable("suppliers_with_space", {
 export type SupplierWithSpace = typeof suppliersWithSpace.$inferSelect;
 export type InsertSupplierWithSpace = typeof suppliersWithSpace.$inferInsert;
 
-// Contratos
-export const contracts = mysqlTable("contracts", {
-  id: int("id").autoincrement().primaryKey(),
-  supplierId: int("supplierId").notNull(),
-  title: varchar("title", { length: 255 }).notNull(),
-  startDate: datetime("startDate").notNull(),
-  endDate: datetime("endDate").notNull(),
-  value: decimal("value", { precision: 10, scale: 2 }),
-  status: mysqlEnum("status", ["ativo", "expirado", "cancelado"]).default("ativo").notNull(),
-  notes: text("notes"),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-}, (table) => ({
-  supplierFk: foreignKey({
-    columns: [table.supplierId],
-    foreignColumns: [suppliers.id],
-  }),
-}));
 
-export type Contract = typeof contracts.$inferSelect;
-export type InsertContract = typeof contracts.$inferInsert;
 
 // Estoque de Consumíveis - Tabela Base
 export const consumables = mysqlTable("consumables", {
@@ -423,3 +404,68 @@ export const consumableStockAuditLog = mysqlTable("consumable_stock_audit_log", 
 
 export type ConsumableStockAuditLog = typeof consumableStockAuditLog.$inferSelect;
 export type InsertConsumableStockAuditLog = typeof consumableStockAuditLog.$inferInsert;
+
+
+// Contratos
+export const contracts = mysqlTable("contracts", {
+  id: int("id").autoincrement().primaryKey(),
+  companyName: varchar("companyName", { length: 255 }).notNull(),
+  description: text("description").notNull(),
+  contractType: mysqlEnum("contractType", ["mensal", "anual"]).notNull(),
+  value: decimal("value", { precision: 10, scale: 2 }).notNull(),
+  signatureDate: date("signatureDate").notNull(),
+  endDate: date("endDate").notNull(),
+  monthlyPaymentDate: int("monthlyPaymentDate"), // Dia do mês para contratos mensais (1-31)
+  documentUrl: text("documentUrl"), // URL do documento PDF armazenado
+  status: mysqlEnum("status", ["ativo", "inativo", "vencido"]).default("ativo").notNull(),
+  notes: text("notes"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Contract = typeof contracts.$inferSelect;
+export type InsertContract = typeof contracts.$inferInsert;
+
+// Contratos por Espaço
+export const contractsWithSpace = mysqlTable("contracts_with_space", {
+  id: int("id").autoincrement().primaryKey(),
+  spaceId: int("spaceId").notNull(),
+  contractId: int("contractId").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (table) => ({
+  spaceFk: foreignKey({
+    columns: [table.spaceId],
+    foreignColumns: [consumableSpaces.id],
+  }),
+  contractFk: foreignKey({
+    columns: [table.contractId],
+    foreignColumns: [contracts.id],
+  }),
+}));
+
+export type ContractWithSpace = typeof contractsWithSpace.$inferSelect;
+export type InsertContractWithSpace = typeof contractsWithSpace.$inferInsert;
+
+// Alertas de Contratos
+export const contractAlerts = mysqlTable("contract_alerts", {
+  id: int("id").autoincrement().primaryKey(),
+  contractId: int("contractId").notNull(),
+  spaceId: int("spaceId").notNull(),
+  alertType: mysqlEnum("alertType", ["monthly_payment", "contract_expiry"]).notNull(),
+  daysUntilEvent: int("daysUntilEvent").notNull(),
+  isResolved: boolean("isResolved").default(false).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  resolvedAt: timestamp("resolvedAt"),
+}, (table) => ({
+  contractFk: foreignKey({
+    columns: [table.contractId],
+    foreignColumns: [contracts.id],
+  }),
+  spaceFk: foreignKey({
+    columns: [table.spaceId],
+    foreignColumns: [consumableSpaces.id],
+  }),
+}));
+
+export type ContractAlert = typeof contractAlerts.$inferSelect;
+export type InsertContractAlert = typeof contractAlerts.$inferInsert;

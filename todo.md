@@ -416,3 +416,15 @@
 - [x] Remover filtro de avisos na seção de alertas
 - [x] Manter apenas alertas críticos
 - [x] Testar e validar
+
+
+## Fase 39: Renomear Fornecedores e Criar Módulo de Contratos
+
+- [ ] Renomear "Fornecedores" para "Fornecedores e Compras" no menu e página
+- [ ] Criar tabela de contratos no schema (empresa, descrição, tipo, valor, datas)
+- [ ] Criar procedures tRPC para CRUD de contratos
+- [ ] Implementar página UI de Contratos com seletor de unidades
+- [ ] Adicionar upload de documentos PDF
+- [ ] Implementar alertas de vencimento (mensal) e fim de contrato
+- [ ] Adicionar testes Vitest para contratos
+- [ ] Integrar ao menu lateral

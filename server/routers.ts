@@ -451,62 +451,7 @@ export const appRouter = router({
       }),
   }),
 
-  // ============ CONTRATOS ============
-  contracts: router({
-    list: protectedProcedure
-      .input(z.object({
-        supplierId: z.number().optional(),
-        status: z.string().optional(),
-      }).optional())
-      .query(async ({ input }) => {
-        return db.listContracts(input);
-      }),
 
-    getById: protectedProcedure
-      .input(z.number())
-      .query(async ({ input }) => {
-        return db.getContractById(input);
-      }),
-
-    create: protectedProcedure
-      .input(z.object({
-        supplierId: z.number(),
-        title: z.string(),
-        startDate: z.date(),
-        endDate: z.date(),
-        value: z.string().optional(),
-        notes: z.string().optional(),
-      }))
-      .mutation(async ({ input }) => {
-        return db.createContract({
-          ...input,
-          startDate: new Date(input.startDate),
-          endDate: new Date(input.endDate),
-        });
-      }),
-
-    update: protectedProcedure
-      .input(z.object({
-        id: z.number(),
-        supplierId: z.number().optional(),
-        title: z.string().optional(),
-        startDate: z.date().optional(),
-        endDate: z.date().optional(),
-        value: z.string().optional(),
-        status: z.enum(["ativo", "expirado", "cancelado"]).optional(),
-        notes: z.string().optional(),
-      }))
-      .mutation(async ({ input }) => {
-        const { id, ...data } = input;
-        return db.updateContract(id, data);
-      }),
-
-    delete: protectedProcedure
-      .input(z.number())
-      .mutation(async ({ input }) => {
-        return db.deleteContract(input);
-      }),
-  }),
 
   // ============ CONSUMÍVEIS ============
   consumables: router({
@@ -945,6 +890,67 @@ export const appRouter = router({
       .input(z.number())
       .query(async ({ input }) => {
         return db.getStockAlertsBySpace(input);
+      }),
+  }),
+
+  // ============ CONTRATOS ============
+  contracts: router({
+    list: protectedProcedure
+      .input(z.object({
+        spaceId: z.number().optional(),
+        search: z.string().optional(),
+      }).optional())
+      .query(async ({ input }) => {
+        return db.listContractsWithSpace(input);
+      }),
+
+    create: protectedProcedure
+      .input(z.object({
+        spaceId: z.number(),
+        companyName: z.string(),
+        description: z.string(),
+        contractType: z.enum(["mensal", "anual"]),
+        value: z.string(),
+        signatureDate: z.date(),
+        endDate: z.date(),
+        monthlyPaymentDate: z.number().optional(),
+        documentUrl: z.string().optional(),
+        notes: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const { spaceId, ...contract } = input;
+        return db.createContractWithSpace(spaceId, contract);
+      }),
+
+    update: protectedProcedure
+      .input(z.object({
+        contractId: z.number(),
+        companyName: z.string().optional(),
+        description: z.string().optional(),
+        contractType: z.enum(["mensal", "anual"]).optional(),
+        value: z.string().optional(),
+        signatureDate: z.date().optional(),
+        endDate: z.date().optional(),
+        monthlyPaymentDate: z.number().optional(),
+        documentUrl: z.string().optional(),
+        status: z.enum(["ativo", "inativo", "vencido"]).optional(),
+        notes: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const { contractId, ...updates } = input;
+        return db.updateContractWithSpace(contractId, updates);
+      }),
+
+    delete: protectedProcedure
+      .input(z.number())
+      .mutation(async ({ input }) => {
+        return db.deleteContractWithSpace(input);
+      }),
+
+    getAlerts: protectedProcedure
+      .input(z.number().optional())
+      .query(async ({ input }) => {
+        return db.getContractAlerts(input);
       }),
   }),
 });

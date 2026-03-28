@@ -6,12 +6,13 @@ import {
   teams, schedules, InsertTeam, InsertSchedule,
   rooms, roomReservations, InsertRoom, InsertRoomReservation,
   maintenanceRequests, InsertMaintenanceRequest,
-  suppliers, contracts, InsertSupplier, InsertContract,
+  suppliers, InsertSupplier,
   suppliersWithSpace, InsertSupplierWithSpace,
   consumables, consumablesWeekly, consumablesMonthly, InsertConsumable, InsertConsumableWeekly, InsertConsumableMonthly,
   consumableSpaces, consumablesWithSpace, InsertConsumableSpace, InsertConsumableWithSpace,
   consumableWeeklyMovements, consumableMonthlyMovements, InsertConsumableWeeklyMovement, InsertConsumableMonthlyMovement,
-  consumableStockAuditLog, InsertConsumableStockAuditLog
+  consumableStockAuditLog, InsertConsumableStockAuditLog,
+  contracts, contractsWithSpace, contractAlerts, InsertContract, InsertContractWithSpace, InsertContractAlert
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -431,23 +432,7 @@ export async function deleteSupplier(id: number) {
 
 // ============ CONTRATOS ============
 
-export async function listContracts(filters?: { supplierId?: number; status?: string }) {
-  const db = await getDb();
-  if (!db) return [];
-
-  const conditions = [];
-
-  if (filters?.supplierId) conditions.push(eq(contracts.supplierId, filters.supplierId));
-  if (filters?.status) conditions.push(eq(contracts.status, filters.status as any));
-
-  let query = db.select().from(contracts);
-  if (conditions.length > 0) {
-    // @ts-ignore - Drizzle ORM type inference issue
-    query = query.where(and(...conditions));
-  }
-
-  return (await query.orderBy(desc(contracts.endDate))) as any;
-}
+// Função removida - usar listContractsWithSpace para contratos por unidade
 
 export async function getContractById(id: number) {
   const db = await getDb();
@@ -1441,4 +1426,153 @@ export async function getStockAlertsBySpace(spaceId: number) {
     });
 
   return alerts;
+}
+
+
+// Contratos
+export async function listContractsWithSpace(filters?: { spaceId?: number; search?: string }) {
+  const db = await getDb();
+  if (!db) return [];
+
+  const conditions = [];
+  if (filters?.spaceId) conditions.push(eq(contractsWithSpace.spaceId, filters.spaceId));
+  if (filters?.search) conditions.push(like(contracts.companyName, `%${filters.search}%`));
+
+  return db.select()
+    .from(contractsWithSpace)
+    .innerJoin(contracts, eq(contractsWithSpace.contractId, contracts.id))
+    .where(conditions.length > 0 ? and(...conditions) : undefined)
+    .orderBy(desc(contractsWithSpace.createdAt));
+}
+
+export async function createContractWithSpace(spaceId: number, contract: InsertContract): Promise<{ contractId: number }> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const result = await db.insert(contracts).values(contract);
+  const contractId = Number(result.insertId);
+  
+  await db.insert(contractsWithSpace).values({
+    spaceId,
+    contractId,
+  });
+
+  return { contractId };
+}
+
+export async function updateContractWithSpace(contractId: number, updates: Partial<InsertContract>): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db.update(contracts)
+    .set(updates)
+    .where(eq(contracts.id, contractId));
+}
+
+export async function deleteContractWithSpace(contractId: number): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db.delete(contractsWithSpace)
+    .where(eq(contractsWithSpace.contractId, contractId));
+  
+  await db.delete(contracts)
+    .where(eq(contracts.id, contractId));
+}
+
+export async function getContractAlerts(spaceId?: number): Promise<any[]> {
+  const db = await getDb();
+  if (!db) return [];
+
+  const conditions = [];
+  if (spaceId) conditions.push(eq(contractAlerts.spaceId, spaceId));
+  conditions.push(eq(contractAlerts.isResolved, false));
+
+  return db.select()
+    .from(contractAlerts)
+    .innerJoin(contracts, eq(contractAlerts.contractId, contracts.id))
+    .where(conditions.length > 0 ? and(...conditions) : undefined)
+    .orderBy(asc(contractAlerts.daysUntilEvent));
+}
+
+export async function generateContractAlerts(): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+
+  const today = new Date();
+  
+  // Buscar todos os contratos ativos
+  const activeContracts = await db.select()
+    .from(contracts)
+    .where(eq(contracts.status, "ativo"));
+
+  for (const contract of activeContracts) {
+    const endDate = new Date(contract.endDate);
+    const daysUntilExpiry = Math.floor((endDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+    // Alertas de vencimento de contrato (30 dias antes)
+    if (daysUntilExpiry <= 30 && daysUntilExpiry > 0) {
+      const spaces = await db.select()
+        .from(contractsWithSpace)
+        .where(eq(contractsWithSpace.contractId, contract.id));
+
+      for (const space of spaces) {
+        const existingAlert = await db.select()
+          .from(contractAlerts)
+          .where(and(
+            eq(contractAlerts.contractId, contract.id),
+            eq(contractAlerts.spaceId, space.spaceId),
+            eq(contractAlerts.alertType, "contract_expiry"),
+            eq(contractAlerts.isResolved, false)
+          ));
+
+        if (existingAlert.length === 0) {
+          await db.insert(contractAlerts).values({
+            contractId: contract.id,
+            spaceId: space.spaceId,
+            alertType: "contract_expiry",
+            daysUntilEvent: daysUntilExpiry,
+          });
+        }
+      }
+    }
+
+    // Alertas de pagamento mensal (dia anterior)
+    if (contract.contractType === "mensal" && contract.monthlyPaymentDate) {
+      const today = new Date();
+      const nextPaymentDate = new Date(today.getFullYear(), today.getMonth(), contract.monthlyPaymentDate);
+      
+      if (nextPaymentDate < today) {
+        nextPaymentDate.setMonth(nextPaymentDate.getMonth() + 1);
+      }
+
+      const daysUntilPayment = Math.floor((nextPaymentDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+      if (daysUntilPayment === 1) {
+        const spaces = await db.select()
+          .from(contractsWithSpace)
+          .where(eq(contractsWithSpace.contractId, contract.id));
+
+        for (const space of spaces) {
+          const existingAlert = await db.select()
+            .from(contractAlerts)
+            .where(and(
+              eq(contractAlerts.contractId, contract.id),
+              eq(contractAlerts.spaceId, space.spaceId),
+              eq(contractAlerts.alertType, "monthly_payment"),
+              eq(contractAlerts.isResolved, false)
+            ));
+
+          if (existingAlert.length === 0) {
+            await db.insert(contractAlerts).values({
+              contractId: contract.id,
+              spaceId: space.spaceId,
+              alertType: "monthly_payment",
+              daysUntilEvent: 1,
+            });
+          }
+        }
+      }
+    }
+  }
 }
