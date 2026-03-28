@@ -44,12 +44,16 @@ export default function Contracts() {
     }
 
     try {
+      const monthlyPaymentDate = formData.contractType === "mensal" && formData.monthlyPaymentDate 
+        ? parseInt(formData.monthlyPaymentDate) 
+        : undefined;
+      
       await createMutation.mutateAsync({
         spaceId: selectedSpace,
         ...formData,
         signatureDate: new Date(formData.signatureDate),
         endDate: new Date(formData.endDate),
-        monthlyPaymentDate: formData.monthlyPaymentDate ? parseInt(formData.monthlyPaymentDate) : undefined,
+        monthlyPaymentDate,
       });
 
       setFormData({
@@ -275,6 +279,7 @@ export default function Contracts() {
                       <div className="flex gap-2">
                         {contract.contracts_documentUrl && (
                           <a
+                            key="download"
                             href={contract.contracts_documentUrl}
                             target="_blank"
                             rel="noopener noreferrer"
@@ -284,12 +289,14 @@ export default function Contracts() {
                           </a>
                         )}
                         <button
+                          key="edit"
                           onClick={() => setEditingId(contract.id)}
                           className="p-2 hover:bg-blue-100 rounded transition-colors"
                         >
                           <Edit2 className="w-4 h-4 text-blue-600" />
                         </button>
                         <button
+                          key="delete"
                           onClick={() => handleDelete(contract.id)}
                           className="p-2 hover:bg-red-100 rounded transition-colors"
                         >
