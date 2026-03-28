@@ -26,7 +26,10 @@ export default function Contracts() {
     selectedSpace ? { spaceId: selectedSpace } : undefined,
     { enabled: !!selectedSpace }
   );
-  const { data: alerts = [] } = trpc.contracts.getAlerts.useQuery(selectedSpace || undefined);
+  const { data: alerts = [] } = trpc.contracts.getAlerts.useQuery(
+    selectedSpace ? selectedSpace : undefined,
+    { enabled: !!selectedSpace }
+  );
 
   const createMutation = trpc.contracts.create.useMutation();
   const updateMutation = trpc.contracts.update.useMutation();
