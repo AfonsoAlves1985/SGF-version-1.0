@@ -1450,14 +1450,18 @@ export async function createContractWithSpace(spaceId: number, contract: InsertC
   if (!db) throw new Error("Database not available");
 
   const result = await db.insert(contracts).values(contract);
-  const contractId = Number(result.insertId);
+  const contractId = (result as any).insertId || (result as any)[0]?.id;
+  
+  if (!contractId) {
+    throw new Error("Failed to get contract ID after insertion");
+  }
   
   await db.insert(contractsWithSpace).values({
     spaceId,
-    contractId,
+    contractId: Number(contractId),
   });
 
-  return { contractId };
+  return { contractId: Number(contractId) };
 }
 
 export async function updateContractWithSpace(contractId: number, updates: Partial<InsertContract>): Promise<void> {
