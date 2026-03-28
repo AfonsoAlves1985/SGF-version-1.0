@@ -253,15 +253,15 @@ export default function Contracts() {
                         <h3 className="text-lg font-bold text-gray-900">{contract.contracts_companyName}</h3>
                         <p className="text-sm text-gray-600 mt-1">{contract.contracts_description}</p>
                         <div className="flex gap-4 mt-3 text-sm">
-                          <span className="flex items-center gap-1">
+                          <span key="value" className="flex items-center gap-1">
                             <DollarSign className="w-4 h-4" />
                             R$ {parseFloat(contract.contracts_value).toLocaleString("pt-BR")}
                           </span>
-                          <span className="flex items-center gap-1">
+                          <span key="date" className="flex items-center gap-1">
                             <Calendar className="w-4 h-4" />
                             Vence: {new Date(contract.contracts_endDate).toLocaleDateString("pt-BR")}
                           </span>
-                          <span className={`px-2 py-1 rounded text-xs font-medium ${
+                          <span key="status" className={`px-2 py-1 rounded text-xs font-medium ${
                             contract.contracts_status === "ativo"
                               ? "bg-green-100 text-green-800"
                               : contract.contracts_status === "inativo"
