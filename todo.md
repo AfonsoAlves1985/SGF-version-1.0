@@ -428,3 +428,20 @@
 - [ ] Implementar alertas de vencimento (mensal) e fim de contrato
 - [ ] Adicionar testes Vitest para contratos
 - [ ] Integrar ao menu lateral
+- [x] Criar tabela de contratos no schema (empresa, descrição, tipo, valor, datas)
+- [x] Criar procedures tRPC para CRUD de contratos
+- [x] Implementar página UI de Contratos com seletor de unidades
+- [x] Adicionar upload de documentos PDF
+- [x] Implementar alertas de vencimento (mensal) e fim de contrato
+- [x] Adicionar testes Vitest para contratos
+- [x] Integrar ao menu lateral
+
+
+## Fase 40: CRUD de Unidades/Espaços com Interface Centralizada
+
+- [ ] Criar componente de gerenciamento de unidades reutilizável
+- [ ] Implementar CRUD de unidades em Consumíveis
+- [ ] Implementar CRUD de unidades em Fornecedores e Compras
+- [ ] Implementar CRUD de unidades em Contratos
+- [ ] Adicionar testes para CRUD de unidades
+- [ ] Validar funcionalidade completa

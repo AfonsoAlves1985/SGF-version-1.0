@@ -28,6 +28,7 @@ import {
 import { Plus, Edit2, Trash2, Building2, X } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
+import { SpaceManager } from "@/components/SpaceManager";
 
 const SERVICE_TYPES = [
   "Limpeza",
@@ -44,9 +45,7 @@ const SERVICE_TYPES = [
 
 export default function Suppliers() {
   const [isOpen, setIsOpen] = useState(false);
-  const [isSpaceDialogOpen, setIsSpaceDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [editingSpaceId, setEditingSpaceId] = useState<number | null>(null);
   const [selectedSpace, setSelectedSpace] = useState<number | null>(null);
   const [filters, setFilters] = useState({ search: "" });
   const [formData, setFormData] = useState({
@@ -57,11 +56,7 @@ export default function Suppliers() {
     status: "ativo" as "ativo" | "inativo" | "suspenso",
     notes: "",
   });
-  const [spaceFormData, setSpaceFormData] = useState({
-    name: "",
-    description: "",
-    location: "",
-  });
+
 
   // Queries
   const { data: spaces = [], isLoading: spacesLoading, refetch: refetchSpaces } = trpc.consumableSpaces.list.useQuery();
@@ -109,8 +104,6 @@ export default function Suppliers() {
     onSuccess: () => {
       toast.success("Unidade criada com sucesso!");
       refetchSpaces();
-      setSpaceFormData({ name: "", description: "", location: "" });
-      setIsSpaceDialogOpen(false);
     },
     onError: (error) => {
       toast.error(`Erro: ${error.message}`);
@@ -121,9 +114,6 @@ export default function Suppliers() {
     onSuccess: () => {
       toast.success("Unidade atualizada com sucesso!");
       refetchSpaces();
-      setSpaceFormData({ name: "", description: "", location: "" });
-      setEditingSpaceId(null);
-      setIsSpaceDialogOpen(false);
     },
     onError: (error) => {
       toast.error(`Erro: ${error.message}`);
@@ -161,15 +151,6 @@ export default function Suppliers() {
     }
   };
 
-  const handleSpaceSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (editingSpaceId) {
-      updateSpaceMutation.mutate({ id: editingSpaceId, ...spaceFormData });
-    } else {
-      createSpaceMutation.mutate(spaceFormData);
-    }
-  };
-
   const handleEdit = (supplier: any) => {
     setEditingId(supplier.id);
     setFormData({
@@ -181,21 +162,6 @@ export default function Suppliers() {
       notes: supplier.notes || "",
     });
     setIsOpen(true);
-  };
-
-  const handleSpaceEdit = (space: any) => {
-    setEditingSpaceId(space.id);
-    setSpaceFormData({
-      name: space.name,
-      description: space.description || "",
-      location: space.location || "",
-    });
-  };
-
-  const handleSpaceDelete = (spaceId: number) => {
-    if (window.confirm("Tem certeza que deseja deletar esta unidade?")) {
-      deleteSpaceMutation.mutate(spaceId);
-    }
   };
 
   const handleDelete = (id: number) => {
@@ -232,123 +198,22 @@ export default function Suppliers() {
   if (!selectedSpace) {
     return (
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-white">Fornecedores</h1>
-            <p className="text-gray-400 mt-2">Gestão de fornecedores por unidade</p>
-          </div>
-          <Dialog open={isSpaceDialogOpen} onOpenChange={setIsSpaceDialogOpen}>
-            <DialogTrigger asChild>
-              <Button className="bg-orange-600 hover:bg-orange-700 text-white">
-                <Plus className="h-4 w-4 mr-2" />
-                Nova Unidade
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="bg-slate-800 border-slate-700">
-              <DialogHeader>
-                <DialogTitle className="text-white">{editingSpaceId ? "Editar" : "Nova"} Unidade</DialogTitle>
-              </DialogHeader>
-              <form onSubmit={handleSpaceSubmit} className="space-y-4">
-                <div>
-                  <label className="text-sm font-medium text-gray-300">Nome</label>
-                  <Input
-                    value={spaceFormData.name}
-                    onChange={(e) => setSpaceFormData({ ...spaceFormData, name: e.target.value })}
-                    className="bg-slate-700 border-slate-600 text-white mt-1"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-300">Descrição</label>
-                  <Input
-                    value={spaceFormData.description}
-                    onChange={(e) => setSpaceFormData({ ...spaceFormData, description: e.target.value })}
-                    className="bg-slate-700 border-slate-600 text-white mt-1"
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-300">Localização</label>
-                  <Input
-                    value={spaceFormData.location}
-                    onChange={(e) => setSpaceFormData({ ...spaceFormData, location: e.target.value })}
-                    className="bg-slate-700 border-slate-600 text-white mt-1"
-                  />
-                </div>
-                <div className="flex gap-2">
-                  <Button type="submit" className="flex-1 bg-orange-600 hover:bg-orange-700">
-                    {editingSpaceId ? "Atualizar" : "Criar"} Unidade
-                  </Button>
-                  {editingSpaceId && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => {
-                        setEditingSpaceId(null);
-                        setSpaceFormData({ name: "", description: "", location: "" });
-                        setIsSpaceDialogOpen(false);
-                      }}
-                      className="border-slate-600 text-gray-300 hover:bg-slate-800"
-                    >
-                      Cancelar
-                    </Button>
-                  )}
-                </div>
-              </form>
-            </DialogContent>
-          </Dialog>
+        <div>
+          <h1 className="text-3xl font-bold text-white">Fornecedores</h1>
+          <p className="text-gray-400 mt-2">Gestão de fornecedores por unidade</p>
         </div>
-
-        <Card className="bg-slate-800/50 border-slate-700">
-          <CardHeader>
-            <CardTitle className="text-white">Selecione uma Unidade</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {spaces.length === 0 ? (
-              <div className="text-center py-8 text-gray-400">
-                <p>Nenhuma unidade criada ainda.</p>
-                <p className="text-sm mt-2">Clique em "Nova Unidade" para começar.</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {spaces.map((space: any) => (
-                  <div
-                    key={space.id}
-                    onClick={() => setSelectedSpace(space.id)}
-                    className="p-4 rounded-lg border-2 border-slate-600 hover:border-orange-600 cursor-pointer transition-all duration-200 bg-slate-700/50 hover:bg-slate-700 group"
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-white truncate">{space.name}</h3>
-                        <p className="text-sm text-gray-400 mt-1 line-clamp-2">{space.description || "Sem descrição"}</p>
-                      </div>
-                      <div className="flex gap-1 ml-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleSpaceEdit(space);
-                            setIsSpaceDialogOpen(true);
-                          }}
-                          className="p-1.5 hover:bg-blue-600/30 rounded transition-colors"
-                        >
-                          <Edit2 className="h-4 w-4 text-blue-400" />
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleSpaceDelete(space.id);
-                          }}
-                          className="p-1.5 hover:bg-red-600/30 rounded transition-colors"
-                        >
-                          <Trash2 className="h-4 w-4 text-red-400" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        <SpaceManager
+          spaces={spaces}
+          selectedSpace={selectedSpace}
+          onSelectSpace={setSelectedSpace}
+          onCreateSpace={(data) => createSpaceMutation.mutate(data)}
+          onUpdateSpace={(id, data) => updateSpaceMutation.mutate({ id, ...data })}
+          onDeleteSpace={(id) => deleteSpaceMutation.mutate(id)}
+          isLoading={spacesLoading}
+          headerTitle="Selecione uma Unidade"
+          headerDescription="Escolha uma unidade para gerenciar fornecedores"
+          buttonLabel="Nova Unidade"
+        />
       </div>
     );
   }
@@ -368,7 +233,8 @@ export default function Suppliers() {
             onClick={() => setSelectedSpace(null)}
             className="border-slate-600 text-gray-300 hover:bg-slate-800"
           >
-            Mudar Unidade
+            <Building2 className="h-4 w-4 mr-2" />
+            Trocar Unidade
           </Button>
           <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogTrigger asChild>

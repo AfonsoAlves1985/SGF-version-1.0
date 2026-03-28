@@ -24,14 +24,13 @@ import { toast } from "sonner";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { StockTrendChart } from "@/components/StockTrendChart";
+import { SpaceManager } from "@/components/SpaceManager";
 
 export default function Consumables() {
   const { t } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
-  const [isSpaceDialogOpen, setIsSpaceDialogOpen] = useState(false);
-  const [editingId, setEditingId] = useState<number | null>(null);
-  const [editingSpaceId, setEditingSpaceId] = useState<number | null>(null);
   const [selectedSpace, setSelectedSpace] = useState<number | null>(null);
+  const [editingId, setEditingId] = useState<number | null>(null);
   const [filters, setFilters] = useState({ search: "", category: "" });
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [weekStartDate, setWeekStartDate] = useState<Date>(new Date());
@@ -51,11 +50,7 @@ export default function Consumables() {
     currentStock: 0,
     replenishStock: 0,
   });
-  const [spaceFormData, setSpaceFormData] = useState({
-    name: "",
-    description: "",
-    location: "",
-  });
+
 
   // Calculate week start date (Monday)
   useEffect(() => {
@@ -155,8 +150,6 @@ export default function Consumables() {
     onSuccess: () => {
       toast.success(t("app.success"));
       refetchSpaces();
-      setIsSpaceDialogOpen(false);
-      setSpaceFormData({ name: "", description: "", location: "" });
     },
     onError: (error) => toast.error(error.message),
   });
@@ -165,9 +158,6 @@ export default function Consumables() {
     onSuccess: () => {
       toast.success(t("app.success"));
       refetchSpaces();
-      setIsSpaceDialogOpen(false);
-      setEditingSpaceId(null);
-      setSpaceFormData({ name: "", description: "", location: "" });
     },
     onError: (error) => toast.error(error.message),
   });
@@ -176,7 +166,7 @@ export default function Consumables() {
     onSuccess: () => {
       toast.success(t("app.success"));
       refetchSpaces();
-      if (selectedSpace === editingSpaceId) setSelectedSpace(null);
+      if (selectedSpace) setSelectedSpace(null);
     },
     onError: (error) => toast.error(error.message),
   });
@@ -202,14 +192,7 @@ export default function Consumables() {
     }
   };
 
-  const handleSpaceSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (editingSpaceId) {
-      updateSpaceMutation.mutate({ id: editingSpaceId, ...spaceFormData });
-    } else {
-      createSpaceMutation.mutate(spaceFormData);
-    }
-  };
+
 
   const handleEdit = (consumable: any) => {
     setEditingId(consumable.id);
@@ -225,20 +208,7 @@ export default function Consumables() {
     setIsOpen(true);
   };
 
-  const handleSpaceEdit = (space: any) => {
-    setEditingSpaceId(space.id);
-    setSpaceFormData({
-      name: space.name,
-      description: space.description || "",
-      location: space.location || "",
-    });
-  };
 
-  const handleSpaceDelete = (spaceId: number) => {
-    if (window.confirm("Tem certeza que deseja deletar esta unidade?")) {
-      deleteSpaceMutation.mutate(spaceId);
-    }
-  };
 
   const handleDelete = (id: number) => {
     if (window.confirm("Tem certeza que deseja deletar este consumível?")) {
@@ -351,125 +321,22 @@ export default function Consumables() {
   if (!selectedSpace) {
     return (
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-white">Estoque de Consumíveis</h1>
-            <p className="text-gray-400 mt-2">Gestão de consumíveis por unidade com histórico semanal</p>
-          </div>
-          <Dialog open={isSpaceDialogOpen} onOpenChange={setIsSpaceDialogOpen}>
-            <DialogTrigger asChild>
-              <Button className="bg-orange-600 hover:bg-orange-700 text-white">
-                <Plus className="h-4 w-4 mr-2" />
-                Nova Unidade
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="bg-slate-800 border-slate-700">
-              <DialogHeader>
-                <DialogTitle className="text-white">{editingSpaceId ? "Editar" : "Nova"} Unidade</DialogTitle>
-              </DialogHeader>
-              <form onSubmit={handleSpaceSubmit} className="space-y-4">
-                <div>
-                  <label className="text-sm font-medium text-gray-300">Nome</label>
-                  <Input
-                    value={spaceFormData.name}
-                    onChange={(e) => setSpaceFormData({ ...spaceFormData, name: e.target.value })}
-                    className="bg-slate-700 border-slate-600 text-white mt-1"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-300">Descrição</label>
-                  <Input
-                    value={spaceFormData.description}
-                    onChange={(e) => setSpaceFormData({ ...spaceFormData, description: e.target.value })}
-                    className="bg-slate-700 border-slate-600 text-white mt-1"
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-300">Localização</label>
-                  <Input
-                    value={spaceFormData.location}
-                    onChange={(e) => setSpaceFormData({ ...spaceFormData, location: e.target.value })}
-                    className="bg-slate-700 border-slate-600 text-white mt-1"
-                  />
-                </div>
-                <div className="flex gap-2">
-                  <Button type="submit" className="flex-1 bg-orange-600 hover:bg-orange-700">
-                    {editingSpaceId ? "Atualizar" : "Criar"} Unidade
-                  </Button>
-                  {editingSpaceId && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => {
-                        setEditingSpaceId(null);
-                        setSpaceFormData({ name: "", description: "", location: "" });
-                        setIsSpaceDialogOpen(false);
-                      }}
-                      className="border-slate-600 text-gray-300 hover:bg-slate-800"
-                    >
-                      Cancelar
-                    </Button>
-                  )}
-                </div>
-              </form>
-            </DialogContent>
-          </Dialog>
+        <div>
+          <h1 className="text-3xl font-bold text-white">Estoque de Consumíveis</h1>
+          <p className="text-gray-400 mt-2">Gestão de consumíveis por unidade com histórico semanal</p>
         </div>
-
-        <Card className="bg-slate-800/50 border-slate-700">
-          <CardHeader>
-            <CardTitle className="text-white">Selecione uma Unidade</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {spaces.length === 0 ? (
-              <div className="text-center py-8 text-gray-400">
-                <p>Nenhuma unidade criada ainda.</p>
-                <p className="text-sm mt-2">Clique em "Nova Unidade" para começar.</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {spaces.map((space: any) => (
-                  <div
-                    key={space.id}
-                    onClick={() => setSelectedSpace(space.id)}
-                    className="p-4 rounded-lg border-2 border-slate-600 hover:border-orange-600 cursor-pointer transition-all duration-200 bg-slate-700/50 hover:bg-slate-700 group"
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-white truncate">{space.name}</h3>
-                        <p className="text-sm text-gray-400 mt-1 line-clamp-2">{space.description || "Sem descrição"}</p>
-                      </div>
-                      <div className="flex gap-1 ml-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleSpaceEdit(space);
-                            setIsSpaceDialogOpen(true);
-                          }}
-                          className="p-1.5 hover:bg-blue-600/30 rounded transition-colors"
-                          title="Editar unidade"
-                        >
-                          <svg className="h-4 w-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleSpaceDelete(space.id);
-                          }}
-                          className="p-1.5 hover:bg-red-600/30 rounded transition-colors"
-                          title="Deletar unidade"
-                        >
-                          <Trash2 className="h-4 w-4 text-red-400" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        <SpaceManager
+          spaces={spaces}
+          selectedSpace={selectedSpace}
+          onSelectSpace={setSelectedSpace}
+          onCreateSpace={(data) => createSpaceMutation.mutate(data)}
+          onUpdateSpace={(id, data) => updateSpaceMutation.mutate({ id, ...data })}
+          onDeleteSpace={(id) => deleteSpaceMutation.mutate(id)}
+          isLoading={spacesLoading}
+          headerTitle="Selecione uma Unidade"
+          headerDescription="Escolha uma unidade para gerenciar consumíveis"
+          buttonLabel="Nova Unidade"
+        />
       </div>
     );
   }
@@ -490,59 +357,14 @@ export default function Consumables() {
             <Download className="h-4 w-4 mr-2" />
             Exportar PDF
           </Button>
-          <Dialog open={isSpaceDialogOpen} onOpenChange={setIsSpaceDialogOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline" className="border-slate-600 text-gray-300 hover:bg-slate-800">
-                <Building2 className="h-4 w-4 mr-2" />
-                Trocar Unidade
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="bg-slate-800 border-slate-700 max-w-md">
-              <DialogHeader>
-                <DialogTitle className="text-white">Selecione uma Unidade</DialogTitle>
-                <DialogDescription className="text-gray-400">Escolha uma unidade para gerenciar consumíveis</DialogDescription>
-              </DialogHeader>
-              <div className="space-y-2 max-h-96 overflow-y-auto">
-                {spaces.map((space: any) => (
-                  <div key={space.id} className="flex items-center gap-2 p-3 rounded-lg bg-slate-700/50 hover:bg-slate-700 transition-colors group">
-                    <button
-                      onClick={() => {
-                        setSelectedSpace(space.id);
-                        setIsSpaceDialogOpen(false);
-                      }}
-                      className="flex-1 text-left"
-                    >
-                      <div className="font-medium text-white">{space.name}</div>
-                      <div className="text-xs text-gray-400">{space.description || "Sem descrição"}</div>
-                    </button>
-                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleSpaceEdit(space);
-                          setIsSpaceDialogOpen(true);
-                        }}
-                        className="p-1 hover:bg-blue-600/30 rounded transition-colors"
-                        title="Editar"
-                      >
-                        <svg className="h-4 w-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleSpaceDelete(space.id);
-                        }}
-                        className="p-1 hover:bg-red-600/30 rounded transition-colors"
-                        title="Deletar"
-                      >
-                        <Trash2 className="h-4 w-4 text-red-400" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </DialogContent>
-          </Dialog>
+          <Button
+            onClick={() => setSelectedSpace(null)}
+            variant="outline"
+            className="border-slate-600 text-gray-300 hover:bg-slate-800"
+          >
+            <Building2 className="h-4 w-4 mr-2" />
+            Trocar Unidade
+          </Button>
           <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogTrigger asChild>
               <Button className="bg-orange-600 hover:bg-orange-700 text-white">
