@@ -47,17 +47,22 @@ export default function Contracts() {
     }
 
     try {
-      const monthlyPaymentDate = formData.contractType === "mensal" && formData.monthlyPaymentDate 
-        ? parseInt(formData.monthlyPaymentDate) 
-        : undefined;
-      
-      await createMutation.mutateAsync({
+      const payload: any = {
         spaceId: selectedSpace,
-        ...formData,
+        companyName: formData.companyName,
+        description: formData.description,
+        contractType: formData.contractType,
+        value: formData.value,
         signatureDate: new Date(formData.signatureDate),
         endDate: new Date(formData.endDate),
-        monthlyPaymentDate,
-      });
+        notes: formData.notes || undefined,
+      };
+      
+      if (formData.contractType === "mensal" && formData.monthlyPaymentDate) {
+        payload.monthlyPaymentDate = parseInt(formData.monthlyPaymentDate);
+      }
+      
+      await createMutation.mutateAsync(payload);
 
       setFormData({
         companyName: "",
