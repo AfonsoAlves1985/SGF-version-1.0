@@ -285,28 +285,33 @@ export default function Contracts() {
                         </div>
                       </div>
                       <div className="flex gap-2">
-                        {contract.contracts_documentUrl && (
-                          <a
-                            href={contract.contracts_documentUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
+                        {[
+                          contract.contracts_documentUrl && (
+                            <a
+                              key="download"
+                              href={contract.contracts_documentUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="p-2 hover:bg-blue-100 rounded transition-colors"
+                            >
+                              <Download className="w-4 h-4 text-blue-600" />
+                            </a>
+                          ),
+                          <button
+                            key="edit"
+                            onClick={() => setEditingId(contract.id)}
                             className="p-2 hover:bg-blue-100 rounded transition-colors"
                           >
-                            <Download className="w-4 h-4 text-blue-600" />
-                          </a>
-                        )}
-                        <button
-                          onClick={() => setEditingId(contract.id)}
-                          className="p-2 hover:bg-blue-100 rounded transition-colors"
-                        >
-                          <Edit2 className="w-4 h-4 text-blue-600" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(contract.id)}
-                          className="p-2 hover:bg-red-100 rounded transition-colors"
-                        >
-                          <Trash2 className="w-4 h-4 text-red-600" />
-                        </button>
+                            <Edit2 className="w-4 h-4 text-blue-600" />
+                          </button>,
+                          <button
+                            key="delete"
+                            onClick={() => handleDelete(contract.id)}
+                            className="p-2 hover:bg-red-100 rounded transition-colors"
+                          >
+                            <Trash2 className="w-4 h-4 text-red-600" />
+                          </button>,
+                        ].filter(Boolean)}
                       </div>
                     </div>
                   </CardContent>
