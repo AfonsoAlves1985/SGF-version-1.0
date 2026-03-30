@@ -159,31 +159,35 @@ export async function generateReportData(spaceId: number, weekStartDateStr: stri
   const endDate = new Date(startDate);
   endDate.setDate(endDate.getDate() + 6);
 
-  // Buscar dados de consumíveis (placeholder - será implementado no routers)
-  const consumables: any[] = [];
-
+  // Buscar dados de consumíveis da unidade
+  const consumables = await db.listConsumablesWithSpace({ spaceId });
+  
+  // Buscar nome da unidade
+  const spaces = await db.listConsumableSpaces();
+  const space = spaces.find((s: any) => s.id === spaceId);
+  
   // Calcular estatísticas
   const statistics = {
-    totalConsumables: (consumables as any[]).length,
-    criticalStock: (consumables as any[]).filter((c: any) => c.currentStock < c.minStock).length,
-    lowStock: (consumables as any[]).filter((c: any) => c.currentStock >= c.minStock && c.currentStock < (c.maxStock * 0.3)).length,
-    normalStock: (consumables as any[]).filter((c: any) => c.currentStock >= (c.maxStock * 0.3)).length,
+    totalConsumables: consumables.length,
+    criticalStock: consumables.filter((c: any) => c.currentStock < c.minStock).length,
+    lowStock: consumables.filter((c: any) => c.currentStock >= c.minStock && c.currentStock < (c.maxStock * 0.3)).length,
+    normalStock: consumables.filter((c: any) => c.currentStock >= (c.maxStock * 0.3)).length,
   };
 
   return {
-    spaceName: 'Unidade',
+    spaceName: space?.name || 'Unidade',
     weekStartDate: startDate,
     weekEndDate: endDate,
     generatedAt: new Date(),
-    consumables: consumables.map((c: any) => ({
+    consumables: (consumables as any[]).map((c: any) => ({
       id: c.id,
       name: c.name,
-      category: c.category,
-      currentStock: c.currentStock,
-      minStock: c.minStock,
-      maxStock: c.maxStock,
-      repor: c.maxStock - c.currentStock,
-      status: c.currentStock < c.minStock ? 'CRÍTICO' : c.currentStock < (c.maxStock * 0.3) ? 'BAIXO' : 'OK',
+      category: c.category || '-',
+      currentStock: c.currentStock || 0,
+      minStock: c.minStock || 0,
+      maxStock: c.maxStock || 0,
+      repor: (c.maxStock || 0) - (c.currentStock || 0),
+      status: (c.currentStock || 0) < (c.minStock || 0) ? 'CRÍTICO' : (c.currentStock || 0) < ((c.maxStock || 0) * 0.3) ? 'BAIXO' : 'OK',
     })),
     statistics,
   };
