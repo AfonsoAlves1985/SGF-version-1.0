@@ -10,7 +10,7 @@ export default function Dashboard() {
   const { data: maintenance = [] } = trpc.maintenance.list.useQuery();
   const { data: rooms = [] } = trpc.rooms.list.useQuery();
   const { data: reservations = [] } = trpc.roomReservations.list.useQuery();
-  const { data: contracts = [] } = trpc.contracts.list.useQuery();
+
   const { data: teams = [] } = trpc.teams.list.useQuery();
   const { data: consumables = [] } = trpc.consumablesWithSpace.list.useQuery();
   const { data: spaces = [] } = trpc.consumableSpaces.list.useQuery();
@@ -31,12 +31,7 @@ export default function Dashboard() {
       const today = new Date().toDateString();
       return new Date(r.startTime).toDateString() === today;
     }).length,
-    contractsExpiring: contracts.filter((c: any) => {
-      const today = new Date();
-      const end = new Date(c.endDate);
-      const daysUntilExpiry = Math.floor((end.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-      return daysUntilExpiry <= 30 && daysUntilExpiry >= 0;
-    }).length,
+
     teamMembers: teams.length,
   };
 
@@ -115,18 +110,7 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-sm font-medium">Contratos Vencendo</CardTitle>
-              <Clock className="w-4 h-4 text-orange-600" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-orange-600">{metrics.contractsExpiring}</div>
-            <p className="text-xs text-gray-600 mt-1">próximos 30 dias</p>
-          </CardContent>
-        </Card>
+
       </div>
 
       {/* Alertas de Estoque Detalhados */}
