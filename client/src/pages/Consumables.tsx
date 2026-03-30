@@ -595,7 +595,7 @@ export default function Consumables() {
                     const StatusIcon = status.icon;
                     const replenishStock = consumable.maxStock - consumable.currentStock;
 
-                    return (
+                    return [
                       <TableRow key={consumable.id} className="border-slate-700 hover:bg-slate-700/50">
                         <TableCell className="text-white font-medium">{consumable.name}</TableCell>
                         <TableCell className="text-gray-300">{consumable.category}</TableCell>
@@ -683,8 +683,15 @@ export default function Consumables() {
                             </button>
                           </div>
                         </TableCell>
-                      </TableRow>
-                    );
+                      </TableRow>,
+                      expandedConsumables.has(consumable.id) && (
+                        <TableRow key={`chart-${consumable.id}`} className="border-slate-700 bg-slate-800/30">
+                          <TableCell colSpan={9} className="p-4">
+                            <ConsumableChartRow consumable={consumable} selectedSpace={selectedSpace} />
+                          </TableCell>
+                        </TableRow>
+                      ),
+                    ].filter(Boolean);
                   })}
                 </TableBody>
               </Table>
