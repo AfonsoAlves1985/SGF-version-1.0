@@ -1,0 +1,26 @@
+{
+  "query": "SHOW CREATE TABLE contracts_with_space;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user r9CVoJ25nh9Ssfd.root --database Ztp8T7Vpr2FQpGULvKFpsw --execute SHOW CREATE TABLE contracts_with_space;",
+  "rows": [
+    {
+      "Table": "contracts_with_space",
+      "Create Table": "CREATE TABLE `contracts_with_space` ("
+    }
+  ],
+  "messages": [
+    "  `id` int NOT NULL AUTO_INCREMENT,",
+    "  `spaceId` int NOT NULL,",
+    "  `contractId` int NOT NULL,",
+    "  `createdAt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,",
+    "  PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */,",
+    "  KEY `fk_1` (`spaceId`),",
+    "  KEY `fk_2` (`contractId`),",
+    "  CONSTRAINT `fk_1` FOREIGN KEY (`spaceId`) REFERENCES `consumable_spaces` (`id`),",
+    "  CONSTRAINT `fk_2` FOREIGN KEY (`contractId`) REFERENCES `contracts` (`id`),",
+    "  CONSTRAINT `contracts_with_space_spaceId_contract_spaces_id_fk` FOREIGN KEY (`spaceId`) REFERENCES `contract_spaces` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION",
+    ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin AUTO_INCREMENT=90001"
+  ],
+  "stdout": "Table\tCreate Table\ncontracts_with_space\tCREATE TABLE `contracts_with_space` (\n  `id` int NOT NULL AUTO_INCREMENT,\n  `spaceId` int NOT NULL,\n  `contractId` int NOT NULL,\n  `createdAt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,\n  PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */,\n  KEY `fk_1` (`spaceId`),\n  KEY `fk_2` (`contractId`),\n  CONSTRAINT `fk_1` FOREIGN KEY (`spaceId`) REFERENCES `consumable_spaces` (`id`),\n  CONSTRAINT `fk_2` FOREIGN KEY (`contractId`) REFERENCES `contracts` (`id`),\n  CONSTRAINT `contracts_with_space_spaceId_contract_spaces_id_fk` FOREIGN KEY (`spaceId`) REFERENCES `contract_spaces` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin AUTO_INCREMENT=90001\n",
+  "stderr": "",
+  "execution_time_ms": 76
+}

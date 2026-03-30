@@ -1,0 +1,9 @@
+{
+  "query": "ALTER TABLE contracts_with_space DROP FOREIGN KEY fk_1;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user r9CVoJ25nh9Ssfd.root --database Ztp8T7Vpr2FQpGULvKFpsw --execute ALTER TABLE contracts_with_space DROP FOREIGN KEY fk_1;",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 150
+}
