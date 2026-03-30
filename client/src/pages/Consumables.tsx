@@ -25,6 +25,12 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { StockTrendChart } from "@/components/StockTrendChart";
 import { SpaceManager } from "@/components/SpaceManager";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export default function Consumables() {
   const { t } = useLanguage();
@@ -264,7 +270,8 @@ export default function Consumables() {
     setSelectedDate(newDate);
   };
 
-  const exportReportMutation = trpc.consumableWeeklyMovements.exportReportExcel.useMutation();
+  const exportReportExcelMutation = trpc.consumableWeeklyMovements.exportReportExcel.useMutation();
+  const exportReportPDFMutation = trpc.consumableWeeklyMovements.exportReportPDF.useMutation();
 
   const handleExportExcel = () => {
     if (!selectedSpace) {
@@ -276,7 +283,7 @@ export default function Consumables() {
       String(weekStartDate.getMonth() + 1).padStart(2, '0') + '-' + 
       String(weekStartDate.getDate()).padStart(2, '0');
 
-    exportReportMutation.mutate(
+    exportReportExcelMutation.mutate(
       {
         spaceId: selectedSpace,
         weekStartDate: weekStartDateStr,
@@ -295,7 +302,42 @@ export default function Consumables() {
         },
         onError: (error: any) => {
           console.error("Erro ao exportar Excel:", error);
-          toast.error("Erro ao exportar relatório");
+          toast.error("Erro ao exportar relatório Excel");
+        },
+      }
+    );
+  };
+
+  const handleExportPDF = () => {
+    if (!selectedSpace) {
+      toast.error("Selecione uma unidade primeiro");
+      return;
+    }
+
+    const weekStartDateStr = weekStartDate.getFullYear() + '-' + 
+      String(weekStartDate.getMonth() + 1).padStart(2, '0') + '-' + 
+      String(weekStartDate.getDate()).padStart(2, '0');
+
+    exportReportPDFMutation.mutate(
+      {
+        spaceId: selectedSpace,
+        weekStartDate: weekStartDateStr,
+      },
+      {
+        onSuccess: (result: any) => {
+          if (result.success && result.pdfPath) {
+            const link = document.createElement('a');
+            link.href = `/api/download-pdf?path=${encodeURIComponent(result.pdfPath)}`;
+            link.download = `relatorio_consumo_${weekStartDateStr}.pdf`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            toast.success("Relatório PDF exportado com sucesso!");
+          }
+        },
+        onError: (error: any) => {
+          console.error("Erro ao exportar PDF:", error);
+          toast.error("Erro ao exportar relatório PDF");
         },
       }
     );
@@ -349,14 +391,31 @@ export default function Consumables() {
           <p className="text-gray-400 mt-2">Semana de {formatWeekRange()}</p>
         </div>
         <div className="flex gap-2">
-          <Button
-            onClick={handleExportExcel}
-            disabled={!selectedSpace || consumables.length === 0}
-            className="bg-orange-600 hover:bg-orange-700 text-white"
-          >
-            <Download className="h-4 w-4 mr-2" />
-            Exportar PDF
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                disabled={!selectedSpace || consumables.length === 0}
+                className="bg-orange-600 hover:bg-orange-700 text-white"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Exportar Relatório
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="bg-slate-800 border-slate-700">
+              <DropdownMenuItem
+                onClick={handleExportExcel}
+                className="text-gray-300 hover:bg-slate-700 cursor-pointer"
+              >
+                📊 Exportar em Excel
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={handleExportPDF}
+                className="text-gray-300 hover:bg-slate-700 cursor-pointer"
+              >
+                📄 Exportar em PDF
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button
             onClick={() => setSelectedSpace(null)}
             variant="outline"

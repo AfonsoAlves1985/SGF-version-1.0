@@ -858,6 +858,18 @@ export const appRouter = router({
         const excelPath = await generateExcelReport(reportData);
         return { success: true, excelPath };
       }),
+
+    exportReportPDF: protectedProcedure
+      .input(z.object({
+        spaceId: z.number(),
+        weekStartDate: z.string(),
+      }))
+      .mutation(async ({ input }) => {
+        const { generatePDFReportData, generatePDFReport } = await import('./pdf-report');
+        const reportData = await generatePDFReportData(input.spaceId, input.weekStartDate);
+        const pdfPath = await generatePDFReport(reportData);
+        return { success: true, pdfPath };
+      }),
   }),
 
   consumableMonthlyMovements: router({
