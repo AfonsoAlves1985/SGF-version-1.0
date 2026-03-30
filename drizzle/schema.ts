@@ -127,7 +127,7 @@ export const contractAlerts = mysqlTable("contract_alerts", {
 	spaceId: int().notNull().references(() => consumableSpaces.id),
 	alertType: mysqlEnum(['monthly_payment','contract_expiry']).notNull(),
 	daysUntilEvent: int().notNull(),
-	isResolved: tinyint().default(0).notNull(),
+	isResolved: int().default(0).notNull(),
 	createdAt: timestamp({ mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
 	resolvedAt: timestamp({ mode: 'string' }),
 });
