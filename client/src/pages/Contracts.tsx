@@ -100,8 +100,8 @@ export default function Contracts() {
         companyName: formData.companyName,
         description: formData.description,
         contractType: formData.contractType,
-        value: formData.value,
-        signatureDate: new Date(formData.signatureDate),
+        value: parseFloat(formData.value),
+        signatureDate: formData.signatureDate ? new Date(formData.signatureDate) : new Date(),
         endDate: new Date(formData.endDate),
         notes: formData.notes || undefined,
       };
@@ -312,8 +312,8 @@ export default function Contracts() {
             </CardContent>
           </Card>
         ) : (
-          contracts.map((contract: any) => (
-            <Card key={contract.id} className="hover:shadow-lg transition-shadow">
+          contracts.map((contract: any, idx: number) => (
+            <Card key={`contract-${contract.id}-${idx}`} className="hover:shadow-lg transition-shadow">
               <CardContent className="pt-6">
                 <div className="flex justify-between items-start">
                   <div className="flex-1">
