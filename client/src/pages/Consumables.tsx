@@ -24,6 +24,7 @@ import { toast } from "sonner";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { StockTrendChart } from "@/components/StockTrendChart";
+import { InlineStockChart } from "@/components/InlineStockChart";
 import { SpaceManager } from "@/components/SpaceManager";
 import {
   DropdownMenu,
@@ -226,6 +227,8 @@ export default function Consumables() {
     setSelectedConsumableForChart(consumable);
     setShowTrendChart(true);
   };
+
+
 
   const handleUpdateStock = async (consumableId: number, newStock: number) => {
     if (!selectedSpace) return;
@@ -582,6 +585,7 @@ export default function Consumables() {
                     <TableHead className="text-gray-300">Est. Atual</TableHead>
                     <TableHead className="text-gray-300">Repor</TableHead>
                     <TableHead className="text-gray-300">Status</TableHead>
+                    <TableHead className="text-gray-300">Tendência</TableHead>
                     <TableHead className="text-gray-300">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -591,7 +595,7 @@ export default function Consumables() {
                     const StatusIcon = status.icon;
                     const replenishStock = consumable.maxStock - consumable.currentStock;
 
-                    return (
+                    return [
                       <TableRow key={consumable.id} className="border-slate-700 hover:bg-slate-700/50">
                         <TableCell className="text-white font-medium">{consumable.name}</TableCell>
                         <TableCell className="text-gray-300">{consumable.category}</TableCell>
@@ -643,7 +647,19 @@ export default function Consumables() {
                           </div>
                         </TableCell>
                         <TableCell>
+                          <InlineStockChart consumableId={consumable.id} spaceId={selectedSpace} />
+                        </TableCell>
+                        <TableCell>
                           <div className="flex gap-2">
+                            <button
+                              onClick={() => handleShowTrendChart(consumable)}
+                              className="p-1 hover:bg-purple-600/30 rounded transition-colors"
+                              title="Expandir gráfico inline"
+                            >
+                              <svg className="h-4 w-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                              </svg>
+                            </button>
                             <button
                               onClick={() => handleShowTrendChart(consumable)}
                               className="p-1 hover:bg-blue-600/30 rounded transition-colors"
@@ -667,8 +683,15 @@ export default function Consumables() {
                             </button>
                           </div>
                         </TableCell>
-                      </TableRow>
-                    );
+                      </TableRow>,
+                      expandedConsumables.has(consumable.id) && (
+                        <TableRow key={`chart-${consumable.id}`} className="border-slate-700 bg-slate-800/30">
+                          <TableCell colSpan={9} className="p-4">
+                            <ConsumableChartRow consumable={consumable} selectedSpace={selectedSpace} />
+                          </TableCell>
+                        </TableRow>
+                      ),
+                    ].filter(Boolean);
                   })}
                 </TableBody>
               </Table>

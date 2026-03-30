@@ -78,6 +78,13 @@
       "when": 1774887648977,
       "tag": "0010_slim_maestro",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "5",
+      "when": 1774893271273,
+      "tag": "0011_stiff_starjammers",
+      "breakpoints": true
     }
   ]
 }
