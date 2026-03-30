@@ -12,7 +12,7 @@ import Schedule from "./pages/Schedule";
 import Rooms from "./pages/Rooms";
 import Maintenance from "./pages/Maintenance";
 import SuppliersAndPurchases from "./pages/SuppliersAndPurchases";
-import Contracts from "./pages/Contracts";
+
 import Dashboard from "./pages/Dashboard";
 import Consumables from "./pages/Consumables";
 import { useAuth } from "./_core/hooks/useAuth";
@@ -65,7 +65,7 @@ function Router() {
         <Route path={"/rooms"} component={Rooms} />
         <Route path={"/maintenance"} component={Maintenance} />
         <Route path={"/suppliers"} component={SuppliersAndPurchases} />
-        <Route path={"/contracts"} component={Contracts} />
+
         <Route path={"/consumables"} component={Consumables} />
         <Route path={"/dashboard"} component={Dashboard} />
         <Route path={"/404"} component={NotFound} />
