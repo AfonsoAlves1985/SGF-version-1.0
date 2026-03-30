@@ -1,0 +1,100 @@
+{
+  "query": "SELECT id, consumableId, spaceId, weekStartDate, mondayStock, tuesdayStock, wednesdayStock FROM consumable_weekly_movements LIMIT 10;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user r9CVoJ25nh9Ssfd.root --database Ztp8T7Vpr2FQpGULvKFpsw --execute SELECT id, consumableId, spaceId, weekStartDate, mondayStock, tuesdayStock, wednesdayStock FROM consumable_weekly_movements LIMIT 10;",
+  "rows": [
+    {
+      "id": "5",
+      "consumableId": "210016",
+      "spaceId": "210009",
+      "weekStartDate": "2026-04-20",
+      "mondayStock": "0",
+      "tuesdayStock": "0",
+      "wednesdayStock": "0"
+    },
+    {
+      "id": "6",
+      "consumableId": "210016",
+      "spaceId": "210009",
+      "weekStartDate": "2026-03-23",
+      "mondayStock": "0",
+      "tuesdayStock": "0",
+      "wednesdayStock": "0"
+    },
+    {
+      "id": "7",
+      "consumableId": "210016",
+      "spaceId": "210009",
+      "weekStartDate": "2026-03-30",
+      "mondayStock": "0",
+      "tuesdayStock": "0",
+      "wednesdayStock": "0"
+    },
+    {
+      "id": "8",
+      "consumableId": "210026",
+      "spaceId": "210017",
+      "weekStartDate": "2026-03-30",
+      "mondayStock": "0",
+      "tuesdayStock": "0",
+      "wednesdayStock": "0"
+    },
+    {
+      "id": "12",
+      "consumableId": "210047",
+      "spaceId": "210017",
+      "weekStartDate": "2026-03-16",
+      "mondayStock": "0",
+      "tuesdayStock": "0",
+      "wednesdayStock": "0"
+    },
+    {
+      "id": "13",
+      "consumableId": "210047",
+      "spaceId": "210017",
+      "weekStartDate": "2026-03-23",
+      "mondayStock": "0",
+      "tuesdayStock": "0",
+      "wednesdayStock": "0"
+    },
+    {
+      "id": "30001",
+      "consumableId": "240001",
+      "spaceId": "210017",
+      "weekStartDate": "2026-03-23",
+      "mondayStock": "0",
+      "tuesdayStock": "0",
+      "wednesdayStock": "0"
+    },
+    {
+      "id": "30002",
+      "consumableId": "240001",
+      "spaceId": "210017",
+      "weekStartDate": "2026-03-30",
+      "mondayStock": "0",
+      "tuesdayStock": "0",
+      "wednesdayStock": "0"
+    },
+    {
+      "id": "30003",
+      "consumableId": "240001",
+      "spaceId": "210017",
+      "weekStartDate": "2026-04-06",
+      "mondayStock": "0",
+      "tuesdayStock": "0",
+      "wednesdayStock": "0"
+    },
+    {
+      "id": "30004",
+      "consumableId": "240001",
+      "spaceId": "210017",
+      "weekStartDate": "2026-04-13",
+      "mondayStock": "0",
+      "tuesdayStock": "0",
+      "wednesdayStock": "0"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tconsumableId\tspaceId\tweekStartDate\tmondayStock\ttuesdayStock\twednesdayStock\n5\t210016\t210009\t2026-04-20\t0\t0\t0\n6\t210016\t210009\t2026-03-23\t0\t0\t0\n7\t210016\t210009\t2026-03-30\t0\t0\t0\n8\t210026\t210017\t2026-03-30\t0\t0\t0\n12\t210047\t210017\t2026-03-16\t0\t0\t0\n13\t210047\t210017\t2026-03-23\t0\t0\t0\n30001\t240001\t210017\t2026-03-23\t0\t0\t0\n30002\t240001\t210017\t2026-03-30\t0\t0\t0\n30003\t240001\t210017\t2026-04-06\t0\t0\t0\n30004\t240001\t210017\t2026-04-13\t0\t0\t0\n",
+  "stderr": "",
+  "execution_time_ms": 57
+}

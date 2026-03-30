@@ -899,19 +899,69 @@ export async function upsertConsumableWeeklyStock(data: {
     .limit(1);
 
   if (existing.length > 0) {
-    // Atualizar registro existente
+    // Atualizar registro existente - salvar o estoque atual do dia
+    // Determinar qual dia da semana é hoje para atualizar o campo correto
+    const today = new Date();
+    const dayOfWeek = today.getDay(); // 0 = domingo, 1 = segunda, ..., 6 = sábado
+    
+    const dayFieldMap: Record<number, any> = {
+      1: consumableWeeklyMovements.mondayStock,
+      2: consumableWeeklyMovements.tuesdayStock,
+      3: consumableWeeklyMovements.wednesdayStock,
+      4: consumableWeeklyMovements.thursdayStock,
+      5: consumableWeeklyMovements.fridayStock,
+      6: consumableWeeklyMovements.saturdayStock,
+      0: consumableWeeklyMovements.sundayStock,
+    };
+    
+    const dayField = dayFieldMap[dayOfWeek];
+    const updateData: any = {
+      updatedAt: new Date(),
+    };
+    
+    if (dayField) {
+      updateData[dayField.name] = data.currentStock;
+    }
+    
+    // Calcular totalMovement como a soma de todos os dias da semana
+    const updatedRecord = existing[0];
+    const totalMovement = (
+      (updatedRecord.mondayStock || 0) +
+      (updatedRecord.tuesdayStock || 0) +
+      (updatedRecord.wednesdayStock || 0) +
+      (updatedRecord.thursdayStock || 0) +
+      (updatedRecord.fridayStock || 0) +
+      (updatedRecord.saturdayStock || 0) +
+      (updatedRecord.sundayStock || 0)
+    );
+    
+    updateData.totalMovement = totalMovement;
+    
     return db.update(consumableWeeklyMovements)
-      .set({
-        totalMovement: data.currentStock,
-        updatedAt: new Date(),
-      })
+      .set(updateData)
       .where(eq(consumableWeeklyMovements.id, existing[0].id));
   } else {
     // Criar novo registro
     const weekNumber = Math.ceil((weekStart.getDate()) / 7);
     const year = weekStart.getFullYear();
-
-    return db.insert(consumableWeeklyMovements).values({
+    
+    // Determinar qual dia da semana é hoje
+    const today = new Date();
+    const dayOfWeek = today.getDay();
+    
+    const dayFieldMap: Record<number, any> = {
+      1: { field: 'mondayStock', value: data.currentStock },
+      2: { field: 'tuesdayStock', value: data.currentStock },
+      3: { field: 'wednesdayStock', value: data.currentStock },
+      4: { field: 'thursdayStock', value: data.currentStock },
+      5: { field: 'fridayStock', value: data.currentStock },
+      6: { field: 'saturdayStock', value: data.currentStock },
+      0: { field: 'sundayStock', value: data.currentStock },
+    };
+    
+    const dayData = dayFieldMap[dayOfWeek] || { field: 'mondayStock', value: data.currentStock };
+    
+    const insertData: any = {
       consumableId: data.consumableId,
       spaceId: data.spaceId,
       weekStartDate: weekStart,
@@ -919,7 +969,18 @@ export async function upsertConsumableWeeklyStock(data: {
       year,
       totalMovement: data.currentStock,
       status: "ESTOQUE_OK",
-    });
+      mondayStock: 0,
+      tuesdayStock: 0,
+      wednesdayStock: 0,
+      thursdayStock: 0,
+      fridayStock: 0,
+      saturdayStock: 0,
+      sundayStock: 0,
+    };
+    
+    insertData[dayData.field] = dayData.value;
+
+    return db.insert(consumableWeeklyMovements).values(insertData);
   }
 }
 

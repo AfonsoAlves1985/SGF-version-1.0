@@ -1,0 +1,8 @@
+{
+  "query": "SELECT id, consumableId, spaceId, weekStartDate, stock FROM consumable_weekly_movements LIMIT 15;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user r9CVoJ25nh9Ssfd.root --database Ztp8T7Vpr2FQpGULvKFpsw --execute SELECT id, consumableId, spaceId, weekStartDate, stock FROM consumable_weekly_movements LIMIT 15;",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1054 (42S22) at line 1: Unknown column 'stock' in 'field list'"
+  ]
+}

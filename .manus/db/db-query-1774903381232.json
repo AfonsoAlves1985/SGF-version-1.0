@@ -1,0 +1,85 @@
+{
+  "query": "SHOW TABLES;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user r9CVoJ25nh9Ssfd.root --database Ztp8T7Vpr2FQpGULvKFpsw --execute SHOW TABLES;",
+  "rows": [
+    {
+      "Tables_in_Ztp8T7Vpr2FQpGULvKFpsw": "__drizzle_migrations"
+    },
+    {
+      "Tables_in_Ztp8T7Vpr2FQpGULvKFpsw": "consumable_monthly_movements"
+    },
+    {
+      "Tables_in_Ztp8T7Vpr2FQpGULvKFpsw": "consumable_spaces"
+    },
+    {
+      "Tables_in_Ztp8T7Vpr2FQpGULvKFpsw": "consumable_stock_audit_log"
+    },
+    {
+      "Tables_in_Ztp8T7Vpr2FQpGULvKFpsw": "consumable_weekly_movements"
+    },
+    {
+      "Tables_in_Ztp8T7Vpr2FQpGULvKFpsw": "consumables"
+    },
+    {
+      "Tables_in_Ztp8T7Vpr2FQpGULvKFpsw": "consumables_monthly"
+    },
+    {
+      "Tables_in_Ztp8T7Vpr2FQpGULvKFpsw": "consumables_weekly"
+    },
+    {
+      "Tables_in_Ztp8T7Vpr2FQpGULvKFpsw": "consumables_with_space"
+    },
+    {
+      "Tables_in_Ztp8T7Vpr2FQpGULvKFpsw": "contract_alerts"
+    },
+    {
+      "Tables_in_Ztp8T7Vpr2FQpGULvKFpsw": "contract_spaces"
+    },
+    {
+      "Tables_in_Ztp8T7Vpr2FQpGULvKFpsw": "contracts"
+    },
+    {
+      "Tables_in_Ztp8T7Vpr2FQpGULvKFpsw": "contracts_with_space"
+    },
+    {
+      "Tables_in_Ztp8T7Vpr2FQpGULvKFpsw": "inventory"
+    },
+    {
+      "Tables_in_Ztp8T7Vpr2FQpGULvKFpsw": "inventory_movements"
+    },
+    {
+      "Tables_in_Ztp8T7Vpr2FQpGULvKFpsw": "maintenance_requests"
+    },
+    {
+      "Tables_in_Ztp8T7Vpr2FQpGULvKFpsw": "maintenance_spaces"
+    },
+    {
+      "Tables_in_Ztp8T7Vpr2FQpGULvKFpsw": "room_reservations"
+    },
+    {
+      "Tables_in_Ztp8T7Vpr2FQpGULvKFpsw": "rooms"
+    },
+    {
+      "Tables_in_Ztp8T7Vpr2FQpGULvKFpsw": "schedules"
+    },
+    {
+      "Tables_in_Ztp8T7Vpr2FQpGULvKFpsw": "supplier_spaces"
+    },
+    {
+      "Tables_in_Ztp8T7Vpr2FQpGULvKFpsw": "suppliers"
+    },
+    {
+      "Tables_in_Ztp8T7Vpr2FQpGULvKFpsw": "suppliers_with_space"
+    },
+    {
+      "Tables_in_Ztp8T7Vpr2FQpGULvKFpsw": "teams"
+    },
+    {
+      "Tables_in_Ztp8T7Vpr2FQpGULvKFpsw": "users"
+    }
+  ],
+  "messages": [],
+  "stdout": "Tables_in_Ztp8T7Vpr2FQpGULvKFpsw\n__drizzle_migrations\nconsumable_monthly_movements\nconsumable_spaces\nconsumable_stock_audit_log\nconsumable_weekly_movements\nconsumables\nconsumables_monthly\nconsumables_weekly\nconsumables_with_space\ncontract_alerts\ncontract_spaces\ncontracts\ncontracts_with_space\ninventory\ninventory_movements\nmaintenance_requests\nmaintenance_spaces\nroom_reservations\nrooms\nschedules\nsupplier_spaces\nsuppliers\nsuppliers_with_space\nteams\nusers\n",
+  "stderr": "",
+  "execution_time_ms": 56
+}

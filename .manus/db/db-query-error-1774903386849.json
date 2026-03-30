@@ -1,0 +1,8 @@
+{
+  "query": "SELECT id, consumableId, spaceId, currentStock, minStock, maxStock FROM consumables_with_space LIMIT 10;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user r9CVoJ25nh9Ssfd.root --database Ztp8T7Vpr2FQpGULvKFpsw --execute SELECT id, consumableId, spaceId, currentStock, minStock, maxStock FROM consumables_with_space LIMIT 10;",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1054 (42S22) at line 1: Unknown column 'consumableid' in 'field list'"
+  ]
+}

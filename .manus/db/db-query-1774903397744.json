@@ -1,0 +1,90 @@
+{
+  "query": "SELECT id, spaceId, name, currentStock, minStock, maxStock FROM consumables_with_space LIMIT 10;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user r9CVoJ25nh9Ssfd.root --database Ztp8T7Vpr2FQpGULvKFpsw --execute SELECT id, spaceId, name, currentStock, minStock, maxStock FROM consumables_with_space LIMIT 10;",
+  "rows": [
+    {
+      "id": "360001",
+      "spaceId": "330001",
+      "name": "Luva par",
+      "currentStock": "3",
+      "minStock": "1",
+      "maxStock": "5"
+    },
+    {
+      "id": "360002",
+      "spaceId": "330001",
+      "name": "Placa de chão molhado",
+      "currentStock": "2",
+      "minStock": "1",
+      "maxStock": "2"
+    },
+    {
+      "id": "360003",
+      "spaceId": "330001",
+      "name": "Pá de lixo",
+      "currentStock": "2",
+      "minStock": "1",
+      "maxStock": "4"
+    },
+    {
+      "id": "360005",
+      "spaceId": "330001",
+      "name": "Açúcar",
+      "currentStock": "1",
+      "minStock": "2",
+      "maxStock": "10"
+    },
+    {
+      "id": "360006",
+      "spaceId": "330001",
+      "name": "Café 250g",
+      "currentStock": "10",
+      "minStock": "5",
+      "maxStock": "20"
+    },
+    {
+      "id": "360007",
+      "spaceId": "330001",
+      "name": "Borrifador ",
+      "currentStock": "3",
+      "minStock": "1",
+      "maxStock": "6"
+    },
+    {
+      "id": "360008",
+      "spaceId": "330001",
+      "name": "Pano de chão",
+      "currentStock": "3",
+      "minStock": "2",
+      "maxStock": "10"
+    },
+    {
+      "id": "360009",
+      "spaceId": "330001",
+      "name": "Balde médio",
+      "currentStock": "2",
+      "minStock": "1",
+      "maxStock": "3"
+    },
+    {
+      "id": "360010",
+      "spaceId": "330001",
+      "name": "Refil MOP",
+      "currentStock": "1",
+      "minStock": "1",
+      "maxStock": "2"
+    },
+    {
+      "id": "360011",
+      "spaceId": "330001",
+      "name": "Rodo",
+      "currentStock": "2",
+      "minStock": "1",
+      "maxStock": "2"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tspaceId\tname\tcurrentStock\tminStock\tmaxStock\n360001\t330001\tLuva par\t3\t1\t5\n360002\t330001\tPlaca de chão molhado\t2\t1\t2\n360003\t330001\tPá de lixo\t2\t1\t4\n360005\t330001\tAçúcar\t1\t2\t10\n360006\t330001\tCafé 250g\t10\t5\t20\n360007\t330001\tBorrifador \t3\t1\t6\n360008\t330001\tPano de chão\t3\t2\t10\n360009\t330001\tBalde médio\t2\t1\t3\n360010\t330001\tRefil MOP\t1\t1\t2\n360011\t330001\tRodo\t2\t1\t2\n",
+  "stderr": "",
+  "execution_time_ms": 62
+}
