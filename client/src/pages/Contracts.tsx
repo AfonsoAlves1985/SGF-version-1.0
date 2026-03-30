@@ -193,16 +193,16 @@ export default function Contracts() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            {criticalAlerts.map((alert: any) => (
-              <div key={`critical-${alert.id}`} className="p-3 bg-red-100 border border-red-300 rounded">
+            {criticalAlerts.map((alert: any, idx: number) => (
+              <div key={`critical-${alert.id}-${idx}`} className="p-3 bg-red-100 border border-red-300 rounded">
                 <p className="font-semibold text-red-900">
                   Contrato vencendo em {alert.daysUntilEvent} dias
                 </p>
                 <p className="text-sm text-red-800">{alert.contracts_companyName}</p>
               </div>
             ))}
-            {monthlyAlerts.map((alert: any) => (
-              <div key={`monthly-${alert.id}`} className="p-3 bg-yellow-100 border border-yellow-300 rounded">
+            {monthlyAlerts.map((alert: any, idx: number) => (
+              <div key={`monthly-${alert.id}-${idx}`} className="p-3 bg-yellow-100 border border-yellow-300 rounded">
                 <p className="font-semibold text-yellow-900">
                   Pagamento mensal vencido
                 </p>
