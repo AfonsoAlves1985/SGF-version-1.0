@@ -34,11 +34,11 @@ export async function generatePDFReport(reportData: PDFReportData): Promise<stri
   try {
     browser = await puppeteer.launch({
       headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu'],
     });
     
     const page = await browser.newPage();
-    await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
+    await page.setContent(htmlContent, { waitUntil: 'networkidle2' });
     
     const filename = `relatorio_consumo_${Date.now()}.pdf`;
     const filepath = join('/tmp', filename);
@@ -47,15 +47,12 @@ export async function generatePDFReport(reportData: PDFReportData): Promise<stri
       path: filepath,
       format: 'A4',
       margin: {
-        top: '15mm',
-        right: '15mm',
-        bottom: '15mm',
-        left: '15mm',
+        top: '10mm',
+        right: '10mm',
+        bottom: '10mm',
+        left: '10mm',
       },
       printBackground: true,
-      displayHeaderFooter: true,
-      headerTemplate: '<div style="font-size: 10px; width: 100%; text-align: center; padding: 5px;">SGA - Relatório de Consumo Semanal</div>',
-      footerTemplate: '<div style="font-size: 10px; width: 100%; text-align: center; padding: 5px;"><span class="pageNumber"></span> de <span class="totalPages"></span></div>',
     });
     
     return filepath;

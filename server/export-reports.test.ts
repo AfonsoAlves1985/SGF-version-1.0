@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { generateReportData, generateExcelReport } from './excel-report';
 import { generatePDFReportData, generatePDFReport } from './pdf-report';
 import { existsSync, unlinkSync } from 'fs';
