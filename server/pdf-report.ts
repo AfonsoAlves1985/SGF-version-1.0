@@ -366,7 +366,7 @@ function generateHTMLReport(reportData: PDFReportData): string {
         </div>
         
         <div class="footer">
-          <p>Sistema de Gestão de Facilities - SGA | Relatório Automático</p>
+          <p>Sistema de Gestão de Facilities - SGF | Relatório Automático</p>
         </div>
       </div>
       

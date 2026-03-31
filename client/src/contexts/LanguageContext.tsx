@@ -11,7 +11,7 @@ interface Translations {
 const translations: Translations = {
   "pt-PT": {
     // App
-    "app.title": "Sistema de Gestão de Facilities - SGA Grupo FRZ",
+    "app.title": "Sistema de Gestão de Facilities - SGF Grupo FRZ",
     "app.welcome": "Bem-vindo",
     
     // Navigation
@@ -25,7 +25,7 @@ const translations: Translations = {
     "nav.logout": "Terminar Sessão",
     
     // Home
-    "home.title": "Sistema de Gestão de Facilities - SGA Grupo FRZ",
+    "home.title": "Sistema de Gestão de Facilities - SGF Grupo FRZ",
     "home.subtitle": "Centralize operações e melhore a eficiência da sua equipa",
     "home.inventory": "Inventário",
     "home.inventory.desc": "Controlo de entrada/saída e alertas de stock",
@@ -190,7 +190,7 @@ const translations: Translations = {
   
   "pt-BR": {
     // App
-    "app.title": "Sistema de Gestão de Facilities - SGA Grupo FRZ",
+    "app.title": "Sistema de Gestão de Facilities - SGF Grupo FRZ",
     "app.welcome": "Bem-vindo",
     
     // Navigation
@@ -204,7 +204,7 @@ const translations: Translations = {
     "nav.logout": "Sair",
     
     // Home
-    "home.title": "Sistema de Gestão de Facilities - SGA Grupo FRZ",
+    "home.title": "Sistema de Gestão de Facilities - SGF Grupo FRZ",
     "home.subtitle": "Centralize operações e melhore a eficiência da sua equipe",
     "home.inventory": "Inventário",
     "home.inventory.desc": "Controle de entrada/saída e alertas de estoque",
