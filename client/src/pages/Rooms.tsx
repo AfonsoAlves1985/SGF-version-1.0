@@ -619,12 +619,24 @@ export default function Rooms() {
                 );
               }
 
-              const startDate = new Date(room.startDate);
-              const endDate = new Date(room.endDate);
+              // Combinar data + hora para cálculo preciso
+              const parseDateTime = (dateVal: any, timeStr?: string) => {
+                const d = new Date(dateVal);
+                if (timeStr) {
+                  const [h, m] = timeStr.split(":").map(Number);
+                  d.setHours(h || 0, m || 0, 0, 0);
+                } else {
+                  d.setHours(0, 0, 0, 0);
+                }
+                return d;
+              };
+              const startDate = parseDateTime(room.startDate, room.startTime);
+              const endDate = parseDateTime(room.endDate, room.endTime);
               const now = new Date();
               
               const totalDuration = endDate.getTime() - startDate.getTime();
-              const elapsedTime = Math.min(now.getTime() - startDate.getTime(), totalDuration);
+              // Se ainda não começou (now < startDate), progresso = 0
+              const elapsedTime = now < startDate ? 0 : Math.min(now.getTime() - startDate.getTime(), totalDuration);
               const remainingTime = Math.max(endDate.getTime() - now.getTime(), 0);
               const usagePercentage = totalDuration > 0 ? (elapsedTime / totalDuration) * 100 : 0;
               
@@ -632,7 +644,12 @@ export default function Rooms() {
               let alertColor = "bg-green-900/30 border-green-700/30";
               let alertText = "Normal";
               
-              if (remainingTime <= 0) {
+              if (now < startDate) {
+                // Ainda não começou
+                alertStatus = "aguardando";
+                alertColor = "bg-slate-800/50 border-slate-600/30";
+                alertText = "Aguardando Início";
+              } else if (remainingTime <= 0) {
                 alertStatus = "entregue";
                 alertColor = "bg-blue-900/30 border-blue-700/30";
                 alertText = "Entregue";
@@ -653,9 +670,9 @@ export default function Rooms() {
                       <div>
                         <p className="text-white font-semibold text-sm">{room.name}</p>
                         {room.responsibleUserName ? (
-                          <p className="text-gray-400 text-xs">Solicitante: <span className="text-gray-200">{room.responsibleUserName}</span></p>
+                          <p className="text-orange-400 text-xs font-medium">Solicitante: <span className="text-white">{room.responsibleUserName}</span></p>
                         ) : (
-                          <p className="text-gray-500 text-xs italic">Sem responsável definido</p>
+                          <p className="text-gray-500 text-xs italic">Solicitante não informado</p>
                         )}
                       </div>
                       
@@ -686,7 +703,9 @@ export default function Rooms() {
                       <div className="pt-2 border-t border-slate-700">
                         <p className="text-xs font-semibold text-white mb-1">Status: <span className="text-orange-400">{alertText}</span></p>
                         <p className="text-xs text-gray-400">
-                          {remainingTime > 0 
+                          {now < startDate
+                            ? `Inicia em ${Math.ceil((startDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))} dia(s)`
+                            : remainingTime > 0
                             ? `Faltam ${Math.ceil(remainingTime / (1000 * 60 * 60 * 24))} dias`
                             : "Prazo expirado"
                           }
