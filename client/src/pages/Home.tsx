@@ -67,7 +67,13 @@ export default function Home() {
       path: "/inventory",
       color: "bg-orange-900/20 hover:bg-orange-900/30 border-orange-700/30",
     },
-
+    {
+      icon: Package,
+      label: "Consumíveis",
+      description: "Gestão de consumo e tendências de estoque",
+      path: "/consumables",
+      color: "bg-orange-900/20 hover:bg-orange-900/30 border-orange-700/30",
+    },
     {
       icon: Building2,
       label: t("home.rooms"),
