@@ -252,7 +252,7 @@ export default function Maintenance() {
           <div className="flex justify-between items-center">
             <div>
               <h2 className="text-2xl font-bold text-white">Chamados</h2>
-              <p className="text-gray-400 mt-1">Unidade: {spaces.find(s => s.id === selectedSpace)?.name}</p>
+              <p className="text-gray-400 mt-1">Unidade: {spaces.find((s: any) => s.id === selectedSpace)?.name}</p>
             </div>
             <Button onClick={handleCreateSample} className="bg-orange-600 hover:bg-orange-700">
               <Plus className="w-4 h-4 mr-2" />
@@ -362,6 +362,17 @@ export default function Maintenance() {
                   </Select>
                 </div>
               </div>
+
+              <Button
+                onClick={() => {
+                  setStatus(undefined);
+                  setPriority(undefined);
+                }}
+                variant="outline"
+                className="w-full border-slate-600 text-gray-300 hover:bg-slate-800"
+              >
+                Limpar Filtros
+              </Button>
             </CardContent>
           </Card>
 
@@ -394,193 +405,193 @@ export default function Maintenance() {
               </CardHeader>
               <CardContent>
                 {isLoading ? (
-                <div className="text-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600 mx-auto"></div>
-                </div>
-              ) : requests.length === 0 ? (
-                <div className="text-center py-8 text-gray-400">
-                  <p>Nenhum chamado encontrado</p>
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="border-slate-700 hover:bg-transparent">
-                        <TableHead className="text-gray-300">Título</TableHead>
-                        <TableHead className="text-gray-300">Tipo</TableHead>
-                        <TableHead className="text-gray-300">Prioridade</TableHead>
-                        <TableHead className="text-gray-300">Status</TableHead>
-                        <TableHead className="text-gray-300">Ações</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {requests.map((request: any, idx: number) => (
-                        <TableRow key={`maintenance-${request.id}-${idx}`} className="border-slate-700 hover:bg-slate-700/30">
-                          <TableCell className="text-white">
-                            <MaintenanceInlineEdit
-                              value={request.title}
-                              field="title"
-                              onSave={(newValue) => updateMutation.mutate({ id: request.id, title: newValue })}
-                              isLoading={updateMutation.isPending}
-                            >
-                              <span className="cursor-pointer hover:text-orange-400">{request.title}</span>
-                            </MaintenanceInlineEdit>
-                          </TableCell>
-                          <TableCell>
-                            <MaintenanceInlineEdit
-                              value={request.type}
-                              field="type"
-                              onSave={(newValue) => updateMutation.mutate({ id: request.id, type: newValue as any })}
-                              isLoading={updateMutation.isPending}
-                            >
-                              <span className="px-2 py-1 rounded text-xs bg-blue-900/30 text-blue-400 cursor-pointer hover:bg-blue-900/50">
-                                {request.type === "preventiva" ? "Preventiva" : "Corretiva"}
-                              </span>
-                            </MaintenanceInlineEdit>
-                          </TableCell>
-                          <TableCell>
-                            <MaintenanceInlineEdit
-                              value={request.priority}
-                              field="priority"
-                              onSave={(newValue) => updateMutation.mutate({ id: request.id, priority: newValue as any })}
-                              isLoading={updateMutation.isPending}
-                            >
-                              <span className={`px-2 py-1 rounded text-xs cursor-pointer hover:opacity-80 ${getPriorityColor(request.priority)}`}>
-                                {request.priority.charAt(0).toUpperCase() + request.priority.slice(1)}
-                              </span>
-                            </MaintenanceInlineEdit>
-                          </TableCell>
-                          <TableCell>
-                            <MaintenanceInlineEdit
-                              value={request.status}
-                              field="status"
-                              onSave={(newValue) => updateMutation.mutate({ id: request.id, status: newValue as any })}
-                              isLoading={updateMutation.isPending}
-                            >
-                              <span className="flex items-center gap-2 text-gray-300 cursor-pointer hover:opacity-80">
-                                {getStatusIcon(request.status)}
-                                {request.status === "aberto" && "Aberto"}
-                                {request.status === "em_progresso" && "Em Progresso"}
-                                {request.status === "concluido" && "Concluído"}
-                                {request.status === "cancelado" && "Cancelado"}
-                              </span>
-                            </MaintenanceInlineEdit>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex gap-2">
-                              <button
-                                onClick={() => handleEditRequest(request)}
-                                className="p-1 hover:bg-blue-600/30 rounded transition-colors"
-                                title="Editar"
-                              >
-                                <Edit2 className="h-4 w-4 text-blue-400" />
-                              </button>
-                              <button
-                                onClick={() => handleDeleteRequest(request.id)}
-                                className="p-1 hover:bg-red-600/30 rounded transition-colors"
-                                title="Deletar"
-                              >
-                                <Trash2 className="h-4 w-4 text-red-400" />
-                              </button>
-                            </div>
-                          </TableCell>
+                  <div className="text-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600 mx-auto"></div>
+                  </div>
+                ) : requests.length === 0 ? (
+                  <div className="text-center py-8 text-gray-400">
+                    <p>Nenhum chamado encontrado</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="border-slate-700 hover:bg-transparent">
+                          <TableHead className="text-gray-300">Título</TableHead>
+                          <TableHead className="text-gray-300">Tipo</TableHead>
+                          <TableHead className="text-gray-300">Prioridade</TableHead>
+                          <TableHead className="text-gray-300">Status</TableHead>
+                          <TableHead className="text-gray-300">Ações</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                      </TableHeader>
+                      <TableBody>
+                        {requests.map((request: any, idx: number) => (
+                          <TableRow key={`maintenance-${request.id}-${idx}`} className="border-slate-700 hover:bg-slate-700/30">
+                            <TableCell className="text-white">
+                              <MaintenanceInlineEdit
+                                value={request.title}
+                                field="title"
+                                onSave={(newValue) => updateMutation.mutate({ id: request.id, title: newValue })}
+                                isLoading={updateMutation.isPending}
+                              >
+                                <span className="cursor-pointer hover:text-orange-400">{request.title}</span>
+                              </MaintenanceInlineEdit>
+                            </TableCell>
+                            <TableCell>
+                              <MaintenanceInlineEdit
+                                value={request.type}
+                                field="type"
+                                onSave={(newValue) => updateMutation.mutate({ id: request.id, type: newValue as any })}
+                                isLoading={updateMutation.isPending}
+                              >
+                                <span className="px-2 py-1 rounded text-xs bg-blue-900/30 text-blue-400 cursor-pointer hover:bg-blue-900/50">
+                                  {request.type === "preventiva" ? "Preventiva" : "Corretiva"}
+                                </span>
+                              </MaintenanceInlineEdit>
+                            </TableCell>
+                            <TableCell>
+                              <MaintenanceInlineEdit
+                                value={request.priority}
+                                field="priority"
+                                onSave={(newValue) => updateMutation.mutate({ id: request.id, priority: newValue as any })}
+                                isLoading={updateMutation.isPending}
+                              >
+                                <span className={`px-2 py-1 rounded text-xs cursor-pointer hover:opacity-80 ${getPriorityColor(request.priority)}`}>
+                                  {request.priority.charAt(0).toUpperCase() + request.priority.slice(1)}
+                                </span>
+                              </MaintenanceInlineEdit>
+                            </TableCell>
+                            <TableCell>
+                              <MaintenanceInlineEdit
+                                value={request.status}
+                                field="status"
+                                onSave={(newValue) => updateMutation.mutate({ id: request.id, status: newValue as any })}
+                                isLoading={updateMutation.isPending}
+                              >
+                                <span className="flex items-center gap-2 text-gray-300 cursor-pointer hover:opacity-80">
+                                  {getStatusIcon(request.status)}
+                                  {request.status === "aberto" && "Aberto"}
+                                  {request.status === "em_progresso" && "Em Progresso"}
+                                  {request.status === "concluido" && "Concluído"}
+                                  {request.status === "cancelado" && "Cancelado"}
+                                </span>
+                              </MaintenanceInlineEdit>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => handleEditRequest(request)}
+                                  className="p-1 hover:bg-blue-600/30 rounded transition-colors"
+                                  title="Editar"
+                                >
+                                  <Edit2 className="h-4 w-4 text-blue-400" />
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteRequest(request.id)}
+                                  className="p-1 hover:bg-red-600/30 rounded transition-colors"
+                                  title="Deletar"
+                                >
+                                  <Trash2 className="h-4 w-4 text-red-400" />
+                                </button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           )}
+
+          {/* Dialog for creating/editing requests */}
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogContent className="bg-slate-800 border-slate-700">
+              <DialogHeader>
+                <DialogTitle className="text-white">
+                  {editingRequest ? "Editar Chamado" : "Novo Chamado"}
+                </DialogTitle>
+                <DialogDescription className="text-gray-400">
+                  Preencha os dados do chamado de manutenção
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <Label className="text-gray-300">Título *</Label>
+                  <Input
+                    value={formData.title}
+                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                    className="bg-slate-700 border-slate-600 text-white mt-1"
+                    placeholder="Ex: Vazamento na cozinha"
+                  />
+                </div>
+
+                <div>
+                  <Label className="text-gray-300">Descrição *</Label>
+                  <Input
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    className="bg-slate-700 border-slate-600 text-white mt-1"
+                    placeholder="Descreva o problema"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-gray-300">Tipo</Label>
+                    <Select value={formData.type} onValueChange={(value: any) => setFormData({ ...formData, type: value })}>
+                      <SelectTrigger className="bg-slate-700 border-slate-600 text-white mt-1">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="preventiva">Preventiva</SelectItem>
+                        <SelectItem value="correctiva">Corretiva</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label className="text-gray-300">Prioridade</Label>
+                    <Select value={formData.priority} onValueChange={(value: any) => setFormData({ ...formData, priority: value })}>
+                      <SelectTrigger className="bg-slate-700 border-slate-600 text-white mt-1">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="urgente">Urgente</SelectItem>
+                        <SelectItem value="alta">Alta</SelectItem>
+                        <SelectItem value="media">Média</SelectItem>
+                        <SelectItem value="baixa">Baixa</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="flex gap-2">
+                  <Button
+                    onClick={handleSubmit}
+                    className="flex-1 bg-orange-600 hover:bg-orange-700"
+                    disabled={createMutation.isPending || updateMutation.isPending}
+                  >
+                    {editingRequest ? "Atualizar" : "Criar"} Chamado
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      setIsDialogOpen(false);
+                      setEditingRequest(null);
+                      setFormData({ title: "", description: "", priority: "media", type: "correctiva", status: "aberto" });
+                    }}
+                    variant="outline"
+                    className="border-slate-600 text-gray-300 hover:bg-slate-800"
+                  >
+                    Cancelar
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
         </>
       )}
-
-      {/* Dialog for creating/editing requests */}
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="bg-slate-800 border-slate-700">
-          <DialogHeader>
-            <DialogTitle className="text-white">
-              {editingRequest ? "Editar Chamado" : "Novo Chamado"}
-            </DialogTitle>
-            <DialogDescription className="text-gray-400">
-              Preencha os dados do chamado de manutenção
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label className="text-gray-300">Título *</Label>
-              <Input
-                value={formData.title}
-                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                className="bg-slate-700 border-slate-600 text-white mt-1"
-                placeholder="Ex: Vazamento na cozinha"
-              />
-            </div>
-
-            <div>
-              <Label className="text-gray-300">Descrição *</Label>
-              <Input
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                className="bg-slate-700 border-slate-600 text-white mt-1"
-                placeholder="Descreva o problema"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label className="text-gray-300">Tipo</Label>
-                <Select value={formData.type} onValueChange={(value: any) => setFormData({ ...formData, type: value })}>
-                  <SelectTrigger className="bg-slate-700 border-slate-600 text-white mt-1">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="preventiva">Preventiva</SelectItem>
-                    <SelectItem value="correctiva">Corretiva</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label className="text-gray-300">Prioridade</Label>
-                <Select value={formData.priority} onValueChange={(value: any) => setFormData({ ...formData, priority: value })}>
-                  <SelectTrigger className="bg-slate-700 border-slate-600 text-white mt-1">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="urgente">Urgente</SelectItem>
-                    <SelectItem value="alta">Alta</SelectItem>
-                    <SelectItem value="media">Média</SelectItem>
-                    <SelectItem value="baixa">Baixa</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="flex gap-2">
-              <Button
-                onClick={handleSubmit}
-                className="flex-1 bg-orange-600 hover:bg-orange-700"
-                disabled={createMutation.isPending || updateMutation.isPending}
-              >
-                {editingRequest ? "Atualizar" : "Criar"} Chamado
-              </Button>
-              <Button
-                onClick={() => {
-                  setIsDialogOpen(false);
-                  setEditingRequest(null);
-                  setFormData({ title: "", description: "", priority: "media", type: "correctiva", status: "aberto" });
-                }}
-                variant="outline"
-                className="border-slate-600 text-gray-300 hover:bg-slate-800"
-              >
-                Cancelar
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
