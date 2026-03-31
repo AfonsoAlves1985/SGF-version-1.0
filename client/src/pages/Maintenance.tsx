@@ -11,9 +11,11 @@ import { Plus, AlertTriangle, CheckCircle, Clock, Edit2, Trash2 } from "lucide-r
 import { toast } from "sonner";
 import { MaintenanceSpaceManager } from "@/components/MaintenanceSpaceManager";
 import { MaintenanceInlineEdit } from "@/components/MaintenanceInlineEdit";
+import { MaintenanceKanban } from "@/components/MaintenanceKanban";
 
 export default function Maintenance() {
   const [selectedSpace, setSelectedSpace] = useState<number | null>(null);
+  const [viewMode, setViewMode] = useState<"table" | "kanban">("table");
   const [status, setStatus] = useState<string | undefined>();
   const [priority, setPriority] = useState<string | undefined>();
   const [editingRequest, setEditingRequest] = useState<any>(null);
@@ -258,6 +260,29 @@ export default function Maintenance() {
             </Button>
           </div>
 
+          <div className="flex gap-2 border-b border-slate-700">
+            <button
+              onClick={() => setViewMode("table")}
+              className={`px-4 py-2 font-medium transition-colors ${
+                viewMode === "table"
+                  ? "text-orange-500 border-b-2 border-orange-500 -mb-px"
+                  : "text-gray-400 hover:text-gray-300"
+              }`}
+            >
+              Tabela
+            </button>
+            <button
+              onClick={() => setViewMode("kanban")}
+              className={`px-4 py-2 font-medium transition-colors ${
+                viewMode === "kanban"
+                  ? "text-orange-500 border-b-2 border-orange-500 -mb-px"
+                  : "text-gray-400 hover:text-gray-300"
+              }`}
+            >
+              Kanban
+            </button>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <Card className="bg-slate-800/50 border-orange-700/30">
               <CardHeader className="pb-3">
@@ -340,13 +365,35 @@ export default function Maintenance() {
             </CardContent>
           </Card>
 
-          <Card className="bg-slate-800/50 border-orange-700/30">
-            <CardHeader>
-              <CardTitle className="text-white">Chamados de Manutenção</CardTitle>
-              <CardDescription className="text-gray-400">{requests.length} chamados encontrados</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {isLoading ? (
+          {viewMode === "kanban" ? (
+            <Card className="bg-slate-800/50 border-orange-700/30">
+              <CardHeader>
+                <CardTitle className="text-white">Kanban de Chamados</CardTitle>
+                <CardDescription className="text-gray-400">Arraste os cards entre as colunas para alterar o status</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {isLoading ? (
+                  <div className="text-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600 mx-auto"></div>
+                  </div>
+                ) : (
+                  <MaintenanceKanban
+                    requests={requests}
+                    onUpdateStatus={(id, status) => updateMutation.mutate({ id, status: status as any })}
+                    onUpdateField={(id, field, value) => updateMutation.mutate({ id, [field]: value } as any)}
+                    isLoading={updateMutation.isPending}
+                  />
+                )}
+              </CardContent>
+            </Card>
+          ) : (
+            <Card className="bg-slate-800/50 border-orange-700/30">
+              <CardHeader>
+                <CardTitle className="text-white">Chamados de Manutenção</CardTitle>
+                <CardDescription className="text-gray-400">{requests.length} chamados encontrados</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {isLoading ? (
                 <div className="text-center py-8">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600 mx-auto"></div>
                 </div>
@@ -445,6 +492,7 @@ export default function Maintenance() {
               )}
             </CardContent>
           </Card>
+          )}
         </>
       )}
 
