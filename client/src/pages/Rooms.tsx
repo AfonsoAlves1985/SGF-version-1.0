@@ -19,6 +19,15 @@ export default function Rooms() {
   const [inlineEditField, setInlineEditField] = useState<string | null>(null);
   const [inlineEditValue, setInlineEditValue] = useState<string>("");
   const [viewMode, setViewMode] = useState<"table" | "kanban">("table");
+  const [useRoomDialogOpen, setUseRoomDialogOpen] = useState(false);
+  const [selectedRoomForUse, setSelectedRoomForUse] = useState<any>(null);
+  const [useRoomForm, setUseRoomForm] = useState({
+    responsibleUserName: "",
+    startDate: "",
+    endDate: "",
+    startTime: "",
+    endTime: "",
+  });
 
   const [formData, setFormData] = useState({
     name: "",
@@ -103,6 +112,45 @@ export default function Rooms() {
       isReleased: 1,
       status: "disponivel",
     });
+  };
+
+  const handleOpenUseRoom = (room: any) => {
+    setSelectedRoomForUse(room);
+    setUseRoomForm({ responsibleUserName: "", startDate: "", endDate: "", startTime: "", endTime: "" });
+    setUseRoomDialogOpen(true);
+  };
+
+  const handleConfirmUseRoom = () => {
+    if (!selectedRoomForUse) return;
+    if (!useRoomForm.responsibleUserName.trim()) {
+      toast.error("Informe o nome do solicitante");
+      return;
+    }
+    if (!useRoomForm.startDate || !useRoomForm.endDate) {
+      toast.error("Informe as datas de uso");
+      return;
+    }
+    const start = new Date(useRoomForm.startDate);
+    const end = new Date(useRoomForm.endDate);
+    if (end < start) {
+      toast.error("A data de término não pode ser anterior à data de início");
+      return;
+    }
+    updateMutation.mutate({
+      id: selectedRoomForUse.id,
+      name: selectedRoomForUse.name,
+      capacity: selectedRoomForUse.capacity,
+      location: selectedRoomForUse.location,
+      type: selectedRoomForUse.type,
+      status: "ocupada",
+      responsibleUserName: useRoomForm.responsibleUserName,
+      startDate: start,
+      endDate: end,
+      startTime: useRoomForm.startTime,
+      endTime: useRoomForm.endTime,
+      isReleased: 0,
+    });
+    setUseRoomDialogOpen(false);
   };
 
   const handleEditRoom = (room: any) => {
@@ -745,13 +793,22 @@ export default function Rooms() {
                             : "Prazo expirado"
                           }
                         </p>
-                        {room.isReleased !== 1 && remainingTime <= 0 && (
+                        {room.status === "ocupada" && room.isReleased !== 1 && (
                           <Button
                             onClick={() => handleReleaseRoom(room.id)}
                             className="mt-2 w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs py-1"
                             disabled={updateMutation.isPending}
                           >
                             Liberar Sala
+                          </Button>
+                        )}
+                        {(room.status === "disponivel" || room.isReleased === 1) && (
+                          <Button
+                            onClick={() => handleOpenUseRoom(room)}
+                            className="mt-2 w-full bg-orange-600 hover:bg-orange-700 text-white text-xs py-1"
+                            disabled={updateMutation.isPending}
+                          >
+                            Utilizar Sala
                           </Button>
                         )}
                       </div>
@@ -770,6 +827,86 @@ export default function Rooms() {
           )}
         </CardContent>
       </Card>
+
+      {/* Dialog Utilizar Sala */}
+      <Dialog open={useRoomDialogOpen} onOpenChange={setUseRoomDialogOpen}>
+        <DialogContent className="bg-slate-800 border-slate-700 text-white max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-white">Utilizar Sala</DialogTitle>
+            <DialogDescription className="text-gray-400">
+              {selectedRoomForUse?.name} &mdash; Preencha os dados do solicitante e período de uso
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label className="text-gray-300">Nome do Solicitante *</Label>
+              <Input
+                type="text"
+                placeholder="Nome completo do responsável"
+                value={useRoomForm.responsibleUserName}
+                onChange={(e) => setUseRoomForm({ ...useRoomForm, responsibleUserName: e.target.value })}
+                className="mt-1 bg-slate-700 border-slate-600 text-white"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label className="text-gray-300">Data de Início *</Label>
+                <Input
+                  type="date"
+                  value={useRoomForm.startDate}
+                  onChange={(e) => setUseRoomForm({ ...useRoomForm, startDate: e.target.value })}
+                  className="mt-1 bg-slate-700 border-slate-600 text-white"
+                />
+              </div>
+              <div>
+                <Label className="text-gray-300">Data de Fim *</Label>
+                <Input
+                  type="date"
+                  value={useRoomForm.endDate}
+                  onChange={(e) => setUseRoomForm({ ...useRoomForm, endDate: e.target.value })}
+                  className="mt-1 bg-slate-700 border-slate-600 text-white"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label className="text-gray-300">Hora de Início</Label>
+                <Input
+                  type="time"
+                  value={useRoomForm.startTime}
+                  onChange={(e) => setUseRoomForm({ ...useRoomForm, startTime: e.target.value })}
+                  className="mt-1 bg-slate-700 border-slate-600 text-white"
+                />
+              </div>
+              <div>
+                <Label className="text-gray-300">Hora de Fim</Label>
+                <Input
+                  type="time"
+                  value={useRoomForm.endTime}
+                  onChange={(e) => setUseRoomForm({ ...useRoomForm, endTime: e.target.value })}
+                  className="mt-1 bg-slate-700 border-slate-600 text-white"
+                />
+              </div>
+            </div>
+            <div className="flex gap-2 pt-2">
+              <Button
+                onClick={handleConfirmUseRoom}
+                className="flex-1 bg-orange-600 hover:bg-orange-700 text-white"
+                disabled={updateMutation.isPending}
+              >
+                Confirmar Uso
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setUseRoomDialogOpen(false)}
+                className="flex-1 border-slate-600 text-gray-300"
+              >
+                Cancelar
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
