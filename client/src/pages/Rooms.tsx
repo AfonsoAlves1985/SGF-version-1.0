@@ -11,13 +11,15 @@ import { Plus, Building2, Users, Edit2, Trash2, Calendar, Clock } from "lucide-r
 import { toast } from "sonner";
 
 export default function Rooms() {
-  const [roomType, setRoomType] = useState<string | undefined>();
-  const [status, setStatus] = useState<string | undefined>();
+  const [roomType, setRoomType] = useState("sala");
+  const [status, setStatus] = useState("");
   const [editingRoom, setEditingRoom] = useState<any>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [inlineEditingId, setInlineEditingId] = useState<number | null>(null);
   const [inlineEditField, setInlineEditField] = useState<string | null>(null);
   const [inlineEditValue, setInlineEditValue] = useState<string>("");
+  const [viewMode, setViewMode] = useState<"table" | "kanban">("table");
+
   const [formData, setFormData] = useState({
     name: "",
     capacity: 0,
@@ -25,10 +27,12 @@ export default function Rooms() {
     type: "sala" as "sala" | "auditorio" | "cozinha" | "outro",
     status: "disponivel" as "disponivel" | "ocupada" | "manutencao",
     responsibleUserId: undefined as number | undefined,
+    responsibleUserName: "",
     startDate: undefined as Date | undefined,
     endDate: undefined as Date | undefined,
     startTime: "",
     endTime: "",
+    isReleased: 0,
   });
 
   const { data: rooms = [], isLoading, refetch } = trpc.rooms.list.useQuery({
@@ -41,7 +45,7 @@ export default function Rooms() {
   const createMutation = trpc.rooms.create.useMutation({
     onSuccess: () => {
       toast.success("Sala criada com sucesso!");
-      setFormData({ name: "", capacity: 0, location: "", type: "sala", status: "disponivel", responsibleUserId: undefined, startDate: undefined, endDate: undefined, startTime: "", endTime: "" });
+      setFormData({ name: "", capacity: 0, location: "", type: "sala", status: "disponivel", responsibleUserId: undefined, responsibleUserName: "", startDate: undefined, endDate: undefined, startTime: "", endTime: "", isReleased: 0 });
       setIsDialogOpen(false);
       refetch();
     },
@@ -54,7 +58,7 @@ export default function Rooms() {
     onSuccess: () => {
       toast.success("Sala actualizada com sucesso!");
       setEditingRoom(null);
-      setFormData({ name: "", capacity: 0, location: "", type: "sala", status: "disponivel", responsibleUserId: undefined, startDate: undefined, endDate: undefined, startTime: "", endTime: "" });
+      setFormData({ name: "", capacity: 0, location: "", type: "sala", status: "disponivel", responsibleUserId: undefined, responsibleUserName: "", startDate: undefined, endDate: undefined, startTime: "", endTime: "", isReleased: 0 });
       setIsDialogOpen(false);
       setInlineEditingId(null);
       setInlineEditField(null);
@@ -77,8 +81,22 @@ export default function Rooms() {
 
   const handleCreateSample = () => {
     setEditingRoom(null);
-    setFormData({ name: "", capacity: 0, location: "", type: "sala", status: "disponivel", responsibleUserId: undefined, startDate: undefined, endDate: undefined, startTime: "", endTime: "" });
+    setFormData({ name: "", capacity: 0, location: "", type: "sala", status: "disponivel", responsibleUserId: undefined, responsibleUserName: "", startDate: undefined, endDate: undefined, startTime: "", endTime: "", isReleased: 0 });
     setIsDialogOpen(true);
+  };
+
+  const handleReleaseRoom = (roomId: number) => {
+    updateMutation.mutate({
+      id: roomId,
+      responsibleUserId: undefined,
+      responsibleUserName: "",
+      startDate: undefined,
+      endDate: undefined,
+      startTime: "",
+      endTime: "",
+      isReleased: 1,
+      status: "disponivel",
+    });
   };
 
   const handleEditRoom = (room: any) => {
@@ -90,10 +108,12 @@ export default function Rooms() {
       type: room.type,
       status: room.status,
       responsibleUserId: room.responsibleUserId,
+      responsibleUserName: room.responsibleUserName || "",
       startDate: room.startDate ? new Date(room.startDate) : undefined,
       endDate: room.endDate ? new Date(room.endDate) : undefined,
       startTime: room.startTime || "",
       endTime: room.endTime || "",
+      isReleased: room.isReleased || 0,
     });
     setIsDialogOpen(true);
   };
@@ -277,8 +297,8 @@ export default function Rooms() {
                           {room.status}
                         </span>
                       </TableCell>
-                      <TableCell className="text-gray-300 text-sm">
-                        {room.responsibleUserId ? `Usuário ${room.responsibleUserId}` : "—"}
+                      <TableCell className="text-gray-300 text-sm cursor-pointer hover:text-orange-400 transition" onClick={() => handleInlineEdit(room, "responsibleUserName")}>
+                        {room.responsibleUserName || "—"}
                       </TableCell>
                       <TableCell className="text-gray-300 text-sm">
                         {room.startDate && room.endDate ? (
@@ -389,6 +409,18 @@ export default function Rooms() {
                 onChange={(e) => setFormData({ ...formData, responsibleUserId: e.target.value ? parseInt(e.target.value) : undefined })}
                 placeholder="ID do utilizador responsável"
                 className="mt-1 bg-slate-700 border-slate-600 text-white placeholder-gray-500"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="responsibleUserName" className="text-gray-300">Nome do Solicitante</Label>
+              <Input
+                id="responsibleUserName"
+                type="text"
+                placeholder="Nome completo do responsável"
+                value={formData.responsibleUserName}
+                onChange={(e) => setFormData({ ...formData, responsibleUserName: e.target.value })}
+                className="mt-1 bg-slate-700 border-slate-600 text-white"
               />
             </div>
 
@@ -619,7 +651,11 @@ export default function Rooms() {
               let alertColor = "bg-green-900/30 border-green-700/30";
               let alertText = "Normal";
               
-              if (remainingTime <= 0) {
+              if (room.isReleased === 1) {
+                alertStatus = "liberada";
+                alertColor = "bg-emerald-900/30 border-emerald-700/30";
+                alertText = "Liberada";
+              } else if (remainingTime <= 0) {
                 alertStatus = "entregue";
                 alertColor = "bg-blue-900/30 border-blue-700/30";
                 alertText = "Entregue";
@@ -667,13 +703,24 @@ export default function Rooms() {
                       </div>
                       
                       <div className="pt-2 border-t border-slate-700">
-                        <p className="text-xs font-semibold text-white mb-1">Status: <span className="text-orange-400">{alertText}</span></p>
+                        <p className="text-xs font-semibold text-white mb-1">Status: <span className={alertStatus === "liberada" ? "text-emerald-400" : "text-orange-400"}>{alertText}</span></p>
                         <p className="text-xs text-gray-400">
-                          {remainingTime > 0 
+                          {room.isReleased === 1
+                            ? "Sala disponível para nova solicitação"
+                            : remainingTime > 0 
                             ? `Faltam ${Math.ceil(remainingTime / (1000 * 60 * 60 * 24))} dias`
                             : "Prazo expirado"
                           }
                         </p>
+                        {room.isReleased !== 1 && remainingTime <= 0 && (
+                          <Button
+                            onClick={() => handleReleaseRoom(room.id)}
+                            className="mt-2 w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs py-1"
+                            disabled={updateMutation.isPending}
+                          >
+                            Liberar Sala
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </CardContent>

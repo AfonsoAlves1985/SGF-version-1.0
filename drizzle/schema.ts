@@ -234,10 +234,12 @@ export const rooms = mysqlTable("rooms", {
 	type: mysqlEnum(['sala','auditorio','cozinha','outro']).notNull(),
 	status: mysqlEnum(['disponivel','ocupada','manutencao']).default('disponivel').notNull(),
 	responsibleUserId: int().references(() => users.id),
+	responsibleUserName: varchar({ length: 255 }),
 	startDate: datetime({ mode: 'date' }),
 	endDate: datetime({ mode: 'date' }),
 	startTime: varchar({ length: 5 }),
 	endTime: varchar({ length: 5 }),
+	isReleased: int().default(0).notNull(),
 	createdAt: timestamp({ mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
 	updatedAt: timestamp({ mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 });
