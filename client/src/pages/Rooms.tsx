@@ -103,13 +103,12 @@ export default function Rooms() {
       capacity: room.capacity,
       location: room.location,
       type: room.type,
-
       responsibleUserName: "",
       startDate: undefined,
       endDate: undefined,
       startTime: "",
       endTime: "",
-      isReleased: 1,
+      isReleased: 0,
       status: "disponivel",
     });
   };
@@ -717,8 +716,33 @@ export default function Rooms() {
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {rooms.map((room: any) => {
-              if (!room.startDate || !room.endDate) return null;
-              
+              // Sala sem datas = disponível para uso
+              if (!room.startDate || !room.endDate || room.status === "disponivel") {
+                return (
+                  <Card key={room.id} className="bg-emerald-900/30 border-emerald-700/30 border">
+                    <CardContent className="pt-4">
+                      <div className="space-y-3">
+                        <div>
+                          <p className="text-white font-semibold text-sm">{room.name}</p>
+                          <p className="text-gray-400 text-xs">Capacidade: {room.capacity} pessoas</p>
+                        </div>
+                        <div className="pt-2 border-t border-slate-700">
+                          <p className="text-xs font-semibold text-white mb-1">Status: <span className="text-emerald-400">Disponível</span></p>
+                          <p className="text-xs text-gray-400">Pronta para nova solicitação</p>
+                          <Button
+                            onClick={() => handleOpenUseRoom(room)}
+                            className="mt-2 w-full bg-orange-600 hover:bg-orange-700 text-white text-xs py-1"
+                            disabled={updateMutation.isPending}
+                          >
+                            Utilizar Sala
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              }
+
               const startDate = new Date(room.startDate);
               const endDate = new Date(room.endDate);
               const now = new Date();
@@ -732,11 +756,7 @@ export default function Rooms() {
               let alertColor = "bg-green-900/30 border-green-700/30";
               let alertText = "Normal";
               
-              if (room.isReleased === 1) {
-                alertStatus = "liberada";
-                alertColor = "bg-emerald-900/30 border-emerald-700/30";
-                alertText = "Liberada";
-              } else if (remainingTime <= 0) {
+              if (remainingTime <= 0) {
                 alertStatus = "entregue";
                 alertColor = "bg-blue-900/30 border-blue-700/30";
                 alertText = "Entregue";
@@ -756,7 +776,11 @@ export default function Rooms() {
                     <div className="space-y-3">
                       <div>
                         <p className="text-white font-semibold text-sm">{room.name}</p>
-                        <p className="text-gray-400 text-xs">Responsável: {room.responsibleUserName || "—"}</p>
+                        {room.responsibleUserName ? (
+                          <p className="text-gray-400 text-xs">Solicitante: <span className="text-gray-200">{room.responsibleUserName}</span></p>
+                        ) : (
+                          <p className="text-gray-500 text-xs italic">Sem responsável definido</p>
+                        )}
                       </div>
                       
                       <div className="space-y-1">
@@ -784,31 +808,20 @@ export default function Rooms() {
                       </div>
                       
                       <div className="pt-2 border-t border-slate-700">
-                        <p className="text-xs font-semibold text-white mb-1">Status: <span className={alertStatus === "liberada" ? "text-emerald-400" : "text-orange-400"}>{alertText}</span></p>
+                        <p className="text-xs font-semibold text-white mb-1">Status: <span className="text-orange-400">{alertText}</span></p>
                         <p className="text-xs text-gray-400">
-                          {room.isReleased === 1
-                            ? "Sala disponível para nova solicitação"
-                            : remainingTime > 0 
+                          {remainingTime > 0 
                             ? `Faltam ${Math.ceil(remainingTime / (1000 * 60 * 60 * 24))} dias`
                             : "Prazo expirado"
                           }
                         </p>
-                        {room.status === "ocupada" && room.isReleased !== 1 && (
+                        {room.status === "ocupada" && (
                           <Button
                             onClick={() => handleReleaseRoom(room.id)}
                             className="mt-2 w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs py-1"
                             disabled={updateMutation.isPending}
                           >
                             Liberar Sala
-                          </Button>
-                        )}
-                        {(room.status === "disponivel" || room.isReleased === 1) && (
-                          <Button
-                            onClick={() => handleOpenUseRoom(room)}
-                            className="mt-2 w-full bg-orange-600 hover:bg-orange-700 text-white text-xs py-1"
-                            disabled={updateMutation.isPending}
-                          >
-                            Utilizar Sala
                           </Button>
                         )}
                       </div>
@@ -819,10 +832,10 @@ export default function Rooms() {
             })}
           </div>
           
-          {rooms.filter((r: any) => r.startDate && r.endDate).length === 0 && (
+          {rooms.length === 0 && (
             <div className="text-center py-8">
               <Calendar className="w-12 h-12 text-gray-600 mx-auto mb-2" />
-              <p className="text-gray-400">Nenhuma sala com datas de uso definidas</p>
+              <p className="text-gray-400">Nenhuma sala cadastrada</p>
             </div>
           )}
         </CardContent>
