@@ -14,7 +14,8 @@ import {
   consumableSpaces, consumablesWithSpace, InsertConsumableSpace, InsertConsumableWithSpace,
   consumableWeeklyMovements, consumableMonthlyMovements, InsertConsumableWeeklyMovement, InsertConsumableMonthlyMovement,
   consumableStockAuditLog, InsertConsumableStockAuditLog,
-  contracts, contractsWithSpace, contractAlerts, contractSpaces, InsertContract, InsertContractWithSpace, InsertContractAlert, InsertContractSpace
+  contracts, contractsWithSpace, contractAlerts, contractSpaces, InsertContract, InsertContractWithSpace, InsertContractAlert, InsertContractSpace,
+  auditLog
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -1780,4 +1781,137 @@ export async function deleteContractSpace(id: number) {
 
   // Remover unidade
   return db.delete(contractSpaces).where(eq(contractSpaces.id, id));
+}
+
+
+// ============ AUTENTICAÇÃO E AUTORIZAÇÃO ============
+
+export async function getUserByEmail(email: string) {
+  const db = await getDb();
+  if (!db) return null;
+  const result = await db.select().from(users).where(eq(users.email, email)).limit(1);
+  return result[0] || null;
+}
+
+export async function getUserById(id: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const result = await db.select().from(users).where(eq(users.id, id)).limit(1);
+  return result[0] || null;
+}
+
+export async function updateUserPassword(userId: number, passwordHash: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  return db.update(users).set({ password: passwordHash }).where(eq(users.id, userId));
+}
+
+export async function updateUserRole(userId: number, role: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  return db.update(users).set({ role: role as any }).where(eq(users.id, userId));
+}
+
+export async function updateUserActive(userId: number, isActive: boolean) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  return db.update(users).set({ isActive: isActive ? 1 : 0 }).where(eq(users.id, userId));
+}
+
+export async function updateUserLastLogin(userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  return db.update(users).set({ lastLogin: new Date().toISOString() as any }).where(eq(users.id, userId));
+}
+
+export async function listUsers(filters?: { role?: string; isActive?: boolean }) {
+  const db = await getDb();
+  if (!db) return [];
+
+  const conditions = [];
+
+  if (filters?.role) conditions.push(eq(users.role, filters.role as any));
+  if (filters?.isActive !== undefined) conditions.push(eq(users.isActive, filters.isActive ? 1 : 0));
+
+  let query = db.select().from(users);
+  if (conditions.length > 0) {
+    // @ts-ignore - Drizzle ORM type inference issue
+    query = query.where(and(...conditions));
+  }
+
+  return (await query.orderBy(asc(users.name))) as any;
+}
+
+export async function createUser(data: InsertUser) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  return db.insert(users).values(data);
+}
+
+// ============ AUDITORIA ============
+
+export interface InsertAuditLog {
+  userId: number;
+  action: 'create' | 'read' | 'update' | 'delete' | 'login' | 'logout';
+  module: string;
+  recordId?: number | null;
+  recordName?: string | null;
+  changes?: string | null;
+  ipAddress?: string | null;
+  userAgent?: string | null;
+  status?: 'success' | 'failed';
+  errorMessage?: string | null;
+}
+
+export async function createAuditLog(data: InsertAuditLog) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  return db.insert(auditLog).values(data);
+}
+
+export async function listAuditLogs(filters?: { userId?: number; module?: string; action?: string; limit?: number; offset?: number }) {
+  const db = await getDb();
+  if (!db) return [];
+
+  const conditions = [];
+
+  if (filters?.userId) conditions.push(eq(auditLog.userId, filters.userId));
+  if (filters?.module) conditions.push(eq(auditLog.module, filters.module));
+  if (filters?.action) conditions.push(eq(auditLog.action, filters.action as any));
+
+  // @ts-ignore - Drizzle ORM type inference issue
+  let query: any = db.select().from(auditLog);
+  if (conditions.length > 0) {
+    // @ts-ignore - Drizzle ORM type inference issue
+    query = query.where(and(...conditions));
+  }
+
+  query = query.orderBy(desc(auditLog.createdAt));
+
+  if (filters?.limit) query = query.limit(filters.limit);
+  if (filters?.offset) query = query.offset(filters.offset);
+
+  return (await query) as any;
+}
+
+export async function getAuditLogsByUser(userId: number, limit = 50) {
+  const db = await getDb();
+  if (!db) return [];
+  return (await db
+    .select()
+    .from(auditLog)
+    .where(eq(auditLog.userId, userId))
+    .orderBy(desc(auditLog.createdAt))
+    .limit(limit)) as any;
+}
+
+export async function getAuditLogsByModule(module: string, limit = 50) {
+  const db = await getDb();
+  if (!db) return [];
+  return (await db
+    .select()
+    .from(auditLog)
+    .where(eq(auditLog.module, module))
+    .orderBy(desc(auditLog.createdAt))
+    .limit(limit)) as any;
 }

@@ -301,17 +301,40 @@ export const teams = mysqlTable("teams", {
 	createdAt: timestamp({ mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
 });
 
-export const users = mysqlTable("users", {
-	id: int().autoincrement().notNull(),
-	openId: varchar({ length: 64 }).notNull(),
-	name: text(),
-	email: varchar({ length: 320 }),
-	loginMethod: varchar({ length: 64 }),
-	role: mysqlEnum(['user','admin']).default('user').notNull(),
-	createdAt: timestamp({ mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
-	updatedAt: timestamp({ mode: 'string' }).defaultNow().onUpdateNow().notNull(),
-	lastSignedIn: timestamp({ mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
-},
-(table) => [
-	index("users_openId_unique").on(table.openId),
-]);
+	export const users = mysqlTable("users", {
+		id: int().autoincrement().notNull(),
+		openId: varchar({ length: 64 }).notNull(),
+		name: text(),
+		email: varchar({ length: 320 }),
+		loginMethod: varchar({ length: 64 }),
+		password: varchar({ length: 255 }), // Hash bcrypt para autenticação local
+		role: mysqlEnum(['superadmin','admin','editor','viewer','user']).default('viewer').notNull(),
+		isActive: int().default(1).notNull(), // 1 = ativo, 0 = desativado
+		lastLogin: timestamp({ mode: 'string' }),
+		createdAt: timestamp({ mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+		updatedAt: timestamp({ mode: 'string' }).defaultNow().onUpdateNow().notNull(),
+		lastSignedIn: timestamp({ mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	},
+	(table) => [
+		index("users_openId_unique").on(table.openId),
+	]);
+
+	export const auditLog = mysqlTable("audit_log", {
+		id: int().autoincrement().notNull(),
+		userId: int().notNull().references(() => users.id),
+		action: mysqlEnum(['create','read','update','delete','login','logout']).notNull(),
+		module: varchar({ length: 100 }).notNull(), // Ex: 'rooms', 'inventory', 'users'
+		recordId: int(), // ID do registro afetado
+		recordName: varchar({ length: 255 }), // Nome/descrição do registro
+		changes: json(), // JSON com antes/depois dos dados
+		ipAddress: varchar({ length: 45 }), // IPv4 ou IPv6
+		userAgent: text(), // Browser/client info
+		status: mysqlEnum(['success','failed']).default('success').notNull(),
+		errorMessage: text(), // Se status = failed
+		createdAt: timestamp({ mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	},
+	(table) => [
+		index("audit_log_userId").on(table.userId),
+		index("audit_log_module").on(table.module),
+		index("audit_log_createdAt").on(table.createdAt),
+	]);

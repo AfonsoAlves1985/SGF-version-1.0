@@ -333,6 +333,18 @@
 - [x] Testar visualização em diferentes tamanhos de tela
 
 
+## Fase 36: Autenticação e Autorização com Roles
+- [x] Criar schema de banco de dados (users, roles, audit_log)
+- [x] Implementar hash de senha com bcrypt
+- [x] Implementar sistema de autenticação (login/logout com JWT)
+- [x] Criar middleware de autorização por roles
+- [x] Implementar sistema de auditoria (log de ações)
+- [ ] Criar interface de gestão de usuários (admin/superadmin)
+- [ ] Criar script de seed para superadmin
+- [ ] Integrar autenticação nas rotas existentes
+- [ ] Testar e validar todas as funcionalidades
+- [ ] Documentar rotas protegidas e roles
+
 ## Bugs Encontrados
 
 ### Bug: Estoque Zero Não É Permitido
