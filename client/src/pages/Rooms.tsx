@@ -620,13 +620,14 @@ export default function Rooms() {
               }
 
               // Combinar data + hora para cálculo preciso
+              // IMPORTANTE: Usar UTC para evitar problemas de fuso horário
               const parseDateTime = (dateVal: any, timeStr?: string) => {
                 const d = new Date(dateVal);
                 if (timeStr) {
                   const [h, m] = timeStr.split(":").map(Number);
-                  d.setHours(h || 0, m || 0, 0, 0);
+                  d.setUTCHours(h || 0, m || 0, 0, 0);
                 } else {
-                  d.setHours(0, 0, 0, 0);
+                  d.setUTCHours(0, 0, 0, 0);
                 }
                 return d;
               };
@@ -678,7 +679,7 @@ export default function Rooms() {
                     <div className="space-y-3">
                       <div>
                         <p className="text-white font-semibold text-sm">{room.name}</p>
-                        {room.responsibleUserName ? (
+                        {room.responsibleUserName && room.responsibleUserName.trim() ? (
                           <p className="text-orange-400 text-xs font-medium">Solicitante: <span className="text-white">{room.responsibleUserName}</span></p>
                         ) : (
                           <p className="text-gray-500 text-xs italic">Solicitante não informado</p>
