@@ -635,8 +635,17 @@ export default function Rooms() {
               const now = new Date();
               
               const totalDuration = endDate.getTime() - startDate.getTime();
-              // Se ainda não começou (now < startDate), progresso = 0
-              const elapsedTime = now < startDate ? 0 : Math.min(now.getTime() - startDate.getTime(), totalDuration);
+              // Calcular tempo decorrido considerando os limites [startDate, endDate]
+              let elapsedTime = 0;
+              if (now >= startDate && now <= endDate) {
+                // Dentro do intervalo: tempo desde o início até agora
+                elapsedTime = now.getTime() - startDate.getTime();
+              } else if (now > endDate) {
+                // Após o fim: tempo total (100%)
+                elapsedTime = totalDuration;
+              }
+              // Se now < startDate, elapsedTime permanece 0
+              
               const remainingTime = Math.max(endDate.getTime() - now.getTime(), 0);
               const usagePercentage = totalDuration > 0 ? (elapsedTime / totalDuration) * 100 : 0;
               
