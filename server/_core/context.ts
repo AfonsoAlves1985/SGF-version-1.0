@@ -1,45 +1,42 @@
 import type { CreateExpressContextOptions } from "@trpc/server/adapters/express";
+import * as db from "../db";
+import { extractToken, verifyToken } from "../auth.helpers";
 
-type User = {
-  id: number;
-  openId: string;
-  name: string | null;
-  email: string | null;
-  role: "superadmin" | "admin" | "editor" | "viewer" | "user";
-  loginMethod: string | null;
-  isActive: number;
-  lastLogin: string | null;
-  createdAt: string;
-  updatedAt: string;
-  lastSignedIn: string;
-};
+type User = NonNullable<Awaited<ReturnType<typeof db.getUserById>>>;
 
 export type TrpcContext = {
   req: CreateExpressContextOptions["req"];
   res: CreateExpressContextOptions["res"];
-  user: User;
+  user: User | null;
 };
 
-const defaultUser: User = {
-  id: 1,
-  openId: "local-admin",
-  name: "Admin",
-  email: "admin@local.com",
-  role: "admin",
-  loginMethod: "local",
-  isActive: 1,
-  lastLogin: null,
-  createdAt: new Date().toISOString(),
-  updatedAt: new Date().toISOString(),
-  lastSignedIn: new Date().toISOString(),
-};
+async function getUserFromRequest(
+  req: CreateExpressContextOptions["req"],
+): Promise<User | null> {
+  const authHeader = Array.isArray(req.headers.authorization)
+    ? req.headers.authorization[0]
+    : req.headers.authorization;
+
+  const token = extractToken(authHeader);
+  if (!token) return null;
+
+  const decoded = verifyToken(token);
+  if (!decoded) return null;
+
+  const user = await db.getUserById(decoded.userId);
+  if (!user || !user.isActive) return null;
+
+  return user;
+}
 
 export async function createContext(
   opts: CreateExpressContextOptions
 ): Promise<TrpcContext> {
+  const user = await getUserFromRequest(opts.req);
+
   return {
     req: opts.req,
     res: opts.res,
-    user: defaultUser,
+    user,
   };
 }

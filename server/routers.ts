@@ -4,15 +4,18 @@ import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import { z } from "zod";
 import * as db from "./db";
-import { generateToken } from "./auth.helpers";
+import { comparePassword, generateToken, hashPassword } from "./auth.helpers";
 import { TRPCError } from "@trpc/server";
 
-const DEFAULT_USER = {
-  id: 1,
-  name: 'Administrador',
-  email: 'admin@sistema.com',
-  role: 'superadmin',
+const DEFAULT_ADMIN = {
+  openId: "local-admin",
+  name: "Administrador",
+  email: "admin@admin.com",
+  role: "admin" as const,
 };
+
+const LEGACY_ADMIN_OPEN_IDS = ["local-admin", "admin-local"];
+const LEGACY_ADMIN_EMAILS = ["admin@admin.com", "admin@local.com"];
 
 const DATE_MASK_REGEX = /^\d{2}-\d{2}-\d{4}$/;
 
@@ -33,6 +36,61 @@ function parseMaskedDate(value: string) {
   return date;
 }
 
+async function ensureDefaultAdminUser() {
+  let user = await db.getUserByEmail(DEFAULT_ADMIN.email);
+
+  if (!user) {
+    for (const email of LEGACY_ADMIN_EMAILS) {
+      user = await db.getUserByEmail(email);
+      if (user) break;
+    }
+  }
+
+  if (!user) {
+    for (const openId of LEGACY_ADMIN_OPEN_IDS) {
+      user = (await db.getUserByOpenId(openId)) ?? null;
+      if (user) break;
+    }
+  }
+
+  if (!user) {
+    const passwordHash = await hashPassword("admin123");
+    await db.createUser({
+      openId: DEFAULT_ADMIN.openId,
+      name: DEFAULT_ADMIN.name,
+      email: DEFAULT_ADMIN.email,
+      loginMethod: "password",
+      password: passwordHash,
+      role: DEFAULT_ADMIN.role,
+      isActive: true,
+    } as any);
+
+    user = await db.getUserByEmail(DEFAULT_ADMIN.email);
+  }
+
+  if (!user) {
+    throw new TRPCError({
+      code: "INTERNAL_SERVER_ERROR",
+      message: "Falha ao criar usuário administrador padrão",
+    });
+  }
+
+  if (!user.password) {
+    const passwordHash = await hashPassword("admin123");
+    await db.updateUserPassword(user.id, passwordHash);
+    user = await db.getUserById(user.id);
+  }
+
+  if (!user) {
+    throw new TRPCError({
+      code: "INTERNAL_SERVER_ERROR",
+      message: "Falha ao configurar usuário administrador",
+    });
+  }
+
+  return user;
+}
+
 export const appRouter = router({
   system: systemRouter,
   auth: router({
@@ -44,18 +102,74 @@ export const appRouter = router({
         })
       )
       .mutation(async ({ input }) => {
-        if (input.email === 'admin' && input.password === 'admin123') {
-          const token = generateToken(DEFAULT_USER.id, DEFAULT_USER.role);
-          return {
-            success: true,
-            token,
-            user: DEFAULT_USER,
-          };
+        const loginIdentifier = input.email.trim().toLowerCase();
+
+        let user = loginIdentifier === "admin"
+          ? await ensureDefaultAdminUser()
+          : await db.getUserByEmail(loginIdentifier);
+
+        if (!user || !user.password) {
+          throw new TRPCError({
+            code: "UNAUTHORIZED",
+            message: "Usuário ou senha incorretos",
+          });
         }
-        throw new TRPCError({
-          code: 'UNAUTHORIZED',
-          message: 'Usuário ou senha incorretos',
-        });
+
+        let passwordMatches = await comparePassword(input.password, user.password);
+
+        if (
+          !passwordMatches &&
+          loginIdentifier === "admin" &&
+          LEGACY_ADMIN_OPEN_IDS.includes(user.openId) &&
+          input.password === "admin123"
+        ) {
+          const passwordHash = await hashPassword("admin123");
+          await db.updateUserPassword(user.id, passwordHash);
+          user = await db.getUserById(user.id);
+          if (!user || !user.password) {
+            throw new TRPCError({
+              code: "INTERNAL_SERVER_ERROR",
+              message: "Falha ao atualizar senha do administrador",
+            });
+          }
+          passwordMatches = true;
+        }
+
+        if (!passwordMatches) {
+          throw new TRPCError({
+            code: "UNAUTHORIZED",
+            message: "Usuário ou senha incorretos",
+          });
+        }
+
+        if (!user.isActive) {
+          throw new TRPCError({
+            code: "UNAUTHORIZED",
+            message: "Usuário inativo",
+          });
+        }
+
+        await db.updateUserLastLogin(user.id);
+        user = await db.getUserById(user.id);
+
+        if (!user) {
+          throw new TRPCError({
+            code: "UNAUTHORIZED",
+            message: "Usuário inválido",
+          });
+        }
+
+        const token = generateToken(user.id, user.role);
+        return {
+          success: true,
+          token,
+          user: {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+          },
+        };
       }),
     me: protectedProcedure.query(opts => opts.ctx.user),
     logout: publicProcedure.mutation(({ ctx }) => {
