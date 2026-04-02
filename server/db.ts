@@ -1,4 +1,4 @@
-import { eq, and, or, desc, asc, gte, lte, like } from "drizzle-orm";
+import { eq, and, or, desc, asc, gte, lte, like, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import { 
   InsertUser, users,
@@ -20,6 +20,7 @@ import {
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
+let usersAuthSchemaEnsured = false;
 
 // Lazily create the drizzle instance so local tooling can run without a DB.
 export async function getDb() {
@@ -32,6 +33,90 @@ export async function getDb() {
     }
   }
   return _db;
+}
+
+async function ensureUsersAuthSchema() {
+  if (usersAuthSchemaEnsured) return;
+
+  const db = await getDb();
+  if (!db) return;
+
+  try {
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS "users" (
+        "id" serial PRIMARY KEY,
+        "openId" varchar(64),
+        "name" text,
+        "email" varchar(320),
+        "loginMethod" varchar(64),
+        "password" varchar(255),
+        "role" varchar(32) DEFAULT 'viewer',
+        "isActive" boolean DEFAULT true,
+        "lastLogin" timestamp,
+        "createdAt" timestamp DEFAULT now(),
+        "updatedAt" timestamp DEFAULT now(),
+        "lastSignedIn" timestamp DEFAULT now()
+      );
+    `);
+
+    await db.execute(
+      sql`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "openId" varchar(64);`,
+    );
+    await db.execute(
+      sql`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "name" text;`,
+    );
+    await db.execute(
+      sql`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "email" varchar(320);`,
+    );
+    await db.execute(
+      sql`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "loginMethod" varchar(64);`,
+    );
+    await db.execute(
+      sql`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "password" varchar(255);`,
+    );
+    await db.execute(
+      sql`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "role" varchar(32) DEFAULT 'viewer';`,
+    );
+    await db.execute(
+      sql`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "isActive" boolean DEFAULT true;`,
+    );
+    await db.execute(
+      sql`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "lastLogin" timestamp;`,
+    );
+    await db.execute(
+      sql`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "createdAt" timestamp DEFAULT now();`,
+    );
+    await db.execute(
+      sql`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "updatedAt" timestamp DEFAULT now();`,
+    );
+    await db.execute(
+      sql`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "lastSignedIn" timestamp DEFAULT now();`,
+    );
+
+    await db.execute(sql`UPDATE "users" SET "role" = 'viewer' WHERE "role" IS NULL;`);
+    await db.execute(sql`UPDATE "users" SET "isActive" = true WHERE "isActive" IS NULL;`);
+    await db.execute(
+      sql`UPDATE "users" SET "lastSignedIn" = now() WHERE "lastSignedIn" IS NULL;`,
+    );
+    await db.execute(
+      sql`UPDATE "users" SET "createdAt" = now() WHERE "createdAt" IS NULL;`,
+    );
+    await db.execute(
+      sql`UPDATE "users" SET "updatedAt" = now() WHERE "updatedAt" IS NULL;`,
+    );
+
+    await db.execute(
+      sql`CREATE INDEX IF NOT EXISTS "users_openId_idx" ON "users" ("openId");`,
+    );
+    await db.execute(
+      sql`CREATE INDEX IF NOT EXISTS "users_email_idx" ON "users" ("email");`,
+    );
+
+    usersAuthSchemaEnsured = true;
+  } catch (error) {
+    console.error("[Database] Failed to ensure users auth schema:", error);
+    throw error;
+  }
 }
 
 export async function upsertUser(user: InsertUser): Promise<void> {
@@ -2071,6 +2156,7 @@ export async function deleteContractSpace(id: number) {
 // ============ AUTENTICAÇÃO E AUTORIZAÇÃO ============
 
 export async function getUserByEmail(email: string) {
+  await ensureUsersAuthSchema();
   const db = await getDb();
   if (!db) return null;
   const result = await db.select().from(users).where(eq(users.email, email)).limit(1);
@@ -2078,6 +2164,7 @@ export async function getUserByEmail(email: string) {
 }
 
 export async function getUserById(id: number) {
+  await ensureUsersAuthSchema();
   const db = await getDb();
   if (!db) return null;
   const result = await db.select().from(users).where(eq(users.id, id)).limit(1);
@@ -2085,30 +2172,35 @@ export async function getUserById(id: number) {
 }
 
 export async function updateUserPassword(userId: number, passwordHash: string) {
+  await ensureUsersAuthSchema();
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   return db.update(users).set({ password: passwordHash }).where(eq(users.id, userId));
 }
 
 export async function updateUserRole(userId: number, role: string) {
+  await ensureUsersAuthSchema();
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   return db.update(users).set({ role: role as any }).where(eq(users.id, userId));
 }
 
 export async function updateUserActive(userId: number, isActive: boolean) {
+  await ensureUsersAuthSchema();
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   return db.update(users).set({ isActive }).where(eq(users.id, userId));
 }
 
 export async function updateUserLastLogin(userId: number) {
+  await ensureUsersAuthSchema();
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   return db.update(users).set({ lastLogin: new Date() }).where(eq(users.id, userId));
 }
 
 export async function listUsers(filters?: { role?: string; isActive?: boolean }) {
+  await ensureUsersAuthSchema();
   const db = await getDb();
   if (!db) return [];
 
@@ -2127,6 +2219,7 @@ export async function listUsers(filters?: { role?: string; isActive?: boolean })
 }
 
 export async function createUser(data: InsertUser) {
+  await ensureUsersAuthSchema();
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   return db.insert(users).values(data);
