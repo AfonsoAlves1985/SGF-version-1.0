@@ -14,6 +14,25 @@ const DEFAULT_USER = {
   role: 'superadmin',
 };
 
+const DATE_MASK_REGEX = /^\d{2}-\d{2}-\d{4}$/;
+
+function parseMaskedDate(value: string) {
+  if (!DATE_MASK_REGEX.test(value)) return null;
+
+  const [day, month, year] = value.split("-").map(Number);
+  const date = new Date(year, month - 1, day);
+
+  if (
+    date.getFullYear() !== year ||
+    date.getMonth() !== month - 1 ||
+    date.getDate() !== day
+  ) {
+    return null;
+  }
+
+  return date;
+}
+
 export const appRouter = router({
   system: systemRouter,
   auth: router({
@@ -207,7 +226,14 @@ export const appRouter = router({
       }).refine(
         (data) => {
           if (data.startDate && data.endDate) {
-            return data.endDate >= data.startDate;
+            const startDate = parseMaskedDate(data.startDate);
+            const endDate = parseMaskedDate(data.endDate);
+            if (!startDate || !endDate) return false;
+
+            startDate.setHours(0, 0, 0, 0);
+            endDate.setHours(0, 0, 0, 0);
+
+            return endDate.getTime() >= startDate.getTime();
           }
           return true;
         },
@@ -236,7 +262,14 @@ export const appRouter = router({
       }).refine(
         (data) => {
           if (data.startDate && data.endDate) {
-            return data.endDate >= data.startDate;
+            const startDate = parseMaskedDate(data.startDate);
+            const endDate = parseMaskedDate(data.endDate);
+            if (!startDate || !endDate) return false;
+
+            startDate.setHours(0, 0, 0, 0);
+            endDate.setHours(0, 0, 0, 0);
+
+            return endDate.getTime() >= startDate.getTime();
           }
           return true;
         },
@@ -727,6 +760,122 @@ export const appRouter = router({
       .input(z.number())
       .mutation(async ({ input }) => {
         return db.deleteContractSpace(input);
+      }),
+  }),
+
+  // ============ CONTRACTS WITH SPACE ============
+  contractsWithSpace: router({
+    list: protectedProcedure
+      .input(z.object({
+        spaceId: z.number().optional(),
+        search: z.string().optional(),
+      }).optional())
+      .query(async ({ input }) => {
+        return db.listContractsWithSpace(input);
+      }),
+
+    getById: protectedProcedure
+      .input(z.number())
+      .query(async ({ input }) => {
+        return db.getContractWithSpaceById(input);
+      }),
+
+    create: protectedProcedure
+      .input(z.object({
+        spaceId: z.number(),
+        companyName: z.string(),
+        cnpj: z.string(),
+        description: z.string(),
+        contact: z.string(),
+        value: z.number(),
+        contractType: z.enum(["mensal", "anual"]),
+        startDate: z.string().regex(DATE_MASK_REGEX, "Use formato DD-MM-YYYY"),
+        endDate: z.string().regex(DATE_MASK_REGEX, "Use formato DD-MM-YYYY"),
+        isRenewable: z.boolean(),
+        status: z.enum(["ativo", "inativo", "vencido"]).optional(),
+        notes: z.string().optional(),
+      }).refine(
+        data => {
+          const startDate = parseMaskedDate(data.startDate);
+          const endDate = parseMaskedDate(data.endDate);
+          if (!startDate || !endDate) return false;
+
+          startDate.setHours(0, 0, 0, 0);
+          endDate.setHours(0, 0, 0, 0);
+
+          return endDate.getTime() >= startDate.getTime();
+        },
+        {
+          message: "Data de fim nao pode ser anterior a data de inicio",
+          path: ["endDate"],
+        },
+      ))
+      .mutation(async ({ input }) => {
+        const { spaceId, startDate, value, ...rest } = input;
+        return db.createContractWithSpace(spaceId, {
+          ...rest,
+          signatureDate: startDate,
+          value: value.toString(),
+        } as any);
+      }),
+
+    update: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        spaceId: z.number().optional(),
+        companyName: z.string().optional(),
+        cnpj: z.string().optional(),
+        description: z.string().optional(),
+        contact: z.string().optional(),
+        value: z.number().optional(),
+        contractType: z.enum(["mensal", "anual"]).optional(),
+        startDate: z
+          .string()
+          .regex(DATE_MASK_REGEX, "Use formato DD-MM-YYYY")
+          .optional(),
+        endDate: z
+          .string()
+          .regex(DATE_MASK_REGEX, "Use formato DD-MM-YYYY")
+          .optional(),
+        isRenewable: z.boolean().optional(),
+        status: z.enum(["ativo", "inativo", "vencido"]).optional(),
+        notes: z.string().optional(),
+      }).refine(
+        data => {
+          if (!data.startDate || !data.endDate) return true;
+
+          const startDate = parseMaskedDate(data.startDate);
+          const endDate = parseMaskedDate(data.endDate);
+          if (!startDate || !endDate) return false;
+
+          startDate.setHours(0, 0, 0, 0);
+          endDate.setHours(0, 0, 0, 0);
+
+          return endDate.getTime() >= startDate.getTime();
+        },
+        {
+          message: "Data de fim nao pode ser anterior a data de inicio",
+          path: ["endDate"],
+        },
+      ))
+      .mutation(async ({ input }) => {
+        const { id, spaceId, startDate, value, ...rest } = input;
+
+        return db.updateContractWithSpace(
+          id,
+          {
+            ...rest,
+            signatureDate: startDate,
+            value: value !== undefined ? value.toString() : undefined,
+          } as any,
+          spaceId,
+        );
+      }),
+
+    delete: protectedProcedure
+      .input(z.number())
+      .mutation(async ({ input }) => {
+        return db.deleteContractWithSpace(input);
       }),
   }),
 

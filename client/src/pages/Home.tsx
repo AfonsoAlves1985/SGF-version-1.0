@@ -96,6 +96,13 @@ export default function Home() {
       color: "bg-orange-900/20 hover:bg-orange-900/30 border-orange-700/30",
     },
     {
+      icon: FileText,
+      label: "Contratos",
+      description: "Gestão de contratos por unidade",
+      path: "/contracts",
+      color: "bg-orange-900/20 hover:bg-orange-900/30 border-orange-700/30",
+    },
+    {
       icon: BarChart3,
       label: t("home.dashboard"),
       description: t("home.dashboard.desc"),

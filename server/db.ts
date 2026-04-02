@@ -1490,20 +1490,127 @@ export async function getStockAlerts(spaceId?: number) {
   const db = await getDb();
   if (!db) return [];
 
-  // Buscar todos os consumíveis com espaço
+  let query = db.select().from(consumablesWithSpace);
+
   if (spaceId) {
-    return db.select().from(consumablesWithSpace)
-      .where(eq(consumablesWithSpace.spaceId, spaceId))
-      .then((consumables: any[]) => processStockAlerts(consumables));
+    query = query.where(eq(consumablesWithSpace.spaceId, spaceId)) as any;
   }
 
-  const consumables = (await db.select().from(consumablesWithSpace)) as any[];
-  return processStockAlerts(consumables);
+  const consumables = (await query) as any[];
+  return processStockAlerts(consumables, db);
 }
 
-async function processStockAlerts(consumables: any[]) {
+function buildOrEqCondition<T>(
+  column: any,
+  values: T[],
+) {
+  if (values.length === 0) return undefined;
+  if (values.length === 1) return eq(column, values[0] as any);
+  return or(...values.map(value => eq(column, value as any)));
+}
 
-  const alerts = consumables
+function getLatestStockByConsumable(consumables: any[], weeklyMovements: any[]) {
+  const latestByKey = new Map<string, any>();
+
+  for (const movement of weeklyMovements) {
+    const key = `${movement.spaceId ?? "null"}:${movement.consumableId}`;
+    const previous = latestByKey.get(key);
+
+    if (!previous) {
+      latestByKey.set(key, movement);
+      continue;
+    }
+
+    const previousUpdated = new Date(previous.updatedAt).getTime();
+    const currentUpdated = new Date(movement.updatedAt).getTime();
+
+    if (currentUpdated > previousUpdated) {
+      latestByKey.set(key, movement);
+    }
+  }
+
+  return consumables.map(consumable => {
+    const key = `${consumable.spaceId ?? "null"}:${consumable.id}`;
+    const latestMovement = latestByKey.get(key);
+    const weeklyStock = latestMovement?.totalMovement;
+    const currentStock =
+      weeklyStock !== undefined && weeklyStock !== null
+        ? Number(weeklyStock)
+        : Number(consumable.currentStock ?? 0);
+
+    return {
+      ...consumable,
+      currentStock: Number.isNaN(currentStock) ? 0 : currentStock,
+    };
+  });
+}
+
+async function withEffectiveCurrentStock(consumables: any[], db: any) {
+  if (consumables.length === 0) return [];
+
+  const spaceIds = Array.from(
+    new Set(
+      consumables
+        .map(consumable => consumable.spaceId)
+        .filter((id): id is number => typeof id === "number"),
+    ),
+  );
+
+  const consumableIds = consumables.map(consumable => consumable.id as number);
+
+  const spaceCondition = buildOrEqCondition(
+    consumableWeeklyMovements.spaceId,
+    spaceIds,
+  );
+  const consumableCondition = buildOrEqCondition(
+    consumableWeeklyMovements.consumableId,
+    consumableIds,
+  );
+
+  const whereCondition =
+    spaceCondition && consumableCondition
+      ? and(spaceCondition, consumableCondition)
+      : spaceCondition || consumableCondition;
+
+  let weeklyQuery = db.select().from(consumableWeeklyMovements);
+  if (whereCondition) {
+    weeklyQuery = weeklyQuery.where(whereCondition) as any;
+  }
+
+  const weeklyMovements = (await weeklyQuery) as any[];
+  return getLatestStockByConsumable(consumables, weeklyMovements);
+}
+
+async function processStockAlerts(consumables: any[], db: any) {
+  const consumablesWithEffectiveStock = await withEffectiveCurrentStock(
+    consumables,
+    db,
+  );
+
+  const spaceIds = Array.from(
+    new Set(
+      consumablesWithEffectiveStock
+        .map(consumable => consumable.spaceId)
+        .filter((id): id is number => typeof id === "number"),
+    ),
+  );
+
+  let spaceNameById = new Map<number, string>();
+  if (spaceIds.length > 0) {
+    const spaceCondition = buildOrEqCondition(consumableSpaces.id, spaceIds);
+    let spacesQuery = db.select().from(consumableSpaces);
+
+    if (spaceCondition) {
+      spacesQuery = spacesQuery.where(spaceCondition) as any;
+    }
+
+    const spaces = (await spacesQuery) as any[];
+    spaceNameById = new Map(
+      spaces.map(space => [space.id, space.name] as [number, string]),
+    );
+  }
+
+  const alerts = consumablesWithEffectiveStock
     .map((consumable: any) => {
       const currentStock = consumable.currentStock || 0;
       const minStock = consumable.minStock || 0;
@@ -1525,7 +1632,10 @@ async function processStockAlerts(consumables: any[]) {
           currentStock,
           minStock,
           unit: consumable.unit,
-          spaceName: consumable.spaceName || "Sem unidade",
+          spaceName:
+            spaceNameById.get(consumable.spaceId) ||
+            consumable.spaceName ||
+            "Sem unidade",
           spaceId: consumable.spaceId,
           alertType,
           message,
@@ -1553,6 +1663,11 @@ export async function getStockAlertsBySpace(spaceId: number) {
     .from(consumablesWithSpace)
     .where(eq(consumablesWithSpace.spaceId, spaceId))) as any[];
 
+  const consumablesWithEffectiveStock = await withEffectiveCurrentStock(
+    consumables,
+    db,
+  );
+
   // Buscar informações da unidade
   const space = (await db
     .select()
@@ -1561,7 +1676,7 @@ export async function getStockAlertsBySpace(spaceId: number) {
     .limit(1))[0];
 
   // Filtrar consumíveis com alertas
-  const alerts = consumables
+  const alerts = consumablesWithEffectiveStock
     .map((consumable: any) => {
       const currentStock = consumable.currentStock || 0;
       const minStock = consumable.minStock || 0;
@@ -1604,36 +1719,140 @@ export async function getStockAlertsBySpace(spaceId: number) {
 
 
 // Contratos
+function parseContractDate(value?: string | null) {
+  if (!value) return null;
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const [year, month, day] = value.split("-").map(Number);
+    const date = new Date(year, month - 1, day);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+
+  if (/^\d{2}-\d{2}-\d{4}$/.test(value)) {
+    const [day, month, year] = value.split("-").map(Number);
+    const date = new Date(year, month - 1, day);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function isContractExpiredByDate(endDate?: string | null) {
+  const parsedEndDate = parseContractDate(endDate);
+  if (!parsedEndDate) return false;
+
+  const endDateOnly = new Date(parsedEndDate);
+  endDateOnly.setHours(0, 0, 0, 0);
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  return endDateOnly < today;
+}
+
+async function syncExpiredContractsStatus(db: any) {
+  const allContracts = (await db
+    .select({
+      id: contracts.id,
+      endDate: contracts.endDate,
+      status: contracts.status,
+    })
+    .from(contracts)) as Array<{
+    id: number;
+    endDate: string | null;
+    status: string;
+  }>;
+
+  const expiredContractIds = allContracts
+    .filter(
+      contract =>
+        contract.status !== "vencido" &&
+        isContractExpiredByDate(contract.endDate),
+    )
+    .map(contract => contract.id);
+
+  for (const contractId of expiredContractIds) {
+    await db
+      .update(contracts)
+      .set({ status: "vencido" })
+      .where(eq(contracts.id, contractId));
+  }
+}
+
 export async function listContractsWithSpace(filters?: { spaceId?: number; search?: string }) {
   const db = await getDb();
   if (!db) return [];
+
+  await syncExpiredContractsStatus(db);
 
   const conditions = [];
   if (filters?.spaceId) conditions.push(eq(contractsWithSpace.spaceId, filters.spaceId));
   if (filters?.search) conditions.push(like(contracts.companyName, `%${filters.search}%`));
 
-  return db.select()
+  const rows = await db.select()
     .from(contractsWithSpace)
     .innerJoin(contracts, eq(contractsWithSpace.contractId, contracts.id))
+    .leftJoin(contractSpaces, eq(contractsWithSpace.spaceId, contractSpaces.id))
     .where(conditions.length > 0 ? and(...conditions) : undefined)
     .orderBy(desc(contractsWithSpace.createdAt));
+
+  return rows.map((row: any) => {
+    const relation = row.contractsWithSpace ?? row.contracts_with_space;
+    const space = row.contractSpaces ?? row.contract_spaces;
+
+    return {
+      ...row.contracts,
+      spaceId: relation?.spaceId,
+      contractId: relation?.contractId,
+      linkedAt: relation?.createdAt,
+      spaceName: space?.name || "Sem unidade",
+    };
+  });
+}
+
+export async function getContractWithSpaceById(contractId: number) {
+  const db = await getDb();
+  if (!db) return null;
+
+  await syncExpiredContractsStatus(db);
+
+  const rows = await db.select()
+    .from(contractsWithSpace)
+    .innerJoin(contracts, eq(contractsWithSpace.contractId, contracts.id))
+    .leftJoin(contractSpaces, eq(contractsWithSpace.spaceId, contractSpaces.id))
+    .where(eq(contractsWithSpace.contractId, contractId))
+    .limit(1);
+
+  if (rows.length === 0) return null;
+
+  const row: any = rows[0];
+  const relation = row.contractsWithSpace ?? row.contracts_with_space;
+  const space = row.contractSpaces ?? row.contract_spaces;
+
+  return {
+    ...row.contracts,
+    spaceId: relation?.spaceId,
+    contractId: relation?.contractId,
+    linkedAt: relation?.createdAt,
+    spaceName: space?.name || "Sem unidade",
+  };
 }
 
 export async function createContractWithSpace(spaceId: number, contract: InsertContract): Promise<{ contractId: number }> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
-  // Insert the contract
-  await db.insert(contracts).values(contract);
-  
-  // Get the last inserted contract ID by querying the most recent record
-  const lastContract = await db.select().from(contracts).orderBy(desc(contracts.id)).limit(1);
-  
-  if (!lastContract || !lastContract[0]) {
+  const createdContract = await db
+    .insert(contracts)
+    .values(contract)
+    .returning({ id: contracts.id });
+
+  if (!createdContract || !createdContract[0]) {
     throw new Error("Failed to retrieve contract ID after insertion");
   }
-  
-  const contractId = lastContract[0].id;
+
+  const contractId = createdContract[0].id;
   
   await db.insert(contractsWithSpace).values({
     spaceId,
@@ -1643,13 +1862,24 @@ export async function createContractWithSpace(spaceId: number, contract: InsertC
   return { contractId };
 }
 
-export async function updateContractWithSpace(contractId: number, updates: Partial<InsertContract>): Promise<void> {
+export async function updateContractWithSpace(
+  contractId: number,
+  updates: Partial<InsertContract>,
+  spaceId?: number,
+): Promise<void> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
   await db.update(contracts)
     .set(updates)
     .where(eq(contracts.id, contractId));
+
+  if (spaceId !== undefined) {
+    await db
+      .update(contractsWithSpace)
+      .set({ spaceId })
+      .where(eq(contractsWithSpace.contractId, contractId));
+  }
 }
 
 export async function deleteContractWithSpace(contractId: number): Promise<void> {
@@ -1682,6 +1912,8 @@ export async function generateContractAlerts(): Promise<void> {
   const db = await getDb();
   if (!db) return;
 
+  await syncExpiredContractsStatus(db);
+
   const today = new Date();
   
   // Buscar todos os contratos ativos
@@ -1690,7 +1922,9 @@ export async function generateContractAlerts(): Promise<void> {
     .where(eq(contracts.status, "ativo"));
 
   for (const contract of activeContracts) {
-    const endDate = new Date(contract.endDate);
+    const endDate = parseContractDate(contract.endDate);
+    if (!endDate) continue;
+
     const daysUntilExpiry = Math.floor((endDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 
     // Alertas de vencimento de contrato (30 dias antes)

@@ -26,21 +26,50 @@ import {
   Cell,
 } from "recharts";
 import { trpc } from "@/lib/trpc";
-import { format, subDays, startOfDay } from "date-fns";
+import { format, subDays } from "date-fns";
 import { ArrowDownLeft, ArrowUpRight, TrendingUp, Package } from "lucide-react";
+
+function formatDateInput(value: string) {
+  const digits = value.replace(/\D/g, "").slice(0, 8);
+
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 4) return `${digits.slice(0, 2)}-${digits.slice(2)}`;
+  return `${digits.slice(0, 2)}-${digits.slice(2, 4)}-${digits.slice(4)}`;
+}
+
+function parseMaskedDate(value: string) {
+  if (!/^\d{2}-\d{2}-\d{4}$/.test(value)) return null;
+
+  const [day, month, year] = value.split("-").map(Number);
+  const date = new Date(year, month - 1, day);
+
+  if (
+    date.getFullYear() !== year ||
+    date.getMonth() !== month - 1 ||
+    date.getDate() !== day
+  ) {
+    return null;
+  }
+
+  date.setHours(0, 0, 0, 0);
+  return date;
+}
 
 export default function InventoryHistory() {
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
-  const [startDate, setStartDate] = useState(format(subDays(new Date(), 30), "yyyy-MM-dd"));
-  const [endDate, setEndDate] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [startDate, setStartDate] = useState(format(subDays(new Date(), 30), "dd-MM-yyyy"));
+  const [endDate, setEndDate] = useState(format(new Date(), "dd-MM-yyyy"));
 
   const { data: movements = [] } = trpc.inventory.getAllMovements.useQuery();
   const { data: inventoryItems = [] } = trpc.inventory.list.useQuery();
 
   // Filtrar movimentações por data e categoria
   const filteredMovements = useMemo(() => {
-    const start = startOfDay(new Date(startDate));
-    const end = startOfDay(new Date(endDate));
+    const start = parseMaskedDate(startDate);
+    const end = parseMaskedDate(endDate);
+
+    if (!start || !end) return [];
+
     end.setDate(end.getDate() + 1);
 
     return movements.filter((m: any) => {
@@ -135,18 +164,24 @@ export default function InventoryHistory() {
               <div>
                 <Label className="text-gray-300">Data Inicial</Label>
                 <Input
-                  type="date"
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={10}
                   value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
+                  onChange={(e) => setStartDate(formatDateInput(e.target.value))}
+                  placeholder="DD-MM-YYYY"
                   className="bg-slate-700 border-orange-700/30 text-white mt-2"
                 />
               </div>
               <div>
                 <Label className="text-gray-300">Data Final</Label>
                 <Input
-                  type="date"
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={10}
                   value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
+                  onChange={(e) => setEndDate(formatDateInput(e.target.value))}
+                  placeholder="DD-MM-YYYY"
                   className="bg-slate-700 border-orange-700/30 text-white mt-2"
                 />
               </div>
@@ -169,8 +204,8 @@ export default function InventoryHistory() {
               <div className="flex items-end">
                 <Button
                   onClick={() => {
-                    setStartDate(format(subDays(new Date(), 30), "yyyy-MM-dd"));
-                    setEndDate(format(new Date(), "yyyy-MM-dd"));
+                    setStartDate(format(subDays(new Date(), 30), "dd-MM-yyyy"));
+                    setEndDate(format(new Date(), "dd-MM-yyyy"));
                     setSelectedCategory("all");
                   }}
                   className="w-full bg-orange-600 hover:bg-orange-700"

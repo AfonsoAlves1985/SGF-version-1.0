@@ -1,27 +1,33 @@
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { AlertTriangle, CheckCircle, Clock, Package, TrendingUp, Users, AlertCircle } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 
 export default function Dashboard() {
-  const [selectedSpace, setSelectedSpace] = useState<number | null>(null);
+  const [isCriticalDialogOpen, setIsCriticalDialogOpen] = useState(false);
 
   const { data: maintenance = [] } = trpc.maintenance.list.useQuery();
   const { data: rooms = [] } = trpc.rooms.list.useQuery();
   const { data: reservations = [] } = trpc.roomReservations.list.useQuery();
 
   const { data: teams = [] } = trpc.teams.list.useQuery();
-  const { data: consumables = [] } = trpc.consumablesWithSpace.list.useQuery();
-  const { data: spaces = [] } = trpc.consumableSpaces.list.useQuery();
   const { data: stockAlerts = [] } = trpc.dashboard.getStockAlerts.useQuery();
 
   // Calcular métricas
-  const criticalConsumables = consumables.filter((c: any) => c.status === "REPOR_ESTOQUE");
-  const criticalAlerts = stockAlerts.filter((a: any) => a.alertType === "critical");
+  const criticalAlerts = stockAlerts.filter(
+    (a: any) => a.alertType === "critical" || a.currentStock < a.minStock,
+  );
 
   const metrics = {
-    lowStockItems: criticalConsumables.length,
+    lowStockItems: criticalAlerts.length,
     criticalAlerts: criticalAlerts.length,
     maintenanceOpen: maintenance.filter((m: any) => m.status === "aberto").length,
     maintenanceUrgent: maintenance.filter((m: any) => m.priority === "urgente").length,
@@ -57,13 +63,44 @@ export default function Dashboard() {
 
   const COLORS = ["#3b82f6", "#ef4444", "#f59e0b", "#10b981", "#8b5cf6"];
 
-  // Filtrar apenas alertas críticos por espaço se selecionado
-  const filteredAlerts = selectedSpace 
-    ? criticalAlerts.filter((a: any) => a.spaceId === selectedSpace)
-    : criticalAlerts;
-
   return (
     <div className="space-y-6">
+      <Dialog open={isCriticalDialogOpen} onOpenChange={setIsCriticalDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-orange-700">Itens Críticos de Consumíveis</DialogTitle>
+            <DialogDescription className="text-orange-600">
+              Lista de itens abaixo do estoque mínimo com quantidade atual e unidade.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="max-h-[60vh] overflow-y-auto">
+            {criticalAlerts.length === 0 ? (
+              <p className="text-sm text-orange-600">
+                Nenhum item crítico no momento.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {criticalAlerts.map((alert: any) => (
+                  <div
+                    key={`${alert.spaceId ?? "sem-espaco"}-${alert.id}`}
+                    className="rounded-lg border border-orange-200 p-3"
+                  >
+                    <div className="font-medium text-orange-700">{alert.name}</div>
+                    <div className="text-sm text-orange-600">
+                      Quantidade atual: {alert.currentStock} {alert.unit}
+                    </div>
+                    <div className="text-sm text-orange-600">
+                      Unidade: {alert.spaceName || "Sem unidade"}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <div>
         <h1 className="text-3xl font-bold text-gray-900">Dashboard Executivo</h1>
         <p className="text-gray-600 mt-1">Métricas e indicadores de desempenho</p>
@@ -84,18 +121,24 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-sm font-medium">Alertas Críticos</CardTitle>
-              <AlertCircle className="w-4 h-4 text-red-600" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-red-600">{metrics.criticalAlerts}</div>
-            <p className="text-xs text-gray-600 mt-1">estoque muito baixo</p>
-          </CardContent>
-        </Card>
+        <button
+          type="button"
+          onClick={() => setIsCriticalDialogOpen(true)}
+          className="w-full text-left rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
+        >
+          <Card className="cursor-pointer transition hover:border-red-300 hover:shadow-sm">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-medium">Alertas Críticos</CardTitle>
+                <AlertCircle className="w-4 h-4 text-red-600" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-red-600">{metrics.criticalAlerts}</div>
+              <p className="text-xs text-gray-600 mt-1">itens abaixo do estoque minimo</p>
+            </CardContent>
+          </Card>
+        </button>
 
         <Card>
           <CardHeader className="pb-3">

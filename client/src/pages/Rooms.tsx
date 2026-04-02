@@ -10,6 +10,57 @@ import { Label } from "@/components/ui/label";
 import { Plus, Building2, Users, Edit2, Trash2, Calendar, Clock } from "lucide-react";
 import { toast } from "sonner";
 
+function formatDateInput(value: string) {
+  const digits = value.replace(/\D/g, "").slice(0, 8);
+
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 4) return `${digits.slice(0, 2)}-${digits.slice(2)}`;
+  return `${digits.slice(0, 2)}-${digits.slice(2, 4)}-${digits.slice(4)}`;
+}
+
+function parseMaskedDate(value?: string) {
+  if (!value || !/^\d{2}-\d{2}-\d{4}$/.test(value)) return null;
+
+  const [day, month, year] = value.split("-").map(Number);
+  const date = new Date(year, month - 1, day);
+
+  if (
+    date.getFullYear() !== year ||
+    date.getMonth() !== month - 1 ||
+    date.getDate() !== day
+  ) {
+    return null;
+  }
+
+  return date;
+}
+
+function normalizeDateToMask(value?: string) {
+  if (!value) return "";
+  if (/^\d{2}-\d{2}-\d{4}$/.test(value)) return value;
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const [year, month, day] = value.split("-");
+    return `${day}-${month}-${year}`;
+  }
+
+  return value;
+}
+
+function isDateRangeValid(startDate?: string, endDate?: string) {
+  if (!startDate || !endDate) return true;
+
+  const start = parseMaskedDate(startDate);
+  const end = parseMaskedDate(endDate);
+
+  if (!start || !end) return false;
+
+  start.setHours(0, 0, 0, 0);
+  end.setHours(0, 0, 0, 0);
+
+  return end.getTime() >= start.getTime();
+}
+
 export default function Rooms() {
   const [status, setStatus] = useState("all");
   const [now, setNow] = useState(() => new Date());
@@ -134,6 +185,17 @@ export default function Rooms() {
       toast.error("Informe as datas de uso");
       return;
     }
+
+    if (!parseMaskedDate(useRoomForm.startDate) || !parseMaskedDate(useRoomForm.endDate)) {
+      toast.error("Use o formato DD-MM-YYYY para as datas.");
+      return;
+    }
+
+    if (!isDateRangeValid(useRoomForm.startDate, useRoomForm.endDate)) {
+      toast.error("A data de término não pode ser anterior à data de início");
+      return;
+    }
+
     updateMutation.mutate({
       id: selectedRoomForUse.id,
       name: selectedRoomForUse.name,
@@ -152,15 +214,7 @@ export default function Rooms() {
 
   const handleEditRoom = (room: any) => {
     setEditingRoom(room);
-    // Convert DD-MM-YYYY to YYYY-MM-DD for input date
-    const convertDateFormat = (dateStr: string) => {
-      if (!dateStr) return "";
-      if (dateStr.includes('-') && dateStr.split('-')[0].length === 2) {
-        const [day, month, year] = dateStr.split('-');
-        return `${year}-${month}-${day}`;
-      }
-      return dateStr;
-    };
+
     setFormData({
       name: room.name,
       capacity: room.capacity,
@@ -169,8 +223,8 @@ export default function Rooms() {
       status: room.status,
 
       responsibleUserName: room.responsibleUserName || "",
-      startDate: convertDateFormat(room.startDate || ""),
-      endDate: convertDateFormat(room.endDate || ""),
+      startDate: normalizeDateToMask(room.startDate || ""),
+      endDate: normalizeDateToMask(room.endDate || ""),
       startTime: room.startTime || "",
       endTime: room.endTime || "",
       isReleased: room.isReleased || 0,
@@ -209,14 +263,24 @@ export default function Rooms() {
       if (inlineEditField === "capacity") {
         updateData[inlineEditField] = parseInt(inlineEditValue) || 0;
       } else if (inlineEditField === "startDate" || inlineEditField === "endDate") {
-        updateData[inlineEditField] = inlineEditValue ? new Date(inlineEditValue) : undefined;
+        updateData[inlineEditField] = inlineEditValue || undefined;
       } else {
         updateData[inlineEditField] = inlineEditValue || undefined;
       }
       
       // Validar datas se ambas estão definidas
       if (updateData.startDate && updateData.endDate) {
-        if (updateData.endDate < updateData.startDate) {
+        if (
+          !parseMaskedDate(updateData.startDate) ||
+          !parseMaskedDate(updateData.endDate)
+        ) {
+          toast.error("Use o formato DD-MM-YYYY para as datas");
+          setInlineEditingId(null);
+          setInlineEditField(null);
+          return;
+        }
+
+        if (!isDateRangeValid(updateData.startDate, updateData.endDate)) {
           toast.error("A data de término não pode ser anterior à data de início");
           setInlineEditingId(null);
           setInlineEditField(null);
@@ -236,7 +300,12 @@ export default function Rooms() {
 
     // Validar datas
     if (formData.startDate && formData.endDate) {
-      if (formData.endDate < formData.startDate) {
+      if (!parseMaskedDate(formData.startDate) || !parseMaskedDate(formData.endDate)) {
+        toast.error("Use o formato DD-MM-YYYY para as datas");
+        return;
+      }
+
+      if (!isDateRangeValid(formData.startDate, formData.endDate)) {
         toast.error("A data de término não pode ser anterior à data de início");
         return;
       }
@@ -394,9 +463,17 @@ export default function Rooms() {
                 <Label htmlFor="startDate" className="text-gray-300">Data de Início</Label>
                 <Input
                   id="startDate"
-                  type="date"
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={10}
                   value={formData.startDate as string || ""}
-                  onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      startDate: formatDateInput(e.target.value),
+                    })
+                  }
+                  placeholder="DD-MM-YYYY"
                   className="mt-1 bg-slate-700 border-slate-600 text-white"
                 />
               </div>
@@ -404,9 +481,17 @@ export default function Rooms() {
                 <Label htmlFor="endDate" className="text-gray-300">Data de Fim</Label>
                 <Input
                   id="endDate"
-                  type="date"
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={10}
                   value={formData.endDate as string || ""}
-                  onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      endDate: formatDateInput(e.target.value),
+                    })
+                  }
+                  placeholder="DD-MM-YYYY"
                   className="mt-1 bg-slate-700 border-slate-600 text-white"
                 />
               </div>
@@ -538,18 +623,24 @@ export default function Rooms() {
 
             {inlineEditField === "startDate" && (
               <Input
-                type="date"
+                type="text"
+                inputMode="numeric"
+                maxLength={10}
                 value={inlineEditValue}
-                onChange={(e) => setInlineEditValue(e.target.value)}
+                onChange={(e) => setInlineEditValue(formatDateInput(e.target.value))}
+                placeholder="DD-MM-YYYY"
                 className="bg-slate-700 border-slate-600 text-white"
               />
             )}
 
             {inlineEditField === "endDate" && (
               <Input
-                type="date"
+                type="text"
+                inputMode="numeric"
+                maxLength={10}
                 value={inlineEditValue}
-                onChange={(e) => setInlineEditValue(e.target.value)}
+                onChange={(e) => setInlineEditValue(formatDateInput(e.target.value))}
+                placeholder="DD-MM-YYYY"
                 className="bg-slate-700 border-slate-600 text-white"
               />
             )}
@@ -649,14 +740,13 @@ export default function Rooms() {
               // Combinar data + hora para cálculo preciso
               // Usar horário local (navegador) que deve estar em Brasília
               const parseDateTime = (dateVal: any, timeStr?: string) => {
-                let d: Date;
-                if (typeof dateVal === 'string' && dateVal.includes('-')) {
-                  // Formato DD-MM-YYYY
-                  const [day, month, year] = dateVal.split('-').map(Number);
-                  d = new Date(year, month - 1, day);
-                } else {
-                  d = new Date(dateVal);
-                }
+                const normalizedDate =
+                  typeof dateVal === "string"
+                    ? normalizeDateToMask(dateVal)
+                    : "";
+                const maskedDate = parseMaskedDate(normalizedDate);
+                const d = maskedDate ? new Date(maskedDate) : new Date(dateVal);
+
                 if (timeStr) {
                   const [h, m] = timeStr.split(":").map(Number);
                   d.setHours(h, m, 0, 0);
@@ -824,18 +914,34 @@ export default function Rooms() {
               <div>
                 <Label className="text-gray-300">Data de Início *</Label>
                 <Input
-                  type="date"
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={10}
                   value={useRoomForm.startDate}
-                  onChange={(e) => setUseRoomForm({ ...useRoomForm, startDate: e.target.value })}
+                  onChange={(e) =>
+                    setUseRoomForm({
+                      ...useRoomForm,
+                      startDate: formatDateInput(e.target.value),
+                    })
+                  }
+                  placeholder="DD-MM-YYYY"
                   className="mt-1 bg-slate-700 border-slate-600 text-white"
                 />
               </div>
               <div>
                 <Label className="text-gray-300">Data de Fim *</Label>
                 <Input
-                  type="date"
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={10}
                   value={useRoomForm.endDate}
-                  onChange={(e) => setUseRoomForm({ ...useRoomForm, endDate: e.target.value })}
+                  onChange={(e) =>
+                    setUseRoomForm({
+                      ...useRoomForm,
+                      endDate: formatDateInput(e.target.value),
+                    })
+                  }
+                  placeholder="DD-MM-YYYY"
                   className="mt-1 bg-slate-700 border-slate-600 text-white"
                 />
               </div>

@@ -23,11 +23,56 @@ const WEEKS = [
   { key: "week5Stock", label: "Semana 5" },
 ];
 
+function getTodayMaskedDate() {
+  const today = new Date();
+  const day = String(today.getDate()).padStart(2, "0");
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const year = today.getFullYear();
+  return `${day}-${month}-${year}`;
+}
+
+function formatDateInput(value: string) {
+  const digits = value.replace(/\D/g, "").slice(0, 8);
+
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 4) return `${digits.slice(0, 2)}-${digits.slice(2)}`;
+  return `${digits.slice(0, 2)}-${digits.slice(2, 4)}-${digits.slice(4)}`;
+}
+
+function parseMaskedDate(value: string) {
+  if (!/^\d{2}-\d{2}-\d{4}$/.test(value)) return null;
+
+  const [day, month, year] = value.split("-").map(Number);
+  const date = new Date(year, month - 1, day);
+
+  if (
+    date.getFullYear() !== year ||
+    date.getMonth() !== month - 1 ||
+    date.getDate() !== day
+  ) {
+    return null;
+  }
+
+  return date;
+}
+
+function normalizeDateToMask(value?: string) {
+  if (!value) return "";
+  if (/^\d{2}-\d{2}-\d{4}$/.test(value)) return value;
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const [year, month, day] = value.split("-");
+    return `${day}-${month}-${year}`;
+  }
+
+  return value;
+}
+
 export function MonthlyMovementsTable({ consumableId, spaceId, consumableName }: MonthlyMovementsTableProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [formData, setFormData] = useState({
-    monthStartDate: new Date().toISOString().split("T")[0],
+    monthStartDate: getTodayMaskedDate(),
     month: new Date().getMonth() + 1,
     year: new Date().getFullYear(),
     week1Stock: 0,
@@ -74,7 +119,7 @@ export function MonthlyMovementsTable({ consumableId, spaceId, consumableName }:
 
   const resetForm = () => {
     setFormData({
-      monthStartDate: new Date().toISOString().split("T")[0],
+      monthStartDate: getTodayMaskedDate(),
       month: new Date().getMonth() + 1,
       year: new Date().getFullYear(),
       week1Stock: 0,
@@ -89,6 +134,12 @@ export function MonthlyMovementsTable({ consumableId, spaceId, consumableName }:
   };
 
   const handleSubmit = async () => {
+    const parsedMonthStartDate = parseMaskedDate(formData.monthStartDate);
+    if (!parsedMonthStartDate) {
+      toast.error("Use formato DD-MM-YYYY na data de início do mês.");
+      return;
+    }
+
     const totalMovement = WEEKS.reduce((sum, week) => sum + (formData[week.key as keyof typeof formData] as number || 0), 0);
     const averageStock = Math.round(totalMovement / WEEKS.length);
     
@@ -104,6 +155,7 @@ export function MonthlyMovementsTable({ consumableId, spaceId, consumableName }:
         consumableId,
         spaceId,
         ...formData,
+        monthStartDate: parsedMonthStartDate,
         totalMovement,
         averageStock,
       } as any);
@@ -111,7 +163,10 @@ export function MonthlyMovementsTable({ consumableId, spaceId, consumableName }:
   };
 
   const handleEdit = (movement: any) => {
-    setFormData(movement);
+    setFormData({
+      ...movement,
+      monthStartDate: normalizeDateToMask(movement.monthStartDate),
+    });
     setEditingId(movement.id);
     setIsOpen(true);
   };
@@ -158,9 +213,17 @@ export function MonthlyMovementsTable({ consumableId, spaceId, consumableName }:
                 <div>
                   <label className="text-sm font-medium">Data de Início</label>
                   <Input
-                    type="date"
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={10}
                     value={formData.monthStartDate}
-                    onChange={(e) => setFormData({ ...formData, monthStartDate: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        monthStartDate: formatDateInput(e.target.value),
+                      })
+                    }
+                    placeholder="DD-MM-YYYY"
                   />
                 </div>
                 <div>
