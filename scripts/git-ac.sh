@@ -5,6 +5,7 @@ set -euo pipefail
 usage() {
   cat <<'EOF'
 Uso:
+  pnpm ac --help
   pnpm ac -- "mensagem do commit"
   ./scripts/git-ac.sh "mensagem do commit"
 
@@ -15,6 +16,10 @@ Opcao:
   -h, --help   Mostra esta ajuda.
 EOF
 }
+
+if [[ "${1-}" == "--" ]]; then
+  shift
+fi
 
 if [[ "${1-}" == "-h" || "${1-}" == "--help" ]]; then
   usage
