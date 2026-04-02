@@ -8,6 +8,8 @@ interface Translations {
   };
 }
 
+type FlatTranslations = Record<Language, Record<string, string>>;
+
 const translations: Translations = {
   "pt-PT": {
     // App
@@ -726,6 +728,254 @@ const translations: Translations = {
   },
 };
 
+const forcedPhraseTranslations: Record<string, Record<Language, string>> = {
+  "Contratos": {
+    "pt-PT": "Contratos",
+    "pt-BR": "Contratos",
+    "en-US": "Contracts",
+    es: "Contratos",
+  },
+  "Fornecedores e Compras": {
+    "pt-PT": "Fornecedores e Compras",
+    "pt-BR": "Fornecedores e Compras",
+    "en-US": "Suppliers and Purchases",
+    es: "Proveedores y Compras",
+  },
+  "Dashboard Executivo": {
+    "pt-PT": "Dashboard Executivo",
+    "pt-BR": "Dashboard Executivo",
+    "en-US": "Executive Dashboard",
+    es: "Panel Ejecutivo",
+  },
+  "Métricas e indicadores de desempenho": {
+    "pt-PT": "Métricas e indicadores de desempenho",
+    "pt-BR": "Métricas e indicadores de desempenho",
+    "en-US": "Performance metrics and indicators",
+    es: "Métricas e indicadores de rendimiento",
+  },
+  "Salas Disponíveis": {
+    "pt-PT": "Salas Disponíveis",
+    "pt-BR": "Salas Disponíveis",
+    "en-US": "Available Rooms",
+    es: "Salas Disponibles",
+  },
+  "Lista de salas disponíveis para uso no momento.": {
+    "pt-PT": "Lista de salas disponíveis para uso no momento.",
+    "pt-BR": "Lista de salas disponíveis para uso no momento.",
+    "en-US": "List of rooms currently available for use.",
+    es: "Lista de salas disponibles para uso en este momento.",
+  },
+  "Nenhuma sala disponível no momento.": {
+    "pt-PT": "Nenhuma sala disponível no momento.",
+    "pt-BR": "Nenhuma sala disponível no momento.",
+    "en-US": "No rooms available at the moment.",
+    es: "No hay salas disponibles en este momento.",
+  },
+  "Clique para utilizar esta sala": {
+    "pt-PT": "Clique para utilizar esta sala",
+    "pt-BR": "Clique para utilizar esta sala",
+    "en-US": "Click to use this room",
+    es: "Haga clic para usar esta sala",
+  },
+  "Utilizar Sala": {
+    "pt-PT": "Utilizar Sala",
+    "pt-BR": "Utilizar Sala",
+    "en-US": "Use Room",
+    es: "Usar Sala",
+  },
+  "Nome do Solicitante *": {
+    "pt-PT": "Nome do Solicitante *",
+    "pt-BR": "Nome do Solicitante *",
+    "en-US": "Requester Name *",
+    es: "Nombre del Solicitante *",
+  },
+  "Data de Início *": {
+    "pt-PT": "Data de Início *",
+    "pt-BR": "Data de Início *",
+    "en-US": "Start Date *",
+    es: "Fecha de Inicio *",
+  },
+  "Data de Fim *": {
+    "pt-PT": "Data de Fim *",
+    "pt-BR": "Data de Fim *",
+    "en-US": "End Date *",
+    es: "Fecha de Fin *",
+  },
+  "Hora de Início": {
+    "pt-PT": "Hora de Início",
+    "pt-BR": "Hora de Início",
+    "en-US": "Start Time",
+    es: "Hora de Inicio",
+  },
+  "Hora de Fim": {
+    "pt-PT": "Hora de Fim",
+    "pt-BR": "Hora de Fim",
+    "en-US": "End Time",
+    es: "Hora de Fin",
+  },
+  "Confirmar Uso": {
+    "pt-PT": "Confirmar Uso",
+    "pt-BR": "Confirmar Uso",
+    "en-US": "Confirm Use",
+    es: "Confirmar Uso",
+  },
+  "Salvando...": {
+    "pt-PT": "A guardar...",
+    "pt-BR": "Salvando...",
+    "en-US": "Saving...",
+    es: "Guardando...",
+  },
+  "Cancel": {
+    "pt-PT": "Cancelar",
+    "pt-BR": "Cancelar",
+    "en-US": "Cancel",
+    es: "Cancelar",
+  },
+  "Cancelar": {
+    "pt-PT": "Cancelar",
+    "pt-BR": "Cancelar",
+    "en-US": "Cancel",
+    es: "Cancelar",
+  },
+  "Contratos Vencidos ou Próximos": {
+    "pt-PT": "Contratos Vencidos ou Próximos",
+    "pt-BR": "Contratos Vencidos ou Próximos",
+    "en-US": "Expired or Upcoming Contracts",
+    es: "Contratos Vencidos o Próximos",
+  },
+  "Contratos vencidos e contratos com vencimento em até 30 dias.": {
+    "pt-PT": "Contratos vencidos e contratos com vencimento em até 30 dias.",
+    "pt-BR": "Contratos vencidos e contratos com vencimento em até 30 dias.",
+    "en-US": "Expired contracts and contracts due within 30 days.",
+    es: "Contratos vencidos y contratos con vencimiento dentro de 30 días.",
+  },
+  "Nenhum contrato vencido ou próximo de vencer.": {
+    "pt-PT": "Nenhum contrato vencido ou próximo de vencer.",
+    "pt-BR": "Nenhum contrato vencido ou próximo de vencer.",
+    "en-US": "No expired or upcoming contracts.",
+    es: "No hay contratos vencidos ni próximos a vencer.",
+  },
+  "Alertas Críticos": {
+    "pt-PT": "Alertas Críticos",
+    "pt-BR": "Alertas Críticos",
+    "en-US": "Critical Alerts",
+    es: "Alertas Críticos",
+  },
+  "Itens Críticos de Consumíveis": {
+    "pt-PT": "Itens Críticos de Consumíveis",
+    "pt-BR": "Itens Críticos de Consumíveis",
+    "en-US": "Critical Consumable Items",
+    es: "Ítems Críticos de Consumibles",
+  },
+  "Nome completo do responsável": {
+    "pt-PT": "Nome completo do responsável",
+    "pt-BR": "Nome completo do responsável",
+    "en-US": "Full name of the responsible person",
+    es: "Nombre completo del responsable",
+  },
+  "Light": {
+    "pt-PT": "Claro",
+    "pt-BR": "Claro",
+    "en-US": "Light",
+    es: "Claro",
+  },
+  "Dark": {
+    "pt-PT": "Escuro",
+    "pt-BR": "Escuro",
+    "en-US": "Dark",
+    es: "Oscuro",
+  },
+  "Tema": {
+    "pt-PT": "Tema",
+    "pt-BR": "Tema",
+    "en-US": "Theme",
+    es: "Tema",
+  },
+};
+
+const normalizeText = (value: string) => value.replace(/\s+/g, " ").trim();
+
+const reverseTranslationIndex = (() => {
+  const index = new Map<string, string>();
+
+  const flatTranslations = translations as FlatTranslations;
+  (Object.keys(flatTranslations) as Language[]).forEach(lang => {
+    Object.entries(flatTranslations[lang]).forEach(([key, value]) => {
+      const normalizedValue = normalizeText(String(value));
+      if (normalizedValue && !index.has(normalizedValue)) {
+        index.set(normalizedValue, key);
+      }
+    });
+  });
+
+  return index;
+})();
+
+function translateGenericText(input: string, language: Language) {
+  const normalizedInput = normalizeText(input);
+  if (!normalizedInput) return input;
+
+  const forcedTranslation = forcedPhraseTranslations[normalizedInput]?.[language];
+  if (forcedTranslation) return forcedTranslation;
+
+  const translationKey = reverseTranslationIndex.get(normalizedInput);
+  if (!translationKey) return input;
+
+  const flatTranslations = translations as FlatTranslations;
+  return flatTranslations[language]?.[translationKey] || input;
+}
+
+function preserveWhitespaceTranslation(input: string, language: Language) {
+  const translated = translateGenericText(input, language);
+  if (translated === input) return input;
+
+  const leadingWhitespace = input.match(/^\s*/)?.[0] || "";
+  const trailingWhitespace = input.match(/\s*$/)?.[0] || "";
+  return `${leadingWhitespace}${translated}${trailingWhitespace}`;
+}
+
+function applyLanguageToDom(language: Language) {
+  if (typeof document === "undefined") return;
+
+  const root = document.getElementById("root");
+  if (!root) return;
+
+  const SKIP_TAGS = new Set(["SCRIPT", "STYLE", "NOSCRIPT", "TEXTAREA"]);
+
+  const translateElementAttributes = (element: Element) => {
+    ["placeholder", "title", "aria-label"].forEach(attributeName => {
+      const attrValue = element.getAttribute(attributeName);
+      if (!attrValue) return;
+
+      const translated = translateGenericText(attrValue, language);
+      if (translated !== attrValue) {
+        element.setAttribute(attributeName, translated);
+      }
+    });
+  };
+
+  const translateNode = (node: Node) => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      const currentText = node.nodeValue || "";
+      const translatedText = preserveWhitespaceTranslation(currentText, language);
+      if (translatedText !== currentText) {
+        node.nodeValue = translatedText;
+      }
+      return;
+    }
+
+    if (node.nodeType !== Node.ELEMENT_NODE) return;
+
+    const element = node as Element;
+    if (SKIP_TAGS.has(element.tagName)) return;
+
+    translateElementAttributes(element);
+    element.childNodes.forEach(childNode => translateNode(childNode));
+  };
+
+  translateNode(root);
+}
+
 interface LanguageContextType {
   language: Language;
   setLanguage: (lang: Language) => void;
@@ -744,6 +994,46 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     localStorage.setItem("language", language);
+  }, [language]);
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+
+    document.documentElement.lang = language;
+    applyLanguageToDom(language);
+
+    const root = document.getElementById("root");
+    if (!root) return;
+
+    const observer = new MutationObserver(mutations => {
+      mutations.forEach(mutation => {
+        if (mutation.type === "characterData") {
+          applyLanguageToDom(language);
+          return;
+        }
+
+        if (mutation.type === "attributes") {
+          applyLanguageToDom(language);
+          return;
+        }
+
+        if (mutation.addedNodes.length > 0) {
+          applyLanguageToDom(language);
+        }
+      });
+    });
+
+    observer.observe(root, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+      attributes: true,
+      attributeFilter: ["placeholder", "title", "aria-label"],
+    });
+
+    return () => {
+      observer.disconnect();
+    };
   }, [language]);
 
   const setLanguage = (lang: Language) => {
