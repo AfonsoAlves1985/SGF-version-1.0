@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -35,6 +36,7 @@ import {
 export default function Consumables() {
   const { t } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
   const [selectedSpace, setSelectedSpace] = useState<number | null>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [filters, setFilters] = useState({ search: "", category: "" });
@@ -80,7 +82,9 @@ export default function Consumables() {
       weekStartDate: weekStartDateStr as any,
       ...filters,
     },
-    { enabled: !!selectedSpace }
+    {
+      enabled: !!selectedSpace,
+    }
   );
 
   // Query para histórico de alterações
@@ -114,19 +118,41 @@ export default function Consumables() {
   );
 
   // Mutation para atualizar estoque semanal
+  const utils = trpc.useUtils();
   const updateWeeklyStockMutation = trpc.consumablesWithSpace.updateWeeklyStock.useMutation({
     onSuccess: () => {
-      toast.success(t("app.success"));
-      refetch();
+      toast.success("Salvo!");
+      // Invalidar cache e forçar atualização
+      utils.consumablesWithSpace.listWithWeeklyData.invalidate();
     },
-    onError: (error) => toast.error(error.message),
+    onError: (error) => {
+      toast.error(error.message);
+    },
   });
+
+  // Reset editing state on mutation
+  const handleUpdateStock = async (consumableId: number, newStock: number) => {
+    if (!selectedSpace) return;
+
+    const weekStartDateStr = weekStartDate.getFullYear() + '-' + 
+      String(weekStartDate.getMonth() + 1).padStart(2, '0') + '-' + 
+      String(weekStartDate.getDate()).padStart(2, '0');
+
+    updateWeeklyStockMutation.mutate({
+      consumableId,
+      spaceId: selectedSpace,
+      weekStartDate: weekStartDateStr as any,
+      currentStock: newStock,
+    });
+
+    setEditingStockCell(null);
+  };
 
   // Mutations for Consumables
   const createMutation = trpc.consumablesWithSpace.create.useMutation({
     onSuccess: () => {
       toast.success(t("app.success"));
-      refetch();
+      setTimeout(() => refetch(), 300);
       setIsOpen(false);
       resetForm();
     },
@@ -136,7 +162,7 @@ export default function Consumables() {
   const updateMutation = trpc.consumablesWithSpace.update.useMutation({
     onSuccess: () => {
       toast.success(t("app.success"));
-      refetch();
+      setTimeout(() => refetch(), 300);
       setIsOpen(false);
       resetForm();
     },
@@ -225,26 +251,6 @@ export default function Consumables() {
   const handleShowTrendChart = (consumable: any) => {
     setSelectedConsumableForChart(consumable);
     setShowTrendChart(true);
-  };
-
-
-
-  const handleUpdateStock = async (consumableId: number, newStock: number) => {
-    if (!selectedSpace) return;
-
-    // Converter weekStartDate para string YYYY-MM-DD usando data local (não UTC)
-    const weekStartDateStr = weekStartDate.getFullYear() + '-' + 
-      String(weekStartDate.getMonth() + 1).padStart(2, '0') + '-' + 
-      String(weekStartDate.getDate()).padStart(2, '0');
-
-    updateWeeklyStockMutation.mutate({
-      consumableId,
-      spaceId: selectedSpace,
-      weekStartDate: weekStartDateStr as any,
-      currentStock: newStock,
-    });
-
-    setEditingStockCell(null);
   };
 
   const resetForm = () => {
@@ -436,6 +442,9 @@ export default function Consumables() {
             <DialogContent className="bg-slate-800 border-slate-700">
               <DialogHeader>
                 <DialogTitle className="text-white">{editingId ? "Editar" : "Novo"} Consumível</DialogTitle>
+                <DialogDescription className="text-gray-400">
+                  Preencha os dados do consumível para salvar nesta unidade.
+                </DialogDescription>
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
@@ -703,4 +712,3 @@ export default function Consumables() {
     </div>
   );
 }
-

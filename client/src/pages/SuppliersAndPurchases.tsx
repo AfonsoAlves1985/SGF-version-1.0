@@ -246,6 +246,9 @@ export default function Suppliers() {
             <DialogContent className="bg-slate-800 border-slate-700 max-w-2xl">
               <DialogHeader>
                 <DialogTitle className="text-white">{editingId ? "Editar" : "Novo"} Fornecedor</DialogTitle>
+                <DialogDescription className="text-gray-400">
+                  Informe os dados do fornecedor para cadastrar ou atualizar.
+                </DialogDescription>
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>

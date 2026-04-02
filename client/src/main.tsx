@@ -10,6 +10,22 @@ import "./index.css";
 
 const queryClient = new QueryClient();
 
+const analyticsEndpoint = import.meta.env.VITE_ANALYTICS_ENDPOINT;
+const analyticsWebsiteId = import.meta.env.VITE_ANALYTICS_WEBSITE_ID;
+
+const loadAnalyticsScript = () => {
+  if (typeof document === "undefined") return;
+  if (!analyticsEndpoint || !analyticsWebsiteId) return;
+  if (document.getElementById("umami-analytics-script")) return;
+
+  const script = document.createElement("script");
+  script.id = "umami-analytics-script";
+  script.defer = true;
+  script.src = `${String(analyticsEndpoint).replace(/\/+$/, "")}/umami`;
+  script.setAttribute("data-website-id", String(analyticsWebsiteId));
+  document.body.appendChild(script);
+};
+
 const redirectToLoginIfUnauthorized = (error: unknown) => {
   if (!(error instanceof TRPCClientError)) return;
   if (typeof window === "undefined") return;
@@ -51,6 +67,8 @@ const trpcClient = trpc.createClient({
     }),
   ],
 });
+
+loadAnalyticsScript();
 
 createRoot(document.getElementById("root")!).render(
   <trpc.Provider client={trpcClient} queryClient={queryClient}>

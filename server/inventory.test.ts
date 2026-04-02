@@ -108,11 +108,21 @@ describe("Maintenance Router", () => {
   });
 
   it("should create a maintenance request", async () => {
+    let spaces = await caller.maintenanceSpaces.list();
+    if (spaces.length === 0) {
+      await caller.maintenanceSpaces.create({
+        name: "Espaco de Teste",
+        description: "Criado automaticamente para testes",
+      });
+      spaces = await caller.maintenanceSpaces.list();
+    }
+
     const result = await caller.maintenance.create({
       title: "Reparação de ar condicionado",
       description: "Ar condicionado não funciona na sala 101",
       priority: "alta",
       type: "correctiva",
+      spaceId: spaces[0].id,
     });
 
     expect(result).toBeDefined();
@@ -182,10 +192,12 @@ describe("Suppliers Router", () => {
 
   it("should create a supplier", async () => {
     const result = await caller.suppliers.create({
-      name: "Fornecedor de Limpeza XYZ",
-      email: "contato@fornecedor.com",
-      phone: "212345678",
-      category: "Limpeza",
+      companyName: "Fornecedor de Limpeza XYZ",
+      serviceTypes: ["Limpeza"],
+      contact: "contato@fornecedor.com",
+      contactPerson: "Equipe Comercial",
+      status: "ativo",
+      notes: "Fornecedor de teste",
     });
 
     expect(result).toBeDefined();

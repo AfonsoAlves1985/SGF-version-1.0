@@ -4,11 +4,41 @@ import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import { z } from "zod";
 import * as db from "./db";
+import { generateToken } from "./auth.helpers";
+import { TRPCError } from "@trpc/server";
+
+const DEFAULT_USER = {
+  id: 1,
+  name: 'Administrador',
+  email: 'admin@sistema.com',
+  role: 'superadmin',
+};
 
 export const appRouter = router({
   system: systemRouter,
   auth: router({
-    me: publicProcedure.query(opts => opts.ctx.user),
+    login: publicProcedure
+      .input(
+        z.object({
+          email: z.string(),
+          password: z.string(),
+        })
+      )
+      .mutation(async ({ input }) => {
+        if (input.email === 'admin' && input.password === 'admin123') {
+          const token = generateToken(DEFAULT_USER.id, DEFAULT_USER.role);
+          return {
+            success: true,
+            token,
+            user: DEFAULT_USER,
+          };
+        }
+        throw new TRPCError({
+          code: 'UNAUTHORIZED',
+          message: 'Usuário ou senha incorretos',
+        });
+      }),
+    me: protectedProcedure.query(opts => opts.ctx.user),
     logout: publicProcedure.mutation(({ ctx }) => {
       const cookieOptions = getSessionCookieOptions(ctx.req);
       ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
@@ -170,8 +200,8 @@ export const appRouter = router({
         capacity: z.number(),
         location: z.string(),
         type: z.enum(["sala", "auditorio", "cozinha", "outro"]),
-        startDate: z.date().optional(),
-        endDate: z.date().optional(),
+        startDate: z.string().optional(),
+        endDate: z.string().optional(),
         startTime: z.string().optional(),
         endTime: z.string().optional(),
       }).refine(
@@ -199,8 +229,8 @@ export const appRouter = router({
         type: z.enum(["sala", "auditorio", "cozinha", "outro"]).optional(),
         status: z.enum(["disponivel", "ocupada", "manutencao"]).optional(),
         responsibleUserName: z.string().optional(),
-        startDate: z.date().optional(),
-        endDate: z.date().optional(),
+        startDate: z.string().optional(),
+        endDate: z.string().optional(),
         startTime: z.string().optional(),
         endTime: z.string().optional(),
       }).refine(
@@ -261,8 +291,8 @@ export const appRouter = router({
         return db.createRoomReservation({
           ...input,
           userId: ctx.user.id,
-          startTime: new Date(input.startTime),
-          endTime: new Date(input.endTime),
+          startTime: new Date(input.startTime).toISOString(),
+          endTime: new Date(input.endTime).toISOString(),
         });
       }),
 
@@ -276,8 +306,12 @@ export const appRouter = router({
         status: z.enum(["confirmada", "pendente", "cancelada"]).optional(),
       }))
       .mutation(async ({ input }) => {
-        const { id, ...data } = input;
-        return db.updateRoomReservation(id, data);
+        const { id, startTime, endTime, ...rest } = input;
+        return db.updateRoomReservation(id, {
+          ...rest,
+          startTime: startTime ? new Date(startTime).toISOString() : undefined,
+          endTime: endTime ? new Date(endTime).toISOString() : undefined,
+        });
       }),
 
     delete: protectedProcedure
@@ -334,8 +368,11 @@ export const appRouter = router({
         completedAt: z.date().optional(),
       }))
       .mutation(async ({ input }) => {
-        const { id, ...data } = input;
-        return db.updateMaintenanceRequest(id, data);
+        const { id, completedAt, ...data } = input;
+        return db.updateMaintenanceRequest(id, {
+          ...data,
+          completedAt: completedAt ? completedAt.toISOString() : undefined,
+        });
       }),
 
     delete: protectedProcedure
@@ -525,7 +562,10 @@ export const appRouter = router({
         status: z.enum(["ESTOQUE_OK", "ACIMA_DO_ESTOQUE", "REPOR_ESTOQUE"]).default("ESTOQUE_OK"),
       }))
       .mutation(async ({ input }) => {
-        return db.createConsumableWeekly(input);
+        return db.createConsumableWeekly({
+          ...input,
+          weekStartDate: input.weekStartDate.toISOString().split("T")[0],
+        });
       }),
 
     updateWeekly: protectedProcedure
@@ -561,7 +601,10 @@ export const appRouter = router({
         status: z.enum(["ESTOQUE_OK", "ACIMA_DO_ESTOQUE", "REPOR_ESTOQUE"]).default("ESTOQUE_OK"),
       }))
       .mutation(async ({ input }) => {
-        return db.createConsumableMonthly(input);
+        return db.createConsumableMonthly({
+          ...input,
+          monthStartDate: input.monthStartDate.toISOString().split("T")[0],
+        });
       }),
 
     updateMonthly: protectedProcedure
@@ -832,7 +875,10 @@ export const appRouter = router({
         status: z.enum(["ESTOQUE_OK", "ACIMA_DO_ESTOQUE", "REPOR_ESTOQUE"]).default("ESTOQUE_OK"),
       }))
       .mutation(async ({ input }) => {
-        return db.createConsumableWeeklyMovement(input);
+        return db.createConsumableWeeklyMovement({
+          ...input,
+          weekStartDate: input.weekStartDate.toISOString().split("T")[0],
+        });
       }),
 
     update: protectedProcedure
@@ -931,7 +977,10 @@ export const appRouter = router({
         status: z.enum(["ESTOQUE_OK", "ACIMA_DO_ESTOQUE", "REPOR_ESTOQUE"]).default("ESTOQUE_OK"),
       }))
       .mutation(async ({ input }) => {
-        return db.createConsumableMonthlyMovement(input);
+        return db.createConsumableMonthlyMovement({
+          ...input,
+          monthStartDate: input.monthStartDate.toISOString().split("T")[0],
+        });
       }),
 
     update: protectedProcedure
@@ -989,7 +1038,10 @@ export const appRouter = router({
         changeReason: z.string().optional(),
       }))
       .mutation(async ({ input }) => {
-        return db.createStockAuditLog(input);
+        return db.createStockAuditLog({
+          ...input,
+          weekStartDate: input.weekStartDate.toISOString().split("T")[0],
+        });
       }),
   }),
 

@@ -52,7 +52,7 @@ export async function syncMonthlyToWeekly(consumableId: number, spaceId: number,
     await db.createConsumableMonthlyMovement({
       consumableId,
       spaceId,
-      monthStartDate: new Date(monthStartDate),
+      monthStartDate: monthStartDate,
       month,
       year,
       week1Stock: monthlyWeeklyMovements[0]?.totalMovement || 0,

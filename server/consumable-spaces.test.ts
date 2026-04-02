@@ -3,7 +3,7 @@ import * as db from "./db";
 
 describe("Consumable Spaces", () => {
   let spaceId: number;
-  let consumableId: number;
+  let consumableId: number | null = null;
 
   beforeAll(async () => {
     // Create a test space
@@ -12,21 +12,27 @@ describe("Consumable Spaces", () => {
       description: "Unidade de teste para consumíveis",
       location: "Belém",
     });
-    spaceId = (spaceResult as any).insertId || 1;
+
+    const spaces = await db.listConsumableSpaces();
+    const createdSpace = spaces.find((space: any) => space.name === "Unidade Teste");
+    if (!createdSpace) {
+      throw new Error("Failed to create test consumable space");
+    }
+    spaceId = createdSpace.id;
   });
 
   afterAll(async () => {
     // Cleanup
-    if (spaceId) {
+    if (consumableId) {
       try {
-        await db.deleteConsumableSpace(spaceId);
+        await db.deleteConsumableWithSpace(consumableId);
       } catch (e) {
         // Ignore cleanup errors
       }
     }
-    if (consumableId) {
+    if (spaceId) {
       try {
-        await db.deleteConsumableWithSpace(consumableId);
+        await db.deleteConsumableSpace(spaceId);
       } catch (e) {
         // Ignore cleanup errors
       }
@@ -66,7 +72,12 @@ describe("Consumable Spaces", () => {
       currentStock: 10,
       replenishStock: 0,
     });
-    consumableId = (result as any).insertId || 1;
+    const consumables = await db.listConsumablesWithSpace({ spaceId, search: "Açúcar" });
+    const createdConsumable = consumables.find((consumable: any) => consumable.name === "Açúcar");
+    if (!createdConsumable) {
+      throw new Error("Failed to create test consumable");
+    }
+    consumableId = createdConsumable.id;
     expect(result).toBeDefined();
   });
 
@@ -97,9 +108,13 @@ describe("Consumable Spaces", () => {
       replenishStock: 0,
       status: "REPOR_ESTOQUE",
     });
-    const cafeId = (result as any).insertId || 1;
+    const consumables = await db.listConsumablesWithSpace({ spaceId, search: "Café" });
+    const cafe = consumables.find((consumable: any) => consumable.name === "Café");
+    const cafeId = cafe?.id;
     expect(result).toBeDefined();
-    await db.deleteConsumableWithSpace(cafeId);
+    if (cafeId) {
+      await db.deleteConsumableWithSpace(cafeId);
+    }
   });
 
   it("should create consumable with ACIMA_DO_ESTOQUE status", async () => {
@@ -114,12 +129,20 @@ describe("Consumable Spaces", () => {
       replenishStock: 0,
       status: "ACIMA_DO_ESTOQUE",
     });
-    const salId = (result as any).insertId || 1;
+    const consumables = await db.listConsumablesWithSpace({ spaceId, search: "Sal" });
+    const sal = consumables.find((consumable: any) => consumable.name === "Sal");
+    const salId = sal?.id;
     expect(result).toBeDefined();
-    await db.deleteConsumableWithSpace(salId);
+    if (salId) {
+      await db.deleteConsumableWithSpace(salId);
+    }
   });
 
   it("should update consumable with space", async () => {
+    if (!consumableId) {
+      throw new Error("Consumable test fixture was not created");
+    }
+
     const result = await db.updateConsumableWithSpace(consumableId, {
       currentStock: 15,
       name: "Açúcar Refinado",
@@ -145,7 +168,10 @@ describe("Consumable Spaces", () => {
   });
 
   it("should delete consumable with space", async () => {
-    const result = await db.deleteConsumableWithSpace(consumableId);
-    expect(result).toBeDefined();
+    if (consumableId) {
+      const result = await db.deleteConsumableWithSpace(consumableId);
+      expect(result).toBeDefined();
+      consumableId = null;
+    }
   });
 });

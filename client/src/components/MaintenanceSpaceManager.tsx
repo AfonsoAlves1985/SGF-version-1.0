@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -113,6 +114,9 @@ export function MaintenanceSpaceManager({
                 <DialogTitle className="text-white">
                   {editingId ? "Editar" : "Nova"} Unidade
                 </DialogTitle>
+                <DialogDescription className="text-gray-400">
+                  Defina a unidade para organizacao dos chamados de manutencao.
+                </DialogDescription>
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>

@@ -1,5 +1,5 @@
 import { eq, and, or, desc, asc, gte, lte, like } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/mysql2";
+import { drizzle } from "drizzle-orm/postgres-js";
 import { 
   InsertUser, users,
   inventory, inventoryMovements, InsertInventory, InsertInventoryMovement,
@@ -84,7 +84,8 @@ export async function upsertUser(user: InsertUser): Promise<void> {
       updateSet.lastSignedIn = new Date();
     }
 
-    await db.insert(users).values(values).onDuplicateKeyUpdate({
+    await db.insert(users).values(values).onConflictDoUpdate({
+      target: users.openId,
       set: updateSet,
     });
   } catch (error) {
@@ -245,17 +246,51 @@ export async function getRoomById(id: number) {
 export async function createRoom(data: InsertRoom) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  return db.insert(rooms).values(data);
+  
+  // Convert dates to DD-MM-YYYY format
+  const processData = Object.fromEntries(
+    Object.entries(data).map(([k, v]) => {
+      if (v instanceof Date) {
+        const day = String(v.getDate()).padStart(2, '0');
+        const month = String(v.getMonth() + 1).padStart(2, '0');
+        const year = v.getFullYear();
+        return [k, `${day}-${month}-${year}`];
+      }
+      // Handle string date in format YYYY-MM-DD from browser date picker
+      if (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v)) {
+        const [year, month, day] = v.split('-');
+        return [k, `${day}-${month}-${year}`];
+      }
+      return [k, v];
+    })
+  );
+  
+  return db.insert(rooms).values(processData as unknown as InsertRoom);
 }
 
 export async function updateRoom(id: number, data: Partial<InsertRoom>) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   
-  // Filter out undefined values
-  const updateData = Object.fromEntries(
-    Object.entries(data).filter(([_, v]) => v !== undefined)
+  // Filter out undefined values and convert dates to DD-MM-YYYY format
+  const processData = Object.fromEntries(
+    Object.entries(data).filter(([_, v]) => v !== undefined).map(([k, v]) => {
+      if (v instanceof Date) {
+        const day = String(v.getDate()).padStart(2, '0');
+        const month = String(v.getMonth() + 1).padStart(2, '0');
+        const year = v.getFullYear();
+        return [k, `${day}-${month}-${year}`];
+      }
+      // Handle string date in format YYYY-MM-DD from browser date picker
+      if (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v)) {
+        const [year, month, day] = v.split('-');
+        return [k, `${day}-${month}-${year}`];
+      }
+      return [k, v];
+    })
   );
+  
+  const updateData = processData;
   
   // Check if there's anything to update
   if (Object.keys(updateData).length === 0) {
@@ -824,23 +859,37 @@ export async function listConsumablesWithWeeklyData(filters?: { spaceId?: number
   }
 
   // Para cada consumível, buscar dados da semana específica
-  // Converter weekStartDate para Date se for string (YYYY-MM-DD)
-  let weekStartDate = filters.weekStartDate;
-  if (typeof weekStartDate === 'string') {
-    const [year, month, day] = weekStartDate.split('-').map(Number);
-    weekStartDate = new Date(year, month - 1, day);
+  // Converter weekStartDate para string DD-MM-YYYY para busca no banco
+  let weekStartDateStr: string;
+  if (typeof filters.weekStartDate === 'string') {
+    if (filters.weekStartDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      const [year, month, day] = filters.weekStartDate.split('-');
+      weekStartDateStr = `${day}-${month}-${year}`;
+    } else {
+      weekStartDateStr = filters.weekStartDate;
+    }
+  } else {
+    const d = new Date(filters.weekStartDate);
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    weekStartDateStr = `${day}-${month}-${year}`;
   }
   
   const weekData = await db.select().from(consumableWeeklyMovements)
     .where(
       and(
         eq(consumableWeeklyMovements.spaceId, filters.spaceId),
-        eq(consumableWeeklyMovements.weekStartDate, weekStartDate as Date)
+        eq(consumableWeeklyMovements.weekStartDate, weekStartDateStr)
       )
     );
 
   // Para cada consumível, buscar dados da semana anterior como fallback
-  const previousWeekDate = new Date((weekStartDate as Date).getTime() - 7 * 24 * 60 * 60 * 1000);
+  const [prevDay, prevMonth, prevYear] = weekStartDateStr.split('-').map(Number);
+  const previousWeekDateObj = new Date(prevYear, prevMonth - 1, prevDay - 7);
+  const prevDayStr = String(previousWeekDateObj.getDate()).padStart(2, '0');
+  const prevMonthStr = String(previousWeekDateObj.getMonth() + 1).padStart(2, '0');
+  const previousWeekDate = `${prevDayStr}-${prevMonthStr}-${previousWeekDateObj.getFullYear()}`;
   const previousWeekData = await db.select().from(consumableWeeklyMovements)
     .where(
       and(
@@ -903,32 +952,44 @@ export async function upsertConsumableWeeklyStock(data: {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
-  // Normalizar weekStartDate para DATE sem timezone
-  let weekStart: Date;
+  // Normalizar weekStartDate para string DD-MM-YYYY
+  let weekStartStr: string;
   if (typeof data.weekStartDate === 'string') {
-    // Parse como YYYY-MM-DD
-    const [year, month, day] = data.weekStartDate.split('-').map(Number);
-    weekStart = new Date(year, month - 1, day);
+    // Se já é YYYY-MM-DD, converter para DD-MM-YYYY
+    if (data.weekStartDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      const [year, month, day] = data.weekStartDate.split('-');
+      weekStartStr = `${day}-${month}-${year}`;
+    } else if (data.weekStartDate.includes('-') && data.weekStartDate.split('-')[0].length === 2) {
+      // Já está em DD-MM-YYYY
+      weekStartStr = data.weekStartDate;
+    } else {
+      // Parse de outro formato como "Mon Mar 30 2026..."
+      const d = new Date(data.weekStartDate);
+      const day = String(d.getDate()).padStart(2, '0');
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const year = d.getFullYear();
+      weekStartStr = `${day}-${month}-${year}`;
+    }
   } else {
-    weekStart = new Date(data.weekStartDate);
-    // Normalizar para meia-noite local
-    weekStart.setHours(0, 0, 0, 0);
+    // É Date object
+    const d = new Date(data.weekStartDate);
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    weekStartStr = `${day}-${month}-${year}`;
   }
-
-  // Verificar se já existe registro para esta semana
   const existing = await db.select().from(consumableWeeklyMovements)
     .where(
       and(
         eq(consumableWeeklyMovements.consumableId, data.consumableId),
         eq(consumableWeeklyMovements.spaceId, data.spaceId),
-        eq(consumableWeeklyMovements.weekStartDate, weekStart)
+        eq(consumableWeeklyMovements.weekStartDate, weekStartStr)
       )
     )
     .limit(1);
 
   if (existing.length > 0) {
-    // Atualizar registro existente - salvar o estoque atual do dia
-    // Determinar qual dia da semana é hoje para atualizar o campo correto
+    // Atualizar registro existente - substituir o valor do dia
     const today = new Date();
     const dayOfWeek = today.getDay(); // 0 = domingo, 1 = segunda, ..., 6 = sábado
     
@@ -951,27 +1012,18 @@ export async function upsertConsumableWeeklyStock(data: {
       updateData[dayField.name] = data.currentStock;
     }
     
-    // Calcular totalMovement como a soma de todos os dias da semana
-    const updatedRecord = existing[0];
-    const totalMovement = (
-      (updatedRecord.mondayStock || 0) +
-      (updatedRecord.tuesdayStock || 0) +
-      (updatedRecord.wednesdayStock || 0) +
-      (updatedRecord.thursdayStock || 0) +
-      (updatedRecord.fridayStock || 0) +
-      (updatedRecord.saturdayStock || 0) +
-      (updatedRecord.sundayStock || 0)
-    );
-    
-    updateData.totalMovement = totalMovement;
+    // totalMovement deve ser apenas o valor atual, não soma
+    updateData.totalMovement = data.currentStock;
     
     return db.update(consumableWeeklyMovements)
       .set(updateData)
       .where(eq(consumableWeeklyMovements.id, existing[0].id));
   } else {
     // Criar novo registro
-    const weekNumber = Math.ceil((weekStart.getDate()) / 7);
-    const year = weekStart.getFullYear();
+    const [day, month, year] = weekStartStr.split('-').map(Number);
+    const weekStartDate = new Date(year, month - 1, day);
+    const weekNumber = Math.ceil((weekStartDate.getDate()) / 7);
+    const yearNum = weekStartDate.getFullYear();
     
     // Determinar qual dia da semana é hoje
     const today = new Date();
@@ -992,9 +1044,9 @@ export async function upsertConsumableWeeklyStock(data: {
     const insertData: any = {
       consumableId: data.consumableId,
       spaceId: data.spaceId,
-      weekStartDate: weekStart,
+      weekStartDate: weekStartStr,
       weekNumber,
-      year,
+      year: yearNum,
       totalMovement: data.currentStock,
       status: "ESTOQUE_OK",
       mondayStock: 0,
@@ -1027,7 +1079,10 @@ export async function getStockAuditLog(filters?: { spaceId?: number; consumableI
     conditions.push(eq(consumableStockAuditLog.consumableId, filters.consumableId));
   }
   if (filters?.weekStartDate) {
-    conditions.push(eq(consumableStockAuditLog.weekStartDate, filters.weekStartDate));
+    const weekStartStr = filters.weekStartDate instanceof Date 
+      ? filters.weekStartDate.toISOString().split("T")[0] 
+      : filters.weekStartDate;
+    conditions.push(eq(consumableStockAuditLog.weekStartDate, weekStartStr));
   }
 
   let query = db.select().from(consumableStockAuditLog);
@@ -1167,7 +1222,7 @@ export async function getPreviousWeekStock(data: {
   }
 
   // Calcular data da semana anterior (7 dias antes)
-  const previousWeekDate = new Date(weekDate.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const previousWeekDate = new Date(weekDate.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
 
   // Buscar registro da semana anterior
   const previousWeek = await db.select().from(consumableWeeklyMovements)
@@ -1234,11 +1289,9 @@ export async function getConsumableStockHistory(data: {
       consumption = Math.max(0, previousRecord.totalMovement - record.totalMovement);
     }
 
-    const weekStartStr = record.weekStartDate instanceof Date
-      ? record.weekStartDate.toISOString().split('T')[0]
-      : typeof record.weekStartDate === 'string'
-      ? record.weekStartDate
-      : new Date(record.weekStartDate).toISOString().split('T')[0];
+    const weekStartStr = typeof record.weekStartDate === 'string' 
+      ? record.weekStartDate 
+      : String(record.weekStartDate);
 
     return {
       weekStartDate: weekStartStr,
@@ -1454,17 +1507,14 @@ async function processStockAlerts(consumables: any[]) {
     .map((consumable: any) => {
       const currentStock = consumable.currentStock || 0;
       const minStock = consumable.minStock || 0;
-      const criticalLevel = Math.floor(minStock * 0.5); // 50% do mínimo é crítico
 
       let alertType = null;
       let message = "";
 
-      if (currentStock < criticalLevel) {
+      // Apenas alerta quando estoque está abaixo do mínimo definido pelo usuário
+      if (currentStock < minStock) {
         alertType = "critical";
-        message = `CRÍTICO: Estoque muito baixo`;
-      } else if (currentStock < minStock) {
-        alertType = "warning";
-        message = `AVISO: Abaixo do nível recomendado`;
+        message = `Estoque abaixo do mínimo (${minStock} ${consumable.unit})`;
       }
 
       if (alertType) {
@@ -1474,7 +1524,6 @@ async function processStockAlerts(consumables: any[]) {
           category: consumable.category,
           currentStock,
           minStock,
-          criticalLevel,
           unit: consumable.unit,
           spaceName: consumable.spaceName || "Sem unidade",
           spaceId: consumable.spaceId,
@@ -1487,10 +1536,7 @@ async function processStockAlerts(consumables: any[]) {
     })
     .filter((alert: any) => alert !== null)
     .sort((a: any, b: any) => {
-      // Ordenar críticos primeiro, depois avisos
-      if (a.alertType === "critical" && b.alertType !== "critical") return -1;
-      if (a.alertType !== "critical" && b.alertType === "critical") return 1;
-      // Depois ordenar por quantidade (menor primeiro)
+      // Ordenar por quantidade (menor primeiro)
       return a.currentStock - b.currentStock;
     });
 
@@ -1654,6 +1700,8 @@ export async function generateContractAlerts(): Promise<void> {
         .where(eq(contractsWithSpace.contractId, contract.id));
 
       for (const space of spaces) {
+        if (space.spaceId == null) continue;
+
         const existingAlert = await db.select()
           .from(contractAlerts)
           .where(and(
@@ -1691,6 +1739,8 @@ export async function generateContractAlerts(): Promise<void> {
           .where(eq(contractsWithSpace.contractId, contract.id));
 
         for (const space of spaces) {
+          if (space.spaceId == null) continue;
+
           const existingAlert = await db.select()
             .from(contractAlerts)
             .where(and(
@@ -1815,13 +1865,13 @@ export async function updateUserRole(userId: number, role: string) {
 export async function updateUserActive(userId: number, isActive: boolean) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  return db.update(users).set({ isActive: isActive ? 1 : 0 }).where(eq(users.id, userId));
+  return db.update(users).set({ isActive }).where(eq(users.id, userId));
 }
 
 export async function updateUserLastLogin(userId: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  return db.update(users).set({ lastLogin: new Date().toISOString() as any }).where(eq(users.id, userId));
+  return db.update(users).set({ lastLogin: new Date() }).where(eq(users.id, userId));
 }
 
 export async function listUsers(filters?: { role?: string; isActive?: boolean }) {
@@ -1831,7 +1881,7 @@ export async function listUsers(filters?: { role?: string; isActive?: boolean })
   const conditions = [];
 
   if (filters?.role) conditions.push(eq(users.role, filters.role as any));
-  if (filters?.isActive !== undefined) conditions.push(eq(users.isActive, filters.isActive ? 1 : 0));
+  if (filters?.isActive !== undefined) conditions.push(eq(users.isActive, filters.isActive));
 
   let query = db.select().from(users);
   if (conditions.length > 0) {

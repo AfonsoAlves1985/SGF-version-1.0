@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,6 +12,14 @@ import { toast } from "sonner";
 
 export default function Rooms() {
   const [status, setStatus] = useState("all");
+  const [now, setNow] = useState(() => new Date());
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setNow(new Date());
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
   const [editingRoom, setEditingRoom] = useState<any>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [inlineEditingId, setInlineEditingId] = useState<number | null>(null);
@@ -32,11 +40,11 @@ export default function Rooms() {
     name: "",
     capacity: 0,
     location: "",
-    type: "sala" as "sala" | "auditorio" | "cozinha" | "outro",
-    status: "disponivel" as "disponivel" | "ocupada" | "manutencao",
+    type: "sala" as const,
+    status: "disponivel" as const,
     responsibleUserName: "",
-    startDate: undefined as Date | undefined,
-    endDate: undefined as Date | undefined,
+    startDate: "",
+    endDate: "",
     startTime: "",
     endTime: "",
     isReleased: 0,
@@ -51,7 +59,7 @@ export default function Rooms() {
   const createMutation = trpc.rooms.create.useMutation({
     onSuccess: () => {
       toast.success("Sala criada com sucesso!");
-      setFormData({ name: "", capacity: 0, location: "", type: "sala", status: "disponivel", responsibleUserName: "", startDate: undefined, endDate: undefined, startTime: "", endTime: "", isReleased: 0 });
+      setFormData({ name: "", capacity: 0, location: "", type: "sala", status: "disponivel", responsibleUserName: "", startDate: "", endDate: "", startTime: "", endTime: "", isReleased: 0 });
       setIsDialogOpen(false);
       refetch();
     },
@@ -64,7 +72,7 @@ export default function Rooms() {
     onSuccess: () => {
       toast.success("Sala actualizada com sucesso!");
       setEditingRoom(null);
-      setFormData({ name: "", capacity: 0, location: "", type: "sala", status: "disponivel", responsibleUserName: "", startDate: undefined, endDate: undefined, startTime: "", endTime: "", isReleased: 0 });
+      setFormData({ name: "", capacity: 0, location: "", type: "sala", status: "disponivel", responsibleUserName: "", startDate: "", endDate: "", startTime: "", endTime: "", isReleased: 0 });
       setIsDialogOpen(false);
       setInlineEditingId(null);
       setInlineEditField(null);
@@ -87,7 +95,7 @@ export default function Rooms() {
 
   const handleCreateSample = () => {
     setEditingRoom(null);
-    setFormData({ name: "", capacity: 0, location: "", type: "sala", status: "disponivel", responsibleUserName: "", startDate: undefined, endDate: undefined, startTime: "", endTime: "", isReleased: 0 });
+    setFormData({ name: "", capacity: 0, location: "", type: "sala", status: "disponivel", responsibleUserName: "", startDate: "", endDate: "", startTime: "", endTime: "", isReleased: 0 });
     setIsDialogOpen(true);
   };
 
@@ -102,11 +110,10 @@ export default function Rooms() {
       location: room.location,
       type: room.type,
       responsibleUserName: "",
-      startDate: undefined,
-      endDate: undefined,
+      startDate: "",
+      endDate: "",
       startTime: "",
       endTime: "",
-      isReleased: 0,
       status: "disponivel",
     });
   };
@@ -127,12 +134,6 @@ export default function Rooms() {
       toast.error("Informe as datas de uso");
       return;
     }
-    const start = new Date(useRoomForm.startDate);
-    const end = new Date(useRoomForm.endDate);
-    if (end < start) {
-      toast.error("A data de término não pode ser anterior à data de início");
-      return;
-    }
     updateMutation.mutate({
       id: selectedRoomForUse.id,
       name: selectedRoomForUse.name,
@@ -141,17 +142,25 @@ export default function Rooms() {
       type: selectedRoomForUse.type,
       status: "ocupada",
       responsibleUserName: useRoomForm.responsibleUserName,
-      startDate: start,
-      endDate: end,
+      startDate: useRoomForm.startDate,
+      endDate: useRoomForm.endDate,
       startTime: useRoomForm.startTime,
       endTime: useRoomForm.endTime,
-      isReleased: 0,
     });
     setUseRoomDialogOpen(false);
   };
 
   const handleEditRoom = (room: any) => {
     setEditingRoom(room);
+    // Convert DD-MM-YYYY to YYYY-MM-DD for input date
+    const convertDateFormat = (dateStr: string) => {
+      if (!dateStr) return "";
+      if (dateStr.includes('-') && dateStr.split('-')[0].length === 2) {
+        const [day, month, year] = dateStr.split('-');
+        return `${year}-${month}-${day}`;
+      }
+      return dateStr;
+    };
     setFormData({
       name: room.name,
       capacity: room.capacity,
@@ -160,8 +169,8 @@ export default function Rooms() {
       status: room.status,
 
       responsibleUserName: room.responsibleUserName || "",
-      startDate: room.startDate ? new Date(room.startDate) : undefined,
-      endDate: room.endDate ? new Date(room.endDate) : undefined,
+      startDate: convertDateFormat(room.startDate || ""),
+      endDate: convertDateFormat(room.endDate || ""),
       startTime: room.startTime || "",
       endTime: room.endTime || "",
       isReleased: room.isReleased || 0,
@@ -386,8 +395,8 @@ export default function Rooms() {
                 <Input
                   id="startDate"
                   type="date"
-                  value={formData.startDate ? formData.startDate.toISOString().split('T')[0] : ""}
-                  onChange={(e) => setFormData({ ...formData, startDate: e.target.value ? new Date(e.target.value) : undefined })}
+                  value={formData.startDate as string || ""}
+                  onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
                   className="mt-1 bg-slate-700 border-slate-600 text-white"
                 />
               </div>
@@ -396,8 +405,8 @@ export default function Rooms() {
                 <Input
                   id="endDate"
                   type="date"
-                  value={formData.endDate ? formData.endDate.toISOString().split('T')[0] : ""}
-                  onChange={(e) => setFormData({ ...formData, endDate: e.target.value ? new Date(e.target.value) : undefined })}
+                  value={formData.endDate as string || ""}
+                  onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
                   className="mt-1 bg-slate-700 border-slate-600 text-white"
                 />
               </div>
@@ -595,7 +604,25 @@ export default function Rooms() {
               // Sala sem datas = disponível para uso
               if (!room.startDate || !room.endDate || room.status === "disponivel") {
                 return (
-                  <Card key={room.id} className="bg-emerald-900/30 border-emerald-700/30 border">
+                  <Card key={room.id} className="bg-emerald-900/30 border-emerald-700/30 border relative">
+                    <button
+                      onClick={() => handleEditRoom(room)}
+                      className="absolute top-2 right-8 text-gray-500 hover:text-blue-500 transition-colors p-1"
+                      title="Editar sala"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (confirm(`Excluir a sala "${room.name}"?`)) {
+                          deleteMutation.mutate(room.id);
+                        }
+                      }}
+                      className="absolute top-2 right-2 text-gray-500 hover:text-red-500 transition-colors p-1"
+                      title="Excluir sala"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                     <CardContent className="pt-4">
                       <div className="space-y-3">
                         <div>
@@ -620,41 +647,50 @@ export default function Rooms() {
               }
 
               // Combinar data + hora para cálculo preciso
-              // IMPORTANTE: Usar UTC para evitar problemas de fuso horário
+              // Usar horário local (navegador) que deve estar em Brasília
               const parseDateTime = (dateVal: any, timeStr?: string) => {
-                const d = new Date(dateVal);
+                let d: Date;
+                if (typeof dateVal === 'string' && dateVal.includes('-')) {
+                  // Formato DD-MM-YYYY
+                  const [day, month, year] = dateVal.split('-').map(Number);
+                  d = new Date(year, month - 1, day);
+                } else {
+                  d = new Date(dateVal);
+                }
                 if (timeStr) {
                   const [h, m] = timeStr.split(":").map(Number);
-                  d.setUTCHours(h || 0, m || 0, 0, 0);
+                  d.setHours(h, m, 0, 0);
                 } else {
-                  d.setUTCHours(0, 0, 0, 0);
+                  d.setHours(0, 0, 0, 0);
                 }
                 return d;
               };
               const startDate = parseDateTime(room.startDate, room.startTime);
               const endDate = parseDateTime(room.endDate, room.endTime);
-              const now = new Date();
+              
+              // Usar data atual local
+              const nowBrasilia = now;
               
               const totalDuration = endDate.getTime() - startDate.getTime();
               // Calcular tempo decorrido considerando os limites [startDate, endDate]
               let elapsedTime = 0;
-              if (now >= startDate && now <= endDate) {
+              if (nowBrasilia >= startDate && nowBrasilia <= endDate) {
                 // Dentro do intervalo: tempo desde o início até agora
-                elapsedTime = now.getTime() - startDate.getTime();
-              } else if (now > endDate) {
+                elapsedTime = nowBrasilia.getTime() - startDate.getTime();
+              } else if (nowBrasilia > endDate) {
                 // Após o fim: tempo total (100%)
                 elapsedTime = totalDuration;
               }
-              // Se now < startDate, elapsedTime permanece 0
+              // Se nowBrasilia < startDate, elapsedTime permanece 0
               
-              const remainingTime = Math.max(endDate.getTime() - now.getTime(), 0);
+              const remainingTime = Math.max(endDate.getTime() - nowBrasilia.getTime(), 0);
               const usagePercentage = totalDuration > 0 ? (elapsedTime / totalDuration) * 100 : 0;
               
               let alertStatus = "normal";
               let alertColor = "bg-green-900/30 border-green-700/30";
               let alertText = "Normal";
               
-              if (now < startDate) {
+              if (nowBrasilia < startDate) {
                 // Ainda não começou
                 alertStatus = "aguardando";
                 alertColor = "bg-slate-800/50 border-slate-600/30";
@@ -674,7 +710,25 @@ export default function Rooms() {
               }
               
               return (
-                <Card key={room.id} className={`${alertColor} border`}>
+                <Card key={room.id} className={`${alertColor} border relative`}>
+                  <button
+                    onClick={() => handleEditRoom(room)}
+                    className="absolute top-2 right-8 text-gray-500 hover:text-blue-500 transition-colors p-1"
+                    title="Editar sala"
+                  >
+                    <Edit2 className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (confirm(`Excluir a sala "${room.name}"?`)) {
+                        deleteMutation.mutate(room.id);
+                      }
+                    }}
+                    className="absolute top-2 right-2 text-gray-500 hover:text-red-500 transition-colors p-1"
+                    title="Excluir sala"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
                   <CardContent className="pt-4">
                     <div className="space-y-3">
                       <div>

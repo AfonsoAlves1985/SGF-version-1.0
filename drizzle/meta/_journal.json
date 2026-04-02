@@ -1,124 +1,12 @@
 {
   "version": "7",
-  "dialect": "mysql",
+  "dialect": "postgresql",
   "entries": [
     {
       "idx": 0,
-      "version": "5",
-      "when": 1773371559891,
-      "tag": "0000_purple_ben_grimm",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "5",
-      "when": 1773372008561,
-      "tag": "0001_keen_wallflower",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "5",
-      "when": 1773792817854,
-      "tag": "0002_harsh_garia",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "5",
-      "when": 1774375132884,
-      "tag": "0003_dapper_mockingbird",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "5",
-      "when": 1774395494289,
-      "tag": "0004_rainy_stepford_cuckoos",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "5",
-      "when": 1774615991371,
-      "tag": "0005_unusual_otto_octavius",
-      "breakpoints": true
-    },
-    {
-      "idx": 6,
-      "version": "5",
-      "when": 1774638237480,
-      "tag": "0006_spotty_king_cobra",
-      "breakpoints": true
-    },
-    {
-      "idx": 7,
-      "version": "5",
-      "when": 1774638555239,
-      "tag": "0007_vengeful_raider",
-      "breakpoints": true
-    },
-    {
-      "idx": 8,
-      "version": "5",
-      "when": 1774671633538,
-      "tag": "0008_smiling_carlie_cooper",
-      "breakpoints": true
-    },
-    {
-      "idx": 9,
-      "version": "5",
-      "when": 1774748985750,
-      "tag": "0009_eminent_azazel",
-      "breakpoints": true
-    },
-    {
-      "idx": 10,
-      "version": "5",
-      "when": 1774887648977,
-      "tag": "0010_slim_maestro",
-      "breakpoints": true
-    },
-    {
-      "idx": 11,
-      "version": "5",
-      "when": 1774893271273,
-      "tag": "0011_stiff_starjammers",
-      "breakpoints": true
-    },
-    {
-      "idx": 12,
-      "version": "5",
-      "when": 1774962290095,
-      "tag": "0012_freezing_karma",
-      "breakpoints": true
-    },
-    {
-      "idx": 13,
-      "version": "5",
-      "when": 1774964364128,
-      "tag": "0013_military_ink",
-      "breakpoints": true
-    },
-    {
-      "idx": 14,
-      "version": "5",
-      "when": 1774965257624,
-      "tag": "0014_worthless_doctor_doom",
-      "breakpoints": true
-    },
-    {
-      "idx": 15,
-      "version": "5",
-      "when": 1774980557381,
-      "tag": "0015_spotty_king_cobra",
-      "breakpoints": true
-    },
-    {
-      "idx": 16,
-      "version": "5",
-      "when": 1775013656129,
-      "tag": "0016_amusing_leader",
+      "version": "7",
+      "when": 1775075461533,
+      "tag": "0000_lonely_luckman",
       "breakpoints": true
     }
   ]

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { getDb } from "./db";
-import { suppliersWithSpace, consumableSpaces } from "../drizzle/schema";
+import { suppliersWithSpace, supplierSpaces } from "../drizzle/schema";
 import { eq } from "drizzle-orm";
 
 describe("Suppliers With Space CRUD Operations", () => {
@@ -10,7 +10,7 @@ describe("Suppliers With Space CRUD Operations", () => {
   beforeAll(async () => {
     db = await getDb();
     // Create a test space first
-    const spaceResult = await db.insert(consumableSpaces).values({
+    const spaceResult = await db.insert(supplierSpaces).values({
       name: "Test Space",
       description: "Space for testing suppliers",
       location: "Test Location",
@@ -25,7 +25,7 @@ describe("Suppliers With Space CRUD Operations", () => {
   });
 
   it("should create a supplier with space", async () => {
-    const spaces = await db.select().from(consumableSpaces).limit(1);
+    const spaces = await db.select().from(supplierSpaces).limit(1);
     if (spaces.length > 0) {
       const newSupplier = {
         spaceId: spaces[0].id,
@@ -89,7 +89,7 @@ describe("Suppliers With Space CRUD Operations", () => {
   });
 
   it("should handle supplier with multiple service types", async () => {
-    const spaces = await db.select().from(consumableSpaces).limit(1);
+    const spaces = await db.select().from(supplierSpaces).limit(1);
     if (spaces.length > 0) {
       const newSupplier = {
         spaceId: spaces[0].id,
@@ -120,7 +120,7 @@ describe("Suppliers With Space CRUD Operations", () => {
   });
 
   it("should filter suppliers by space", async () => {
-    const spaces = await db.select().from(consumableSpaces).limit(1);
+    const spaces = await db.select().from(supplierSpaces).limit(1);
     if (spaces.length > 0) {
       const result = await db
         .select()
