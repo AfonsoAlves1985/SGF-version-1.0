@@ -7,6 +7,7 @@ usage() {
 Uso:
   pnpm ac --help
   pnpm ac -- "mensagem do commit"
+  pnpm ac -- --no-verify-format "mensagem livre"
   ./scripts/git-ac.sh "mensagem do commit"
 
 Descricao:
@@ -18,6 +19,12 @@ EOF
 }
 
 if [[ "${1-}" == "--" ]]; then
+  shift
+fi
+
+skip_format_check="false"
+if [[ "${1-}" == "--no-verify-format" ]]; then
+  skip_format_check="true"
   shift
 fi
 
@@ -33,6 +40,11 @@ if [[ "$#" -lt 1 ]]; then
 fi
 
 message="$*"
+
+if [[ "$skip_format_check" != "true" ]]; then
+  script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  "$script_dir/validate-commit-msg.sh" "$message"
+fi
 
 if git diff --quiet && git diff --cached --quiet; then
   echo "Nada para commitar (working tree limpo)."

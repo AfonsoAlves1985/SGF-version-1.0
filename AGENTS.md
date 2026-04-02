@@ -152,3 +152,5 @@
 - `pnpm test -- server/<file>.test.ts`
 - `pnpm test -- server/<file>.test.ts -t "<test name>"`
 - `pnpm db:push`
+- `pnpm ac -- "tipo(escopo): descricao"`
+- `pnpm acs -- <tipo> <escopo|-> <descricao>`
