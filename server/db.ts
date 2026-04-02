@@ -114,8 +114,11 @@ async function ensureUsersAuthSchema() {
 
     usersAuthSchemaEnsured = true;
   } catch (error) {
-    console.error("[Database] Failed to ensure users auth schema:", error);
-    throw error;
+    console.warn(
+      "[Database] Could not auto-adjust users auth schema. Continuing with existing schema.",
+      error,
+    );
+    usersAuthSchemaEnsured = true;
   }
 }
 
