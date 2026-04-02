@@ -1,4 +1,5 @@
 import { useAuth } from "@/_core/hooks/useAuth";
+import { useTheme } from "@/contexts/ThemeContext";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -26,6 +27,7 @@ import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
 import { Button } from "./ui/button";
+import { Switch } from "./ui/switch";
 
 const menuItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
@@ -114,6 +116,7 @@ function DashboardLayoutContent({
   setSidebarWidth,
 }: DashboardLayoutContentProps) {
   const { user, logout } = useAuth();
+  const { theme, toggleTheme, switchable } = useTheme();
   const [location, setLocation] = useLocation();
   const { state, toggleSidebar } = useSidebar();
   const isCollapsed = state === "collapsed";
@@ -202,6 +205,23 @@ function DashboardLayoutContent({
           </SidebarContent>
 
           <SidebarFooter className="p-3">
+            {switchable && (
+              <div className="mb-3 rounded-lg border border-border/70 bg-card/50 p-2 group-data-[collapsible=icon]:hidden">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">Tema</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">Light</span>
+                    <Switch
+                      checked={theme === "dark"}
+                      onCheckedChange={() => toggleTheme?.()}
+                      aria-label="Alternar tema claro e escuro"
+                    />
+                    <span className="text-xs text-muted-foreground">Dark</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button className="flex items-center gap-3 rounded-lg px-1 py-1 hover:bg-accent/50 transition-colors w-full text-left group-data-[collapsible=icon]:justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-ring">
@@ -255,6 +275,18 @@ function DashboardLayoutContent({
                 </div>
               </div>
             </div>
+
+            {switchable && (
+              <div className="flex items-center gap-2 pr-2">
+                <span className="text-[11px] text-muted-foreground">Light</span>
+                <Switch
+                  checked={theme === "dark"}
+                  onCheckedChange={() => toggleTheme?.()}
+                  aria-label="Alternar tema claro e escuro"
+                />
+                <span className="text-[11px] text-muted-foreground">Dark</span>
+              </div>
+            )}
           </div>
         )}
         <main className="flex-1 p-4">{children}</main>

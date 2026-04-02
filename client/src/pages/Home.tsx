@@ -113,19 +113,19 @@ export default function Home() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-slate-900">
+      <div className="flex items-center justify-center min-h-screen bg-background">
         <div className="text-center">
           <Loader2 className="animate-spin h-12 w-12 text-orange-600 mx-auto mb-4" />
-          <p className="text-gray-400">{t("inventory.loading")}</p>
+          <p className="text-muted-foreground">{t("inventory.loading")}</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-900 text-white">
+    <div className="min-h-screen bg-background text-foreground">
       {/* Header com Logo e Language Selector */}
-      <div className="border-b border-orange-700/20 bg-slate-800/50 backdrop-blur">
+      <div className="border-b border-border bg-card/80 backdrop-blur">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <img 
@@ -134,8 +134,8 @@ export default function Home() {
               className="h-10 bg-transparent" 
             />
             <div>
-              <h1 className="text-lg font-bold text-white">{t("home.title")}</h1>
-              <p className="text-xs text-gray-400">{t("home.subtitle")}</p>
+              <h1 className="text-lg font-bold text-foreground">{t("home.title")}</h1>
+              <p className="text-xs text-muted-foreground">{t("home.subtitle")}</p>
             </div>
           </div>
           <LanguageSelector />
@@ -148,10 +148,10 @@ export default function Home() {
           <>
             {/* Saudação */}
             <div className="mb-8">
-              <h2 className="text-3xl font-bold text-white mb-2">
+              <h2 className="text-3xl font-bold text-foreground mb-2">
                 {t("app.welcome")}, {user.name}!
               </h2>
-              <p className="text-gray-400">{t("home.subtitle")}</p>
+              <p className="text-muted-foreground">{t("home.subtitle")}</p>
             </div>
 
             {/* Critical Stock Alerts Widget */}
@@ -170,11 +170,11 @@ export default function Home() {
                     <CardHeader>
                       <div className="flex items-center gap-3">
                         <Icon className="h-8 w-8 text-orange-500" />
-                        <CardTitle className="text-white">{module.label}</CardTitle>
+                        <CardTitle className="text-foreground">{module.label}</CardTitle>
                       </div>
                     </CardHeader>
                     <CardContent>
-                      <CardDescription className="text-gray-400">{module.description}</CardDescription>
+                      <CardDescription className="text-muted-foreground">{module.description}</CardDescription>
                     </CardContent>
                   </Card>
                 );
@@ -182,10 +182,10 @@ export default function Home() {
             </div>
 
             {/* Dicas de Utilização */}
-            <Card className="bg-slate-800/50 border-orange-700/20">
+            <Card className="bg-card border-border">
               <CardHeader>
                 <CardTitle className="text-orange-500">{t("home.tips")}</CardTitle>
-                <CardDescription className="text-gray-400">{t("home.tips.maximize")}</CardDescription>
+                <CardDescription className="text-muted-foreground">{t("home.tips.maximize")}</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
@@ -193,19 +193,19 @@ export default function Home() {
                     <div className="flex-shrink-0 w-8 h-8 rounded-full bg-orange-600 text-white flex items-center justify-center font-bold">
                       1
                     </div>
-                    <p className="text-gray-300">{t("home.tips.1")}</p>
+                    <p className="text-foreground">{t("home.tips.1")}</p>
                   </div>
                   <div className="flex gap-4">
                     <div className="flex-shrink-0 w-8 h-8 rounded-full bg-orange-600 text-white flex items-center justify-center font-bold">
                       2
                     </div>
-                    <p className="text-gray-300">{t("home.tips.2")}</p>
+                    <p className="text-foreground">{t("home.tips.2")}</p>
                   </div>
                   <div className="flex gap-4">
                     <div className="flex-shrink-0 w-8 h-8 rounded-full bg-orange-600 text-white flex items-center justify-center font-bold">
                       3
                     </div>
-                    <p className="text-gray-300">{t("home.tips.3")}</p>
+                    <p className="text-foreground">{t("home.tips.3")}</p>
                   </div>
                 </div>
               </CardContent>
@@ -221,8 +221,8 @@ export default function Home() {
                   alt="FRZ Logo" 
                   className="h-24 mx-auto mb-6 bg-transparent"
                 />
-                <h1 className="text-4xl font-bold text-white mb-2">{t("home.title")}</h1>
-                <p className="text-xl text-gray-400">{t("home.subtitle")}</p>
+                <h1 className="text-4xl font-bold text-foreground mb-2">{t("home.title")}</h1>
+                <p className="text-xl text-muted-foreground">{t("home.subtitle")}</p>
               </div>
               <Button
                 onClick={() => (window.location.href = getLoginUrl())}

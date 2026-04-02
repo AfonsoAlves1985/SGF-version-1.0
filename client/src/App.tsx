@@ -75,7 +75,7 @@ function App() {
   return (
     <ErrorBoundary>
       <LanguageProvider>
-        <ThemeProvider defaultTheme="dark">
+        <ThemeProvider defaultTheme="dark" switchable>
           <TooltipProvider>
             <Toaster />
             <Router />

@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { DateInputWithCalendar } from "@/components/DateInputWithCalendar";
 import { Plus, Building2, Users, Edit2, Trash2, Calendar, Clock } from "lucide-react";
 import { toast } from "sonner";
 
@@ -913,36 +914,30 @@ export default function Rooms() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label className="text-gray-300">Data de Início *</Label>
-                <Input
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={10}
+                <DateInputWithCalendar
                   value={useRoomForm.startDate}
-                  onChange={(e) =>
+                  onChange={date =>
                     setUseRoomForm({
                       ...useRoomForm,
-                      startDate: formatDateInput(e.target.value),
+                      startDate: date,
                     })
                   }
-                  placeholder="DD-MM-YYYY"
                   className="mt-1 bg-slate-700 border-slate-600 text-white"
+                  calendarClassName="[&_.rdp-cell]:text-white [&_.rdp-button]:text-white"
                 />
               </div>
               <div>
                 <Label className="text-gray-300">Data de Fim *</Label>
-                <Input
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={10}
+                <DateInputWithCalendar
                   value={useRoomForm.endDate}
-                  onChange={(e) =>
+                  onChange={date =>
                     setUseRoomForm({
                       ...useRoomForm,
-                      endDate: formatDateInput(e.target.value),
+                      endDate: date,
                     })
                   }
-                  placeholder="DD-MM-YYYY"
                   className="mt-1 bg-slate-700 border-slate-600 text-white"
+                  calendarClassName="[&_.rdp-cell]:text-white [&_.rdp-button]:text-white"
                 />
               </div>
             </div>
