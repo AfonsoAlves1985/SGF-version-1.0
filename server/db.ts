@@ -24,6 +24,7 @@ import { ENV } from './_core/env';
 let _db: ReturnType<typeof drizzle> | null = null;
 let usersAuthSchemaEnsured = false;
 let coreSchemaBootstrapAttempted = false;
+let essentialTablesEnsured = false;
 
 const MIGRATION_FILES = [
   "0000_lonely_luckman.sql",
@@ -74,6 +75,183 @@ async function bootstrapCoreSchemaFromMigrations(db: ReturnType<typeof drizzle>)
   }
 }
 
+async function ensureEssentialModuleTables(db: ReturnType<typeof drizzle>) {
+  if (essentialTablesEnsured) return;
+
+  const run = async (statement: string) => {
+    try {
+      await db.execute(sql.raw(statement));
+    } catch (error: any) {
+      const code = error?.code as string | undefined;
+      if (code && NON_FATAL_MIGRATION_ERROR_CODES.has(code)) return;
+      console.warn("[Database] Essential table statement failed", {
+        code,
+        message: error?.message,
+      });
+    }
+  };
+
+  await run(`
+    CREATE TABLE IF NOT EXISTS "teams" (
+      "id" serial PRIMARY KEY,
+      "name" varchar(255) NOT NULL,
+      "email" varchar(320),
+      "phone" varchar(20),
+      "role" varchar(32) NOT NULL DEFAULT 'admin',
+      "sector" varchar(100),
+      "status" varchar(32) NOT NULL DEFAULT 'ativo',
+      "createdAt" timestamp DEFAULT now() NOT NULL
+    );
+  `);
+
+  await run(`
+    CREATE TABLE IF NOT EXISTS "rooms" (
+      "id" serial PRIMARY KEY,
+      "name" varchar(255) NOT NULL,
+      "capacity" integer NOT NULL,
+      "location" varchar(255) NOT NULL,
+      "type" varchar(32) NOT NULL DEFAULT 'sala',
+      "status" varchar(32) NOT NULL DEFAULT 'disponivel',
+      "responsibleUserName" varchar(255),
+      "startDate" varchar(25),
+      "endDate" varchar(25),
+      "startTime" varchar(5),
+      "endTime" varchar(5),
+      "isReleased" integer DEFAULT 0,
+      "createdAt" timestamp DEFAULT now() NOT NULL,
+      "updatedAt" timestamp DEFAULT now() NOT NULL
+    );
+  `);
+
+  await run(`
+    CREATE TABLE IF NOT EXISTS "maintenance_spaces" (
+      "id" serial PRIMARY KEY,
+      "name" varchar(255) NOT NULL,
+      "description" text,
+      "location" varchar(255),
+      "createdAt" timestamp DEFAULT now() NOT NULL,
+      "updatedAt" timestamp DEFAULT now() NOT NULL
+    );
+  `);
+
+  await run(`
+    CREATE TABLE IF NOT EXISTS "maintenance_requests" (
+      "id" serial PRIMARY KEY,
+      "title" varchar(255) NOT NULL,
+      "description" text,
+      "priority" varchar(32) NOT NULL DEFAULT 'media',
+      "type" varchar(32) NOT NULL DEFAULT 'preventiva',
+      "status" varchar(32) NOT NULL DEFAULT 'aberto',
+      "assignedTo" integer,
+      "createdBy" integer,
+      "completedAt" timestamp,
+      "notes" text,
+      "createdAt" timestamp DEFAULT now() NOT NULL,
+      "updatedAt" timestamp DEFAULT now() NOT NULL,
+      "spaceId" integer DEFAULT 1 NOT NULL
+    );
+  `);
+
+  await run(`
+    CREATE TABLE IF NOT EXISTS "consumable_spaces" (
+      "id" serial PRIMARY KEY,
+      "name" varchar(255) NOT NULL,
+      "description" text,
+      "location" varchar(255),
+      "createdAt" timestamp DEFAULT now() NOT NULL,
+      "updatedAt" timestamp DEFAULT now() NOT NULL
+    );
+  `);
+
+  await run(`
+    CREATE TABLE IF NOT EXISTS "consumables_with_space" (
+      "id" serial PRIMARY KEY,
+      "spaceId" integer,
+      "name" varchar(255) NOT NULL,
+      "category" varchar(100) NOT NULL,
+      "unit" varchar(50) NOT NULL,
+      "minStock" integer DEFAULT 0 NOT NULL,
+      "maxStock" integer DEFAULT 0 NOT NULL,
+      "currentStock" integer DEFAULT 0 NOT NULL,
+      "replenishStock" integer DEFAULT 0 NOT NULL,
+      "status" varchar(32) NOT NULL DEFAULT 'ESTOQUE_OK',
+      "createdAt" timestamp DEFAULT now() NOT NULL,
+      "updatedAt" timestamp DEFAULT now() NOT NULL
+    );
+  `);
+
+  await run(`
+    CREATE TABLE IF NOT EXISTS "contract_spaces" (
+      "id" serial PRIMARY KEY,
+      "name" varchar(255) NOT NULL,
+      "description" text,
+      "location" varchar(255),
+      "createdAt" timestamp DEFAULT now() NOT NULL,
+      "updatedAt" timestamp DEFAULT now() NOT NULL
+    );
+  `);
+
+  await run(`
+    CREATE TABLE IF NOT EXISTS "contracts" (
+      "id" serial PRIMARY KEY,
+      "companyName" varchar(255) NOT NULL,
+      "cnpj" varchar(18),
+      "description" text NOT NULL,
+      "contact" varchar(255),
+      "contractType" varchar(32) NOT NULL DEFAULT 'mensal',
+      "signatureDate" varchar(10) NOT NULL,
+      "endDate" varchar(25) NOT NULL,
+      "monthlyPaymentDate" integer,
+      "isRenewable" boolean DEFAULT false NOT NULL,
+      "documentUrl" text,
+      "value" numeric(10,2),
+      "status" varchar(32) NOT NULL DEFAULT 'ativo',
+      "notes" text,
+      "createdAt" timestamp DEFAULT now() NOT NULL,
+      "updatedAt" timestamp
+    );
+  `);
+
+  await run(`
+    CREATE TABLE IF NOT EXISTS "contracts_with_space" (
+      "id" serial PRIMARY KEY,
+      "spaceId" integer,
+      "contractId" integer,
+      "createdAt" timestamp DEFAULT now() NOT NULL
+    );
+  `);
+
+  await run(`
+    CREATE TABLE IF NOT EXISTS "inventory" (
+      "id" serial PRIMARY KEY,
+      "name" varchar(255) NOT NULL,
+      "category" varchar(100) NOT NULL,
+      "quantity" integer DEFAULT 0 NOT NULL,
+      "minQuantity" integer DEFAULT 0 NOT NULL,
+      "unit" varchar(50) NOT NULL,
+      "location" varchar(255),
+      "status" varchar(32) NOT NULL DEFAULT 'ativo',
+      "createdAt" timestamp DEFAULT now() NOT NULL,
+      "updatedAt" timestamp DEFAULT now() NOT NULL
+    );
+  `);
+
+  await run(`
+    CREATE TABLE IF NOT EXISTS "room_reservations" (
+      "id" serial PRIMARY KEY,
+      "roomId" integer,
+      "userId" integer,
+      "startTime" timestamp NOT NULL,
+      "endTime" timestamp NOT NULL,
+      "purpose" text,
+      "status" varchar(32) NOT NULL DEFAULT 'confirmada',
+      "createdAt" timestamp DEFAULT now() NOT NULL
+    );
+  `);
+
+  essentialTablesEnsured = true;
+}
+
 // Lazily create the drizzle instance so local tooling can run without a DB.
 export async function getDb() {
   if (!_db && process.env.DATABASE_URL) {
@@ -88,6 +266,7 @@ export async function getDb() {
   if (_db && !coreSchemaBootstrapAttempted) {
     coreSchemaBootstrapAttempted = true;
     await bootstrapCoreSchemaFromMigrations(_db);
+    await ensureEssentialModuleTables(_db);
   }
 
   return _db;
