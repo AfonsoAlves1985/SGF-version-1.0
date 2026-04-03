@@ -1,5 +1,7 @@
 import { eq, and, or, desc, asc, gte, lte, like, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
+import fs from "node:fs";
+import path from "node:path";
 import { 
   InsertUser, users,
   inventory, inventoryMovements, InsertInventory, InsertInventoryMovement,
@@ -21,6 +23,56 @@ import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
 let usersAuthSchemaEnsured = false;
+let coreSchemaBootstrapAttempted = false;
+
+const MIGRATION_FILES = [
+  "0000_lonely_luckman.sql",
+  "0001_add_spaceid.sql",
+  "0002_contract_fields.sql",
+] as const;
+
+const NON_FATAL_MIGRATION_ERROR_CODES = new Set([
+  "42710", // duplicate_object (type already exists)
+  "42P07", // duplicate_table / duplicate_index
+  "42701", // duplicate_column
+  "23505", // unique_violation (duplicate index names in some cases)
+]);
+
+async function bootstrapCoreSchemaFromMigrations(db: ReturnType<typeof drizzle>) {
+  const migrationDir = path.resolve(process.cwd(), "drizzle");
+
+  for (const filename of MIGRATION_FILES) {
+    const filePath = path.join(migrationDir, filename);
+    if (!fs.existsSync(filePath)) {
+      continue;
+    }
+
+    const rawSql = fs.readFileSync(filePath, "utf-8");
+    const statements = rawSql
+      .split("--> statement-breakpoint")
+      .map(stmt => stmt.trim())
+      .filter(Boolean);
+
+    for (const statement of statements) {
+      try {
+        await db.execute(sql.raw(statement));
+      } catch (error: any) {
+        const errorCode = error?.code as string | undefined;
+        if (errorCode && NON_FATAL_MIGRATION_ERROR_CODES.has(errorCode)) {
+          continue;
+        }
+
+        console.warn(
+          `[Database] Migration statement failed (${filename}). Continuing bootstrap.`,
+          {
+            code: errorCode,
+            message: error?.message,
+          },
+        );
+      }
+    }
+  }
+}
 
 // Lazily create the drizzle instance so local tooling can run without a DB.
 export async function getDb() {
@@ -32,6 +84,12 @@ export async function getDb() {
       _db = null;
     }
   }
+
+  if (_db && !coreSchemaBootstrapAttempted) {
+    coreSchemaBootstrapAttempted = true;
+    await bootstrapCoreSchemaFromMigrations(_db);
+  }
+
   return _db;
 }
 
