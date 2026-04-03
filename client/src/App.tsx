@@ -1,22 +1,30 @@
-import { useState, useEffect } from "react";
+import { Suspense, lazy, useEffect } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import NotFound from "@/pages/NotFound";
 import { Route, Switch, useLocation } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { LanguageProvider } from "./contexts/LanguageContext";
-import Home from "./pages/Home";
-import Inventory from "./pages/Inventory";
-import InventoryHistory from "./pages/InventoryHistory";
-import Rooms from "./pages/Rooms";
-import Maintenance from "./pages/Maintenance";
-import SuppliersAndPurchases from "./pages/SuppliersAndPurchases";
-import Contracts from "./pages/Contracts";
-import Dashboard from "./pages/Dashboard";
-import Consumables from "./pages/Consumables";
-import DashboardLayout from "./components/DashboardLayout";
-import Login from "./pages/Login";
+const NotFound = lazy(() => import("@/pages/NotFound"));
+const Home = lazy(() => import("./pages/Home"));
+const Inventory = lazy(() => import("./pages/Inventory"));
+const InventoryHistory = lazy(() => import("./pages/InventoryHistory"));
+const Rooms = lazy(() => import("./pages/Rooms"));
+const Maintenance = lazy(() => import("./pages/Maintenance"));
+const SuppliersAndPurchases = lazy(() => import("./pages/SuppliersAndPurchases"));
+const Contracts = lazy(() => import("./pages/Contracts"));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Consumables = lazy(() => import("./pages/Consumables"));
+const DashboardLayout = lazy(() => import("./components/DashboardLayout"));
+const Login = lazy(() => import("./pages/Login"));
+
+function PageFallback() {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-background text-foreground">
+      Carregando...
+    </div>
+  );
+}
 
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
   const [, setLocation] = useLocation();
@@ -44,30 +52,40 @@ function Router() {
   const token = localStorage.getItem("auth-token");
 
   if (location === "/login") {
-    return <Login />;
+    return (
+      <Suspense fallback={<PageFallback />}>
+        <Login />
+      </Suspense>
+    );
   }
 
   if (!token) {
-    return <Login />;
+    return (
+      <Suspense fallback={<PageFallback />}>
+        <Login />
+      </Suspense>
+    );
   }
 
   return (
-    <DashboardLayout>
-      <Switch>
-        <Route path={"/"} component={Home} />
-        <Route path={"/inventory"} component={Inventory} />
-        <Route path={"/inventory-history"} component={InventoryHistory} />
-        <Route path={"/rooms"} component={Rooms} />
-        <Route path={"/maintenance"} component={Maintenance} />
-        <Route path={"/suppliers"} component={SuppliersAndPurchases} />
-        <Route path={"/contracts"} component={Contracts} />
-        <Route path={"/consumables"} component={Consumables} />
-        <Route path={"/dashboard"} component={Dashboard} />
-        <Route path={"/login"} component={Login} />
-        <Route path={"/404"} component={NotFound} />
-        <Route component={NotFound} />
-      </Switch>
-    </DashboardLayout>
+    <Suspense fallback={<PageFallback />}>
+      <DashboardLayout>
+        <Switch>
+          <Route path={"/"} component={Home} />
+          <Route path={"/inventory"} component={Inventory} />
+          <Route path={"/inventory-history"} component={InventoryHistory} />
+          <Route path={"/rooms"} component={Rooms} />
+          <Route path={"/maintenance"} component={Maintenance} />
+          <Route path={"/suppliers"} component={SuppliersAndPurchases} />
+          <Route path={"/contracts"} component={Contracts} />
+          <Route path={"/consumables"} component={Consumables} />
+          <Route path={"/dashboard"} component={Dashboard} />
+          <Route path={"/login"} component={Login} />
+          <Route path={"/404"} component={NotFound} />
+          <Route component={NotFound} />
+        </Switch>
+      </DashboardLayout>
+    </Suspense>
   );
 }
 
