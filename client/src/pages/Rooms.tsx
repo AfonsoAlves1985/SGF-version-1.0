@@ -693,6 +693,53 @@ export default function Rooms() {
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {rooms.map((room: any) => {
+              // Sala em manutenção: sempre destacar em amarelo
+              if (room.status === "manutencao") {
+                return (
+                  <Card key={room.id} className="bg-yellow-900/30 border-yellow-700/40 border relative">
+                    <button
+                      onClick={() => handleEditRoom(room)}
+                      className="absolute top-2 right-8 text-gray-500 hover:text-blue-500 transition-colors p-1"
+                      title="Editar sala"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (confirm(`Excluir a sala "${room.name}"?`)) {
+                          deleteMutation.mutate(room.id);
+                        }
+                      }}
+                      className="absolute top-2 right-2 text-gray-500 hover:text-red-500 transition-colors p-1"
+                      title="Excluir sala"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                    <CardContent className="pt-4">
+                      <div className="space-y-3">
+                        <div>
+                          <p className="text-white font-semibold text-sm">{room.name}</p>
+                          <p className="text-gray-400 text-xs">Capacidade: {room.capacity} pessoas</p>
+                        </div>
+                        <div className="pt-2 border-t border-yellow-700/40">
+                          <p className="text-xs font-semibold text-white mb-1">
+                            Status: <span className="text-yellow-300">Manutenção</span>
+                          </p>
+                          <p className="text-xs text-yellow-200">Aviso de manutenção ativa</p>
+                          <Button
+                            onClick={() => handleReleaseRoom(room.id)}
+                            className="mt-2 w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs py-1"
+                            disabled={updateMutation.isPending}
+                          >
+                            Liberar Sala
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              }
+
               // Sala sem datas = disponível para uso
               if (!room.startDate || !room.endDate || room.status === "disponivel") {
                 return (
@@ -865,7 +912,7 @@ export default function Rooms() {
                             : "Prazo expirado"
                           }
                         </p>
-                        {room.status === "ocupada" && (
+                        {(room.status === "ocupada" || room.status === "manutencao") && (
                           <Button
                             onClick={() => handleReleaseRoom(room.id)}
                             className="mt-2 w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs py-1"
