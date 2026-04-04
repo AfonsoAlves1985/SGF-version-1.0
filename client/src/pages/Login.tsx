@@ -67,22 +67,38 @@ export default function Login() {
             const end = neuralNodes[to];
 
             return (
-              <motion.line
-                key={`link-${from}-${to}`}
-                x1={start.x}
-                y1={start.y}
-                x2={end.x}
-                y2={end.y}
-                stroke="rgb(34 211 238)"
-                strokeWidth="0.2"
-                initial={{ opacity: 0.15 }}
-                animate={{ opacity: [0.15, 0.55, 0.15] }}
-                transition={{
-                  duration: 3.8,
-                  repeat: Infinity,
-                  delay: index * 0.18,
-                }}
-              />
+              <g key={`link-${from}-${to}`}>
+                <motion.line
+                  x1={start.x}
+                  y1={start.y}
+                  x2={end.x}
+                  y2={end.y}
+                  stroke="rgb(34 211 238)"
+                  strokeWidth="0.2"
+                  initial={{ opacity: 0.15 }}
+                  animate={{ opacity: [0.15, 0.55, 0.15] }}
+                  transition={{
+                    duration: 3.8,
+                    repeat: Infinity,
+                    delay: index * 0.18,
+                  }}
+                />
+                <motion.circle
+                  r="0.45"
+                  fill="rgb(125 249 255)"
+                  animate={{
+                    cx: [start.x, end.x],
+                    cy: [start.y, end.y],
+                    opacity: [0, 1, 0],
+                  }}
+                  transition={{
+                    duration: 2.4,
+                    repeat: Infinity,
+                    ease: "linear",
+                    delay: index * 0.22,
+                  }}
+                />
+              </g>
             );
           })}
 
