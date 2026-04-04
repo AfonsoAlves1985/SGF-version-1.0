@@ -11,6 +11,7 @@
     "format": "prettier --write .",
     "test": "vitest run",
     "smoke:modules": "tsx scripts/smoke-modules.ts",
+    "health:daily": "pnpm smoke:modules",
     "db:push": "drizzle-kit generate && drizzle-kit migrate",
     "ac": "bash scripts/git-ac.sh",
     "acs": "bash scripts/git-acs.sh",
