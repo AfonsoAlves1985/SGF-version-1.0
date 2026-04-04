@@ -1,12 +1,37 @@
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Plus, Edit2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -19,7 +44,12 @@ export default function Inventory() {
   const [inlineEditingId, setInlineEditingId] = useState<number | null>(null);
   const [inlineEditField, setInlineEditField] = useState<string | null>(null);
   const [inlineEditValue, setInlineEditValue] = useState<string>("");
-  const [customCategories, setCustomCategories] = useState<string[]>(["Consumíveis", "Equipamentos", "Ferramentas", "Limpeza"]);
+  const [customCategories, setCustomCategories] = useState<string[]>([
+    "Consumíveis",
+    "Equipamentos",
+    "Ferramentas",
+    "Limpeza",
+  ]);
   const [isAddingCategory, setIsAddingCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
 
@@ -47,7 +77,11 @@ export default function Inventory() {
     status: "ativo" as "ativo" | "inativo" | "descontinuado",
   });
 
-  const { data: items = [], isLoading, refetch } = trpc.inventory.list.useQuery({
+  const {
+    data: items = [],
+    isLoading,
+    refetch,
+  } = trpc.inventory.list.useQuery({
     search,
     category,
     status,
@@ -56,11 +90,19 @@ export default function Inventory() {
   const createMutation = trpc.inventory.create.useMutation({
     onSuccess: () => {
       toast.success("Item criado com sucesso!");
-      setFormData({ name: "", category: "Consumíveis", quantity: 0, minQuantity: 0, unit: "unidade", location: "", status: "ativo" });
+      setFormData({
+        name: "",
+        category: "Consumíveis",
+        quantity: 0,
+        minQuantity: 0,
+        unit: "unidade",
+        location: "",
+        status: "ativo",
+      });
       setIsDialogOpen(false);
       refetch();
     },
-    onError: (error) => {
+    onError: error => {
       toast.error(`Erro: ${error.message}`);
     },
   });
@@ -69,13 +111,21 @@ export default function Inventory() {
     onSuccess: () => {
       toast.success("Item actualizado com sucesso!");
       setEditingItem(null);
-      setFormData({ name: "", category: "Consumíveis", quantity: 0, minQuantity: 0, unit: "unidade", location: "", status: "ativo" });
+      setFormData({
+        name: "",
+        category: "Consumíveis",
+        quantity: 0,
+        minQuantity: 0,
+        unit: "unidade",
+        location: "",
+        status: "ativo",
+      });
       setIsDialogOpen(false);
       setInlineEditingId(null);
       setInlineEditField(null);
       refetch();
     },
-    onError: (error) => {
+    onError: error => {
       toast.error(`Erro: ${error.message}`);
     },
   });
@@ -85,14 +135,22 @@ export default function Inventory() {
       toast.success("Item eliminado com sucesso!");
       refetch();
     },
-    onError: (error) => {
+    onError: error => {
       toast.error(`Erro: ${error.message}`);
     },
   });
 
   const handleCreateSample = () => {
     setEditingItem(null);
-    setFormData({ name: "", category: "Consumíveis", quantity: 0, minQuantity: 0, unit: "unidade", location: "", status: "ativo" });
+    setFormData({
+      name: "",
+      category: "Consumíveis",
+      quantity: 0,
+      minQuantity: 0,
+      unit: "unidade",
+      location: "",
+      status: "ativo",
+    });
     setIsDialogOpen(true);
   };
 
@@ -131,7 +189,12 @@ export default function Inventory() {
   };
 
   const handleSubmit = () => {
-    if (!formData.name || !formData.location || formData.quantity < 0 || formData.minQuantity < 0) {
+    if (
+      !formData.name ||
+      !formData.location ||
+      formData.quantity < 0 ||
+      formData.minQuantity < 0
+    ) {
       toast.error("Preencha todos os campos corretamente");
       return;
     }
@@ -166,9 +229,14 @@ export default function Inventory() {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold text-white">Inventário</h1>
-          <p className="text-gray-400 mt-1">Gestão centralizada de materiais e equipamentos</p>
+          <p className="text-gray-400 mt-1">
+            Gestão centralizada de materiais e equipamentos
+          </p>
         </div>
-        <Button onClick={handleCreateSample} className="bg-orange-600 hover:bg-orange-700">
+        <Button
+          onClick={handleCreateSample}
+          className="bg-orange-600 hover:bg-orange-700"
+        >
           <Plus className="w-4 h-4 mr-2" />
           Novo Item
         </Button>
@@ -177,30 +245,38 @@ export default function Inventory() {
       <Card className="bg-slate-800/50 border-orange-700/30">
         <CardHeader>
           <CardTitle className="text-white">Filtros</CardTitle>
-          <CardDescription className="text-gray-400">Pesquise e filtre itens do inventário</CardDescription>
+          <CardDescription className="text-gray-400">
+            Pesquise e filtre itens do inventário
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label className="text-sm font-medium text-gray-300">Pesquisa</label>
+              <label className="text-sm font-medium text-gray-300">
+                Pesquisa
+              </label>
               <Input
                 placeholder="Pesquisar por nome..."
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={e => setSearch(e.target.value)}
                 className="mt-1 bg-slate-700 border-slate-600 text-white placeholder-gray-500"
               />
             </div>
 
             <div>
-              <label className="text-sm font-medium text-gray-300">Categoria</label>
+              <label className="text-sm font-medium text-gray-300">
+                Categoria
+              </label>
               <div className="flex gap-2 mt-1">
                 <Select value={category} onValueChange={setCategory}>
                   <SelectTrigger className="bg-slate-700 border-slate-600 text-white flex-1">
                     <SelectValue placeholder="Selecione uma categoria" />
                   </SelectTrigger>
                   <SelectContent>
-                    {customCategories.map((cat) => (
-                      <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                    {customCategories.map(cat => (
+                      <SelectItem key={cat} value={cat}>
+                        {cat}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -216,7 +292,9 @@ export default function Inventory() {
             </div>
 
             <div>
-              <label className="text-sm font-medium text-gray-300">Status</label>
+              <label className="text-sm font-medium text-gray-300">
+                Status
+              </label>
               <Select value={status} onValueChange={setStatus}>
                 <SelectTrigger className="mt-1 bg-slate-700 border-slate-600 text-white">
                   <SelectValue placeholder="Selecione um status" />
@@ -235,7 +313,9 @@ export default function Inventory() {
       <Card className="bg-slate-800/50 border-orange-700/30">
         <CardHeader>
           <CardTitle className="text-white">Itens do Inventário</CardTitle>
-          <CardDescription className="text-gray-400">{items.length} itens encontrados</CardDescription>
+          <CardDescription className="text-gray-400">
+            {items.length} itens encontrados
+          </CardDescription>
         </CardHeader>
         <CardContent>
           {isLoading ? (
@@ -246,7 +326,11 @@ export default function Inventory() {
           ) : items.length === 0 ? (
             <div className="text-center py-8">
               <p className="text-gray-400">Nenhum item encontrado</p>
-              <Button onClick={handleCreateSample} variant="outline" className="mt-4 border-orange-600 text-orange-500 hover:bg-orange-600/10">
+              <Button
+                onClick={handleCreateSample}
+                variant="outline"
+                className="mt-4 border-orange-600 text-orange-500 hover:bg-orange-600/10"
+              >
                 Criar primeiro item
               </Button>
             </div>
@@ -256,18 +340,33 @@ export default function Inventory() {
                 <TableHeader>
                   <TableRow className="border-orange-700/30 hover:bg-slate-700/50">
                     <TableHead className="text-gray-300">Nome</TableHead>
-                    <TableHead className="text-gray-300 cursor-pointer hover:text-orange-400">Categoria</TableHead>
-                    <TableHead className="text-gray-300 cursor-pointer hover:text-orange-400">Quantidade</TableHead>
-                    <TableHead className="text-gray-300 cursor-pointer hover:text-orange-400">Mínimo</TableHead>
-                    <TableHead className="text-gray-300 cursor-pointer hover:text-orange-400">Localização</TableHead>
-                    <TableHead className="text-gray-300 cursor-pointer hover:text-orange-400">Status</TableHead>
+                    <TableHead className="text-gray-300 cursor-pointer hover:text-orange-400">
+                      Categoria
+                    </TableHead>
+                    <TableHead className="text-gray-300 cursor-pointer hover:text-orange-400">
+                      Quantidade
+                    </TableHead>
+                    <TableHead className="text-gray-300 cursor-pointer hover:text-orange-400">
+                      Mínimo
+                    </TableHead>
+                    <TableHead className="text-gray-300 cursor-pointer hover:text-orange-400">
+                      Localização
+                    </TableHead>
+                    <TableHead className="text-gray-300 cursor-pointer hover:text-orange-400">
+                      Status
+                    </TableHead>
                     <TableHead className="text-gray-300">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {items.map((item: any) => (
-                    <TableRow key={item.id} className="border-orange-700/20 hover:bg-slate-700/30">
-                      <TableCell className="font-medium text-white">{item.name}</TableCell>
+                    <TableRow
+                      key={item.id}
+                      className="border-orange-700/20 hover:bg-slate-700/30"
+                    >
+                      <TableCell className="font-medium text-white">
+                        {item.name}
+                      </TableCell>
                       <TableCell
                         className="text-gray-300 cursor-pointer hover:text-orange-400 transition"
                         onClick={() => handleInlineEdit(item, "category")}
@@ -295,9 +394,11 @@ export default function Inventory() {
                       <TableCell>
                         <span
                           className={`px-2 py-1 rounded text-xs font-medium cursor-pointer hover:opacity-80 transition ${
-                            item.status === "ativo" ? "bg-green-900/30 text-green-400 border border-green-700/30" :
-                            item.status === "inativo" ? "bg-yellow-900/30 text-yellow-400 border border-yellow-700/30" :
-                            "bg-red-900/30 text-red-400 border border-red-700/30"
+                            item.status === "ativo"
+                              ? "bg-green-900/30 text-green-400 border border-green-700/30"
+                              : item.status === "inativo"
+                                ? "bg-yellow-900/30 text-yellow-400 border border-yellow-700/30"
+                                : "bg-red-900/30 text-red-400 border border-red-700/30"
                           }`}
                           onClick={() => handleInlineEdit(item, "status")}
                         >
@@ -306,16 +407,16 @@ export default function Inventory() {
                       </TableCell>
                       <TableCell>
                         <div className="flex gap-2">
-                          <Button 
-                            variant="outline" 
+                          <Button
+                            variant="outline"
                             size="sm"
                             className="border-orange-600 text-orange-500 hover:bg-orange-600/10"
                             onClick={() => handleEditItem(item)}
                           >
                             <Edit2 className="w-4 h-4" />
                           </Button>
-                          <Button 
-                            variant="outline" 
+                          <Button
+                            variant="outline"
                             size="sm"
                             className="border-red-600 text-red-500 hover:bg-red-600/10"
                             onClick={() => handleDelete(item.id)}
@@ -335,29 +436,44 @@ export default function Inventory() {
 
       {/* Dialog de Edição Completa */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="bg-slate-800 border-orange-700/30">
+        <DialogContent className="w-[calc(100vw-2rem)] max-w-lg max-h-[90vh] overflow-y-auto bg-slate-800 border-orange-700/30">
           <DialogHeader>
-            <DialogTitle className="text-white">{editingItem ? "Editar Item" : "Novo Item"}</DialogTitle>
+            <DialogTitle className="text-white">
+              {editingItem ? "Editar Item" : "Novo Item"}
+            </DialogTitle>
             <DialogDescription className="text-gray-400">
-              {editingItem ? "Actualizar informações do item" : "Criar um novo item no inventário"}
+              {editingItem
+                ? "Actualizar informações do item"
+                : "Criar um novo item no inventário"}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label htmlFor="name" className="text-gray-300">Nome do Item</Label>
+              <Label htmlFor="name" className="text-gray-300">
+                Nome do Item
+              </Label>
               <Input
                 id="name"
                 value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                onChange={e =>
+                  setFormData({ ...formData, name: e.target.value })
+                }
                 placeholder="Ex: Papel A4"
                 className="mt-1 bg-slate-700 border-slate-600 text-white placeholder-gray-500"
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="category" className="text-gray-300">Categoria</Label>
-                <Select value={formData.category} onValueChange={(value) => setFormData({ ...formData, category: value })}>
+                <Label htmlFor="category" className="text-gray-300">
+                  Categoria
+                </Label>
+                <Select
+                  value={formData.category}
+                  onValueChange={value =>
+                    setFormData({ ...formData, category: value })
+                  }
+                >
                   <SelectTrigger className="mt-1 bg-slate-700 border-slate-600 text-white">
                     <SelectValue />
                   </SelectTrigger>
@@ -371,37 +487,55 @@ export default function Inventory() {
               </div>
 
               <div>
-                <Label htmlFor="unit" className="text-gray-300">Unidade</Label>
+                <Label htmlFor="unit" className="text-gray-300">
+                  Unidade
+                </Label>
                 <Input
                   id="unit"
                   value={formData.unit}
-                  onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
+                  onChange={e =>
+                    setFormData({ ...formData, unit: e.target.value })
+                  }
                   placeholder="Ex: unidade"
                   className="mt-1 bg-slate-700 border-slate-600 text-white placeholder-gray-500"
                 />
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="quantity" className="text-gray-300">Quantidade</Label>
+                <Label htmlFor="quantity" className="text-gray-300">
+                  Quantidade
+                </Label>
                 <Input
                   id="quantity"
                   type="number"
                   value={formData.quantity}
-                  onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) || 0 })}
+                  onChange={e =>
+                    setFormData({
+                      ...formData,
+                      quantity: parseInt(e.target.value) || 0,
+                    })
+                  }
                   placeholder="0"
                   className="mt-1 bg-slate-700 border-slate-600 text-white placeholder-gray-500"
                 />
               </div>
 
               <div>
-                <Label htmlFor="minQuantity" className="text-gray-300">Quantidade Mínima</Label>
+                <Label htmlFor="minQuantity" className="text-gray-300">
+                  Quantidade Mínima
+                </Label>
                 <Input
                   id="minQuantity"
                   type="number"
                   value={formData.minQuantity}
-                  onChange={(e) => setFormData({ ...formData, minQuantity: parseInt(e.target.value) || 0 })}
+                  onChange={e =>
+                    setFormData({
+                      ...formData,
+                      minQuantity: parseInt(e.target.value) || 0,
+                    })
+                  }
                   placeholder="0"
                   className="mt-1 bg-slate-700 border-slate-600 text-white placeholder-gray-500"
                 />
@@ -409,11 +543,15 @@ export default function Inventory() {
             </div>
 
             <div>
-              <Label htmlFor="location" className="text-gray-300">Localização</Label>
+              <Label htmlFor="location" className="text-gray-300">
+                Localização
+              </Label>
               <Input
                 id="location"
                 value={formData.location}
-                onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                onChange={e =>
+                  setFormData({ ...formData, location: e.target.value })
+                }
                 placeholder="Ex: Armazém A"
                 className="mt-1 bg-slate-700 border-slate-600 text-white placeholder-gray-500"
               />
@@ -421,8 +559,15 @@ export default function Inventory() {
 
             {editingItem && (
               <div>
-                <Label htmlFor="status" className="text-gray-300">Status</Label>
-                <Select value={formData.status} onValueChange={(value: any) => setFormData({ ...formData, status: value })}>
+                <Label htmlFor="status" className="text-gray-300">
+                  Status
+                </Label>
+                <Select
+                  value={formData.status}
+                  onValueChange={(value: any) =>
+                    setFormData({ ...formData, status: value })
+                  }
+                >
                   <SelectTrigger className="mt-1 bg-slate-700 border-slate-600 text-white">
                     <SelectValue />
                   </SelectTrigger>
@@ -435,13 +580,17 @@ export default function Inventory() {
               </div>
             )}
 
-            <div className="flex gap-3 pt-4">
+            <div className="flex flex-col sm:flex-row gap-3 pt-4">
               <Button
                 onClick={handleSubmit}
                 className="bg-orange-600 hover:bg-orange-700 text-white flex-1"
                 disabled={createMutation.isPending || updateMutation.isPending}
               >
-                {createMutation.isPending || updateMutation.isPending ? "Guardando..." : editingItem ? "Actualizar" : "Criar"}
+                {createMutation.isPending || updateMutation.isPending
+                  ? "Guardando..."
+                  : editingItem
+                    ? "Actualizar"
+                    : "Criar"}
               </Button>
               <Button
                 onClick={() => setIsDialogOpen(false)}
@@ -457,9 +606,11 @@ export default function Inventory() {
 
       {/* Dialog de Nova Categoria */}
       <Dialog open={isAddingCategory} onOpenChange={setIsAddingCategory}>
-        <DialogContent className="bg-slate-800 border-orange-700/30 max-w-sm">
+        <DialogContent className="w-[calc(100vw-2rem)] max-w-sm max-h-[90vh] overflow-y-auto bg-slate-800 border-orange-700/30">
           <DialogHeader>
-            <DialogTitle className="text-white">Adicionar Nova Categoria</DialogTitle>
+            <DialogTitle className="text-white">
+              Adicionar Nova Categoria
+            </DialogTitle>
             <DialogDescription className="text-gray-400">
               Digite o nome da nova categoria de consumível
             </DialogDescription>
@@ -467,12 +618,12 @@ export default function Inventory() {
           <div className="space-y-4">
             <Input
               value={newCategoryName}
-              onChange={(e) => setNewCategoryName(e.target.value)}
+              onChange={e => setNewCategoryName(e.target.value)}
               placeholder="Ex: Papel, Tinta, etc."
               className="bg-slate-700 border-slate-600 text-white"
-              onKeyPress={(e) => e.key === "Enter" && handleAddCategory()}
+              onKeyPress={e => e.key === "Enter" && handleAddCategory()}
             />
-            <div className="flex gap-3 pt-4">
+            <div className="flex flex-col sm:flex-row gap-3 pt-4">
               <Button
                 onClick={handleAddCategory}
                 className="bg-orange-600 hover:bg-orange-700 text-white flex-1"
@@ -492,33 +643,45 @@ export default function Inventory() {
       </Dialog>
 
       {/* Dialog de Edição Inline */}
-      <Dialog open={inlineEditingId !== null} onOpenChange={(open) => !open && setInlineEditingId(null)}>
-        <DialogContent className="bg-slate-800 border-orange-700/30 max-w-sm">
+      <Dialog
+        open={inlineEditingId !== null}
+        onOpenChange={open => !open && setInlineEditingId(null)}
+      >
+        <DialogContent className="w-[calc(100vw-2rem)] max-w-sm max-h-[90vh] overflow-y-auto bg-slate-800 border-orange-700/30">
           <DialogHeader>
-            <DialogTitle className="text-white">Editar {inlineEditField?.charAt(0).toUpperCase()}{inlineEditField?.slice(1)}</DialogTitle>
+            <DialogTitle className="text-white">
+              Editar {inlineEditField?.charAt(0).toUpperCase()}
+              {inlineEditField?.slice(1)}
+            </DialogTitle>
             <DialogDescription className="text-gray-400">
               Selecione o novo valor para este campo
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             {inlineEditField === "category" && (
-              <Select value={inlineEditValue} onValueChange={setInlineEditValue}>
+              <Select
+                value={inlineEditValue}
+                onValueChange={setInlineEditValue}
+              >
                 <SelectTrigger className="bg-slate-700 border-slate-600 text-white">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {customCategories.map((cat) => (
-                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                  {customCategories.map(cat => (
+                    <SelectItem key={cat} value={cat}>
+                      {cat}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             )}
 
-            {(inlineEditField === "quantity" || inlineEditField === "minQuantity") && (
+            {(inlineEditField === "quantity" ||
+              inlineEditField === "minQuantity") && (
               <Input
                 type="number"
                 value={inlineEditValue}
-                onChange={(e) => setInlineEditValue(e.target.value)}
+                onChange={e => setInlineEditValue(e.target.value)}
                 className="bg-slate-700 border-slate-600 text-white"
               />
             )}
@@ -526,14 +689,17 @@ export default function Inventory() {
             {inlineEditField === "location" && (
               <Input
                 value={inlineEditValue}
-                onChange={(e) => setInlineEditValue(e.target.value)}
+                onChange={e => setInlineEditValue(e.target.value)}
                 placeholder="Ex: Armazém A"
                 className="bg-slate-700 border-slate-600 text-white"
               />
             )}
 
             {inlineEditField === "status" && (
-              <Select value={inlineEditValue} onValueChange={setInlineEditValue}>
+              <Select
+                value={inlineEditValue}
+                onValueChange={setInlineEditValue}
+              >
                 <SelectTrigger className="bg-slate-700 border-slate-600 text-white">
                   <SelectValue />
                 </SelectTrigger>
@@ -545,7 +711,7 @@ export default function Inventory() {
               </Select>
             )}
 
-            <div className="flex gap-3 pt-4">
+            <div className="flex flex-col sm:flex-row gap-3 pt-4">
               <Button
                 onClick={handleInlineSubmit}
                 className="bg-orange-600 hover:bg-orange-700 text-white flex-1"

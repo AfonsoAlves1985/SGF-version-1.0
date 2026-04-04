@@ -1,14 +1,47 @@
 import { useState, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DateInputWithCalendar } from "@/components/DateInputWithCalendar";
-import { Plus, Building2, Users, Edit2, Trash2, Calendar, Clock } from "lucide-react";
+import {
+  Plus,
+  Building2,
+  Users,
+  Edit2,
+  Trash2,
+  Calendar,
+  Clock,
+} from "lucide-react";
 import { toast } from "sonner";
 
 function formatDateInput(value: string) {
@@ -102,7 +135,11 @@ export default function Rooms() {
     isReleased: 0,
   });
 
-  const { data: rooms = [], isLoading, refetch } = trpc.rooms.list.useQuery({
+  const {
+    data: rooms = [],
+    isLoading,
+    refetch,
+  } = trpc.rooms.list.useQuery({
     status,
   });
 
@@ -111,11 +148,23 @@ export default function Rooms() {
   const createMutation = trpc.rooms.create.useMutation({
     onSuccess: () => {
       toast.success("Sala criada com sucesso!");
-      setFormData({ name: "", capacity: 0, location: "", type: "sala", status: "disponivel", responsibleUserName: "", startDate: "", endDate: "", startTime: "", endTime: "", isReleased: 0 });
+      setFormData({
+        name: "",
+        capacity: 0,
+        location: "",
+        type: "sala",
+        status: "disponivel",
+        responsibleUserName: "",
+        startDate: "",
+        endDate: "",
+        startTime: "",
+        endTime: "",
+        isReleased: 0,
+      });
       setIsDialogOpen(false);
       refetch();
     },
-    onError: (error) => {
+    onError: error => {
       toast.error(`Erro: ${error.message}`);
     },
   });
@@ -124,13 +173,25 @@ export default function Rooms() {
     onSuccess: () => {
       toast.success("Sala actualizada com sucesso!");
       setEditingRoom(null);
-      setFormData({ name: "", capacity: 0, location: "", type: "sala", status: "disponivel", responsibleUserName: "", startDate: "", endDate: "", startTime: "", endTime: "", isReleased: 0 });
+      setFormData({
+        name: "",
+        capacity: 0,
+        location: "",
+        type: "sala",
+        status: "disponivel",
+        responsibleUserName: "",
+        startDate: "",
+        endDate: "",
+        startTime: "",
+        endTime: "",
+        isReleased: 0,
+      });
       setIsDialogOpen(false);
       setInlineEditingId(null);
       setInlineEditField(null);
       refetch();
     },
-    onError: (error) => {
+    onError: error => {
       toast.error(`Erro: ${error.message}`);
     },
   });
@@ -140,21 +201,33 @@ export default function Rooms() {
       toast.success("Sala eliminada com sucesso!");
       refetch();
     },
-    onError: (error) => {
+    onError: error => {
       toast.error(`Erro: ${error.message}`);
     },
   });
 
   const handleCreateSample = () => {
     setEditingRoom(null);
-    setFormData({ name: "", capacity: 0, location: "", type: "sala", status: "disponivel", responsibleUserName: "", startDate: "", endDate: "", startTime: "", endTime: "", isReleased: 0 });
+    setFormData({
+      name: "",
+      capacity: 0,
+      location: "",
+      type: "sala",
+      status: "disponivel",
+      responsibleUserName: "",
+      startDate: "",
+      endDate: "",
+      startTime: "",
+      endTime: "",
+      isReleased: 0,
+    });
     setIsDialogOpen(true);
   };
 
   const handleReleaseRoom = (roomId: number) => {
     const room = rooms.find((r: any) => r.id === roomId);
     if (!room) return;
-    
+
     updateMutation.mutate({
       id: roomId,
       name: room.name,
@@ -172,7 +245,13 @@ export default function Rooms() {
 
   const handleOpenUseRoom = (room: any) => {
     setSelectedRoomForUse(room);
-    setUseRoomForm({ responsibleUserName: "", startDate: "", endDate: "", startTime: "", endTime: "" });
+    setUseRoomForm({
+      responsibleUserName: "",
+      startDate: "",
+      endDate: "",
+      startTime: "",
+      endTime: "",
+    });
     setUseRoomDialogOpen(true);
   };
 
@@ -187,7 +266,10 @@ export default function Rooms() {
       return;
     }
 
-    if (!parseMaskedDate(useRoomForm.startDate) || !parseMaskedDate(useRoomForm.endDate)) {
+    if (
+      !parseMaskedDate(useRoomForm.startDate) ||
+      !parseMaskedDate(useRoomForm.endDate)
+    ) {
       toast.error("Use o formato DD-MM-YYYY para as datas.");
       return;
     }
@@ -243,7 +325,7 @@ export default function Rooms() {
     if (inlineEditingId && inlineEditField) {
       const room = rooms.find((r: any) => r.id === inlineEditingId);
       if (!room) return;
-      
+
       const updateData: any = {
         id: inlineEditingId,
         name: room.name,
@@ -251,7 +333,7 @@ export default function Rooms() {
         location: room.location,
         type: room.type,
         status: room.status,
-  
+
         responsibleUserName: room.responsibleUserName,
         startDate: room.startDate,
         endDate: room.endDate,
@@ -259,16 +341,19 @@ export default function Rooms() {
         endTime: room.endTime,
         isReleased: room.isReleased,
       };
-      
+
       // Update only the edited field
       if (inlineEditField === "capacity") {
         updateData[inlineEditField] = parseInt(inlineEditValue) || 0;
-      } else if (inlineEditField === "startDate" || inlineEditField === "endDate") {
+      } else if (
+        inlineEditField === "startDate" ||
+        inlineEditField === "endDate"
+      ) {
         updateData[inlineEditField] = inlineEditValue || undefined;
       } else {
         updateData[inlineEditField] = inlineEditValue || undefined;
       }
-      
+
       // Validar datas se ambas estão definidas
       if (updateData.startDate && updateData.endDate) {
         if (
@@ -282,13 +367,15 @@ export default function Rooms() {
         }
 
         if (!isDateRangeValid(updateData.startDate, updateData.endDate)) {
-          toast.error("A data de término não pode ser anterior à data de início");
+          toast.error(
+            "A data de término não pode ser anterior à data de início"
+          );
           setInlineEditingId(null);
           setInlineEditField(null);
           return;
         }
       }
-      
+
       updateMutation.mutate(updateData);
     }
   };
@@ -301,7 +388,10 @@ export default function Rooms() {
 
     // Validar datas
     if (formData.startDate && formData.endDate) {
-      if (!parseMaskedDate(formData.startDate) || !parseMaskedDate(formData.endDate)) {
+      if (
+        !parseMaskedDate(formData.startDate) ||
+        !parseMaskedDate(formData.endDate)
+      ) {
         toast.error("Use o formato DD-MM-YYYY para as datas");
         return;
       }
@@ -355,7 +445,10 @@ export default function Rooms() {
           <h1 className="text-3xl font-bold text-white">Salas</h1>
           <p className="text-gray-400 mt-1">Gestão de espaços e reservas</p>
         </div>
-        <Button onClick={handleCreateSample} className="bg-orange-600 hover:bg-orange-700">
+        <Button
+          onClick={handleCreateSample}
+          className="bg-orange-600 hover:bg-orange-700"
+        >
           <Plus className="w-4 h-4 mr-2" />
           Nova Sala
         </Button>
@@ -364,7 +457,9 @@ export default function Rooms() {
       <Card className="bg-slate-800/50 border-orange-700/30">
         <CardHeader>
           <CardTitle className="text-white">Filtros</CardTitle>
-          <CardDescription className="text-gray-400">Filtre salas por status</CardDescription>
+          <CardDescription className="text-gray-400">
+            Filtre salas por status
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="max-w-xs">
@@ -384,45 +479,65 @@ export default function Rooms() {
         </CardContent>
       </Card>
 
-
-
       {/* Dialog de Edição Completa */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="bg-slate-800 border-orange-700/30">
+        <DialogContent className="w-[calc(100vw-2rem)] max-w-2xl max-h-[90vh] overflow-y-auto bg-slate-800 border-orange-700/30">
           <DialogHeader>
-            <DialogTitle className="text-white">{editingRoom ? "Editar Sala" : "Nova Sala"}</DialogTitle>
+            <DialogTitle className="text-white">
+              {editingRoom ? "Editar Sala" : "Nova Sala"}
+            </DialogTitle>
             <DialogDescription className="text-gray-400">
-              {editingRoom ? "Actualizar informações da sala" : "Criar uma nova sala"}
+              {editingRoom
+                ? "Actualizar informações da sala"
+                : "Criar uma nova sala"}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label htmlFor="name" className="text-gray-300">Nome da Sala</Label>
+              <Label htmlFor="name" className="text-gray-300">
+                Nome da Sala
+              </Label>
               <Input
                 id="name"
                 value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                onChange={e =>
+                  setFormData({ ...formData, name: e.target.value })
+                }
                 placeholder="Ex: Sala de Reuniões A"
                 className="mt-1 bg-slate-700 border-slate-600 text-white placeholder-gray-500"
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="capacity" className="text-gray-300">Capacidade</Label>
+                <Label htmlFor="capacity" className="text-gray-300">
+                  Capacidade
+                </Label>
                 <Input
                   id="capacity"
                   type="number"
                   value={formData.capacity}
-                  onChange={(e) => setFormData({ ...formData, capacity: parseInt(e.target.value) || 0 })}
+                  onChange={e =>
+                    setFormData({
+                      ...formData,
+                      capacity: parseInt(e.target.value) || 0,
+                    })
+                  }
                   placeholder="0"
                   className="mt-1 bg-slate-700 border-slate-600 text-white placeholder-gray-500"
                 />
               </div>
 
               <div>
-                <Label htmlFor="type" className="text-gray-300">Tipo</Label>
-                <Select value={formData.type} onValueChange={(value: any) => setFormData({ ...formData, type: value })}>
+                <Label htmlFor="type" className="text-gray-300">
+                  Tipo
+                </Label>
+                <Select
+                  value={formData.type}
+                  onValueChange={(value: any) =>
+                    setFormData({ ...formData, type: value })
+                  }
+                >
                   <SelectTrigger className="mt-1 bg-slate-700 border-slate-600 text-white">
                     <SelectValue />
                   </SelectTrigger>
@@ -437,38 +552,51 @@ export default function Rooms() {
             </div>
 
             <div>
-              <Label htmlFor="location" className="text-gray-300">Localização</Label>
+              <Label htmlFor="location" className="text-gray-300">
+                Localização
+              </Label>
               <Input
                 id="location"
                 value={formData.location}
-                onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                onChange={e =>
+                  setFormData({ ...formData, location: e.target.value })
+                }
                 placeholder="Ex: Piso 2"
                 className="mt-1 bg-slate-700 border-slate-600 text-white placeholder-gray-500"
               />
             </div>
 
             <div>
-              <Label htmlFor="responsibleUserName" className="text-gray-300">Nome do Solicitante</Label>
+              <Label htmlFor="responsibleUserName" className="text-gray-300">
+                Nome do Solicitante
+              </Label>
               <Input
                 id="responsibleUserName"
                 type="text"
                 placeholder="Nome completo do responsável"
                 value={formData.responsibleUserName}
-                onChange={(e) => setFormData({ ...formData, responsibleUserName: e.target.value })}
+                onChange={e =>
+                  setFormData({
+                    ...formData,
+                    responsibleUserName: e.target.value,
+                  })
+                }
                 className="mt-1 bg-slate-700 border-slate-600 text-white"
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="startDate" className="text-gray-300">Data de Início</Label>
+                <Label htmlFor="startDate" className="text-gray-300">
+                  Data de Início
+                </Label>
                 <Input
                   id="startDate"
                   type="text"
                   inputMode="numeric"
                   maxLength={10}
-                  value={formData.startDate as string || ""}
-                  onChange={(e) =>
+                  value={(formData.startDate as string) || ""}
+                  onChange={e =>
                     setFormData({
                       ...formData,
                       startDate: formatDateInput(e.target.value),
@@ -479,14 +607,16 @@ export default function Rooms() {
                 />
               </div>
               <div>
-                <Label htmlFor="endDate" className="text-gray-300">Data de Fim</Label>
+                <Label htmlFor="endDate" className="text-gray-300">
+                  Data de Fim
+                </Label>
                 <Input
                   id="endDate"
                   type="text"
                   inputMode="numeric"
                   maxLength={10}
-                  value={formData.endDate as string || ""}
-                  onChange={(e) =>
+                  value={(formData.endDate as string) || ""}
+                  onChange={e =>
                     setFormData({
                       ...formData,
                       endDate: formatDateInput(e.target.value),
@@ -498,24 +628,32 @@ export default function Rooms() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="startTime" className="text-gray-300">Hora de Início</Label>
+                <Label htmlFor="startTime" className="text-gray-300">
+                  Hora de Início
+                </Label>
                 <Input
                   id="startTime"
                   type="time"
                   value={formData.startTime}
-                  onChange={(e) => setFormData({ ...formData, startTime: e.target.value })}
+                  onChange={e =>
+                    setFormData({ ...formData, startTime: e.target.value })
+                  }
                   className="mt-1 bg-slate-700 border-slate-600 text-white"
                 />
               </div>
               <div>
-                <Label htmlFor="endTime" className="text-gray-300">Hora de Fim</Label>
+                <Label htmlFor="endTime" className="text-gray-300">
+                  Hora de Fim
+                </Label>
                 <Input
                   id="endTime"
                   type="time"
                   value={formData.endTime}
-                  onChange={(e) => setFormData({ ...formData, endTime: e.target.value })}
+                  onChange={e =>
+                    setFormData({ ...formData, endTime: e.target.value })
+                  }
                   className="mt-1 bg-slate-700 border-slate-600 text-white"
                 />
               </div>
@@ -523,8 +661,15 @@ export default function Rooms() {
 
             {editingRoom && (
               <div>
-                <Label htmlFor="status" className="text-gray-300">Status</Label>
-                <Select value={formData.status} onValueChange={(value: any) => setFormData({ ...formData, status: value })}>
+                <Label htmlFor="status" className="text-gray-300">
+                  Status
+                </Label>
+                <Select
+                  value={formData.status}
+                  onValueChange={(value: any) =>
+                    setFormData({ ...formData, status: value })
+                  }
+                >
                   <SelectTrigger className="mt-1 bg-slate-700 border-slate-600 text-white">
                     <SelectValue />
                   </SelectTrigger>
@@ -537,13 +682,17 @@ export default function Rooms() {
               </div>
             )}
 
-            <div className="flex gap-3 pt-4">
+            <div className="flex flex-col sm:flex-row gap-3 pt-4">
               <Button
                 onClick={handleSubmit}
                 className="bg-orange-600 hover:bg-orange-700 text-white flex-1"
                 disabled={createMutation.isPending || updateMutation.isPending}
               >
-                {createMutation.isPending || updateMutation.isPending ? "Guardando..." : editingRoom ? "Actualizar" : "Criar"}
+                {createMutation.isPending || updateMutation.isPending
+                  ? "Guardando..."
+                  : editingRoom
+                    ? "Actualizar"
+                    : "Criar"}
               </Button>
               <Button
                 onClick={() => setIsDialogOpen(false)}
@@ -558,10 +707,16 @@ export default function Rooms() {
       </Dialog>
 
       {/* Dialog de Edição Inline */}
-      <Dialog open={inlineEditingId !== null} onOpenChange={(open) => !open && setInlineEditingId(null)}>
-        <DialogContent className="bg-slate-800 border-orange-700/30 max-w-sm">
+      <Dialog
+        open={inlineEditingId !== null}
+        onOpenChange={open => !open && setInlineEditingId(null)}
+      >
+        <DialogContent className="w-[calc(100vw-2rem)] max-w-sm max-h-[90vh] overflow-y-auto bg-slate-800 border-orange-700/30">
           <DialogHeader>
-            <DialogTitle className="text-white">Editar {inlineEditField?.charAt(0).toUpperCase()}{inlineEditField?.slice(1)}</DialogTitle>
+            <DialogTitle className="text-white">
+              Editar {inlineEditField?.charAt(0).toUpperCase()}
+              {inlineEditField?.slice(1)}
+            </DialogTitle>
             <DialogDescription className="text-gray-400">
               Selecione o novo valor para este campo
             </DialogDescription>
@@ -571,7 +726,7 @@ export default function Rooms() {
               <Input
                 type="number"
                 value={inlineEditValue}
-                onChange={(e) => setInlineEditValue(e.target.value)}
+                onChange={e => setInlineEditValue(e.target.value)}
                 className="bg-slate-700 border-slate-600 text-white"
               />
             )}
@@ -579,14 +734,17 @@ export default function Rooms() {
             {inlineEditField === "location" && (
               <Input
                 value={inlineEditValue}
-                onChange={(e) => setInlineEditValue(e.target.value)}
+                onChange={e => setInlineEditValue(e.target.value)}
                 placeholder="Ex: Piso 2"
                 className="bg-slate-700 border-slate-600 text-white"
               />
             )}
 
             {inlineEditField === "type" && (
-              <Select value={inlineEditValue} onValueChange={setInlineEditValue}>
+              <Select
+                value={inlineEditValue}
+                onValueChange={setInlineEditValue}
+              >
                 <SelectTrigger className="bg-slate-700 border-slate-600 text-white">
                   <SelectValue />
                 </SelectTrigger>
@@ -600,7 +758,10 @@ export default function Rooms() {
             )}
 
             {inlineEditField === "status" && (
-              <Select value={inlineEditValue} onValueChange={setInlineEditValue}>
+              <Select
+                value={inlineEditValue}
+                onValueChange={setInlineEditValue}
+              >
                 <SelectTrigger className="bg-slate-700 border-slate-600 text-white">
                   <SelectValue />
                 </SelectTrigger>
@@ -616,7 +777,7 @@ export default function Rooms() {
               <Input
                 type="text"
                 value={inlineEditValue}
-                onChange={(e) => setInlineEditValue(e.target.value)}
+                onChange={e => setInlineEditValue(e.target.value)}
                 placeholder="Nome completo do responsavel"
                 className="bg-slate-700 border-slate-600 text-white"
               />
@@ -628,7 +789,9 @@ export default function Rooms() {
                 inputMode="numeric"
                 maxLength={10}
                 value={inlineEditValue}
-                onChange={(e) => setInlineEditValue(formatDateInput(e.target.value))}
+                onChange={e =>
+                  setInlineEditValue(formatDateInput(e.target.value))
+                }
                 placeholder="DD-MM-YYYY"
                 className="bg-slate-700 border-slate-600 text-white"
               />
@@ -640,7 +803,9 @@ export default function Rooms() {
                 inputMode="numeric"
                 maxLength={10}
                 value={inlineEditValue}
-                onChange={(e) => setInlineEditValue(formatDateInput(e.target.value))}
+                onChange={e =>
+                  setInlineEditValue(formatDateInput(e.target.value))
+                }
                 placeholder="DD-MM-YYYY"
                 className="bg-slate-700 border-slate-600 text-white"
               />
@@ -650,7 +815,7 @@ export default function Rooms() {
               <Input
                 type="time"
                 value={inlineEditValue}
-                onChange={(e) => setInlineEditValue(e.target.value)}
+                onChange={e => setInlineEditValue(e.target.value)}
                 className="bg-slate-700 border-slate-600 text-white"
               />
             )}
@@ -659,12 +824,12 @@ export default function Rooms() {
               <Input
                 type="time"
                 value={inlineEditValue}
-                onChange={(e) => setInlineEditValue(e.target.value)}
+                onChange={e => setInlineEditValue(e.target.value)}
                 className="bg-slate-700 border-slate-600 text-white"
               />
             )}
 
-            <div className="flex gap-3 pt-4">
+            <div className="flex flex-col sm:flex-row gap-3 pt-4">
               <Button
                 onClick={handleInlineSubmit}
                 className="bg-orange-600 hover:bg-orange-700 text-white flex-1"
@@ -688,7 +853,9 @@ export default function Rooms() {
       <Card className="bg-slate-800/50 border-orange-700/30">
         <CardHeader>
           <CardTitle className="text-white">Tempo de Uso das Salas</CardTitle>
-          <CardDescription className="text-gray-400">Acompanhe o tempo decorrido e alertas de entrega</CardDescription>
+          <CardDescription className="text-gray-400">
+            Acompanhe o tempo decorrido e alertas de entrega
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -696,7 +863,10 @@ export default function Rooms() {
               // Sala em manutenção: sempre destacar em amarelo
               if (room.status === "manutencao") {
                 return (
-                  <Card key={room.id} className="bg-yellow-900/30 border-yellow-700/40 border relative">
+                  <Card
+                    key={room.id}
+                    className="bg-yellow-900/30 border-yellow-700/40 border relative"
+                  >
                     <button
                       onClick={() => handleEditRoom(room)}
                       className="absolute top-2 right-8 text-gray-500 hover:text-blue-500 transition-colors p-1"
@@ -718,14 +888,21 @@ export default function Rooms() {
                     <CardContent className="pt-4">
                       <div className="space-y-3">
                         <div>
-                          <p className="text-white font-semibold text-sm">{room.name}</p>
-                          <p className="text-gray-400 text-xs">Capacidade: {room.capacity} pessoas</p>
+                          <p className="text-white font-semibold text-sm">
+                            {room.name}
+                          </p>
+                          <p className="text-gray-400 text-xs">
+                            Capacidade: {room.capacity} pessoas
+                          </p>
                         </div>
                         <div className="pt-2 border-t border-yellow-700/40">
                           <p className="text-xs font-semibold text-white mb-1">
-                            Status: <span className="text-yellow-300">Manutenção</span>
+                            Status:{" "}
+                            <span className="text-yellow-300">Manutenção</span>
                           </p>
-                          <p className="text-xs text-yellow-200">Aviso de manutenção ativa</p>
+                          <p className="text-xs text-yellow-200">
+                            Aviso de manutenção ativa
+                          </p>
                           <Button
                             onClick={() => handleReleaseRoom(room.id)}
                             className="mt-2 w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs py-1"
@@ -741,9 +918,16 @@ export default function Rooms() {
               }
 
               // Sala sem datas = disponível para uso
-              if (!room.startDate || !room.endDate || room.status === "disponivel") {
+              if (
+                !room.startDate ||
+                !room.endDate ||
+                room.status === "disponivel"
+              ) {
                 return (
-                  <Card key={room.id} className="bg-emerald-900/30 border-emerald-700/30 border relative">
+                  <Card
+                    key={room.id}
+                    className="bg-emerald-900/30 border-emerald-700/30 border relative"
+                  >
                     <button
                       onClick={() => handleEditRoom(room)}
                       className="absolute top-2 right-8 text-gray-500 hover:text-blue-500 transition-colors p-1"
@@ -765,12 +949,21 @@ export default function Rooms() {
                     <CardContent className="pt-4">
                       <div className="space-y-3">
                         <div>
-                          <p className="text-white font-semibold text-sm">{room.name}</p>
-                          <p className="text-gray-400 text-xs">Capacidade: {room.capacity} pessoas</p>
+                          <p className="text-white font-semibold text-sm">
+                            {room.name}
+                          </p>
+                          <p className="text-gray-400 text-xs">
+                            Capacidade: {room.capacity} pessoas
+                          </p>
                         </div>
                         <div className="pt-2 border-t border-slate-700">
-                          <p className="text-xs font-semibold text-white mb-1">Status: <span className="text-emerald-400">Disponível</span></p>
-                          <p className="text-xs text-gray-400">Pronta para nova solicitação</p>
+                          <p className="text-xs font-semibold text-white mb-1">
+                            Status:{" "}
+                            <span className="text-emerald-400">Disponível</span>
+                          </p>
+                          <p className="text-xs text-gray-400">
+                            Pronta para nova solicitação
+                          </p>
                           <Button
                             onClick={() => handleOpenUseRoom(room)}
                             className="mt-2 w-full bg-orange-600 hover:bg-orange-700 text-white text-xs py-1"
@@ -805,10 +998,10 @@ export default function Rooms() {
               };
               const startDate = parseDateTime(room.startDate, room.startTime);
               const endDate = parseDateTime(room.endDate, room.endTime);
-              
+
               // Usar data atual local
               const nowBrasilia = now;
-              
+
               const totalDuration = endDate.getTime() - startDate.getTime();
               // Calcular tempo decorrido considerando os limites [startDate, endDate]
               let elapsedTime = 0;
@@ -820,14 +1013,18 @@ export default function Rooms() {
                 elapsedTime = totalDuration;
               }
               // Se nowBrasilia < startDate, elapsedTime permanece 0
-              
-              const remainingTime = Math.max(endDate.getTime() - nowBrasilia.getTime(), 0);
-              const usagePercentage = totalDuration > 0 ? (elapsedTime / totalDuration) * 100 : 0;
-              
+
+              const remainingTime = Math.max(
+                endDate.getTime() - nowBrasilia.getTime(),
+                0
+              );
+              const usagePercentage =
+                totalDuration > 0 ? (elapsedTime / totalDuration) * 100 : 0;
+
               let alertStatus = "normal";
               let alertColor = "bg-green-900/30 border-green-700/30";
               let alertText = "Normal";
-              
+
               if (nowBrasilia < startDate) {
                 // Ainda não começou
                 alertStatus = "aguardando";
@@ -846,7 +1043,7 @@ export default function Rooms() {
                 alertColor = "bg-yellow-900/30 border-yellow-700/30";
                 alertText = "Aviso";
               }
-              
+
               return (
                 <Card key={room.id} className={`${alertColor} border relative`}>
                   <button
@@ -870,49 +1067,72 @@ export default function Rooms() {
                   <CardContent className="pt-4">
                     <div className="space-y-3">
                       <div>
-                        <p className="text-white font-semibold text-sm">{room.name}</p>
-                        {room.responsibleUserName && room.responsibleUserName.trim() ? (
-                          <p className="text-orange-400 text-xs font-medium">Solicitante: <span className="text-white">{room.responsibleUserName}</span></p>
+                        <p className="text-white font-semibold text-sm">
+                          {room.name}
+                        </p>
+                        {room.responsibleUserName &&
+                        room.responsibleUserName.trim() ? (
+                          <p className="text-orange-400 text-xs font-medium">
+                            Solicitante:{" "}
+                            <span className="text-white">
+                              {room.responsibleUserName}
+                            </span>
+                          </p>
                         ) : (
-                          <p className="text-gray-500 text-xs italic">Solicitante não informado</p>
+                          <p className="text-gray-500 text-xs italic">
+                            Solicitante não informado
+                          </p>
                         )}
                       </div>
-                      
+
                       <div className="space-y-1">
                         <div className="flex justify-between text-xs">
-                          <span className="text-gray-400">Progresso de Uso</span>
-                          <span className="text-gray-300">{Math.round(usagePercentage)}%</span>
+                          <span className="text-gray-400">
+                            Progresso de Uso
+                          </span>
+                          <span className="text-gray-300">
+                            {Math.round(usagePercentage)}%
+                          </span>
                         </div>
                         <div className="w-full bg-slate-700 rounded-full h-2">
-                          <div 
+                          <div
                             className="bg-orange-600 h-2 rounded-full transition-all"
-                            style={{ width: `${Math.min(usagePercentage, 100)}%` }}
+                            style={{
+                              width: `${Math.min(usagePercentage, 100)}%`,
+                            }}
                           ></div>
                         </div>
                       </div>
-                      
+
                       <div className="grid grid-cols-2 gap-2 text-xs">
                         <div>
                           <p className="text-gray-400">Início</p>
-                          <p className="text-gray-300">{startDate.toLocaleDateString("pt-PT")}</p>
+                          <p className="text-gray-300">
+                            {startDate.toLocaleDateString("pt-PT")}
+                          </p>
                         </div>
                         <div>
                           <p className="text-gray-400">Fim</p>
-                          <p className="text-gray-300">{endDate.toLocaleDateString("pt-PT")}</p>
+                          <p className="text-gray-300">
+                            {endDate.toLocaleDateString("pt-PT")}
+                          </p>
                         </div>
                       </div>
-                      
+
                       <div className="pt-2 border-t border-slate-700">
-                        <p className="text-xs font-semibold text-white mb-1">Status: <span className="text-orange-400">{alertText}</span></p>
+                        <p className="text-xs font-semibold text-white mb-1">
+                          Status:{" "}
+                          <span className="text-orange-400">{alertText}</span>
+                        </p>
                         <p className="text-xs text-gray-400">
                           {now < startDate
                             ? `Inicia em ${Math.ceil((startDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))} dia(s)`
                             : remainingTime > 0
-                            ? `Faltam ${Math.ceil(remainingTime / (1000 * 60 * 60 * 24))} dias`
-                            : "Prazo expirado"
-                          }
+                              ? `Faltam ${Math.ceil(remainingTime / (1000 * 60 * 60 * 24))} dias`
+                              : "Prazo expirado"}
                         </p>
-                        {(room.status === "ocupada" || room.status === "manutencao") && (
+                        {(room.status === "ocupada" ||
+                          room.status === "manutencao") && (
                           <Button
                             onClick={() => handleReleaseRoom(room.id)}
                             className="mt-2 w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs py-1"
@@ -928,7 +1148,7 @@ export default function Rooms() {
               );
             })}
           </div>
-          
+
           {rooms.length === 0 && (
             <div className="text-center py-8">
               <Calendar className="w-12 h-12 text-gray-600 mx-auto mb-2" />
@@ -940,11 +1160,12 @@ export default function Rooms() {
 
       {/* Dialog Utilizar Sala */}
       <Dialog open={useRoomDialogOpen} onOpenChange={setUseRoomDialogOpen}>
-        <DialogContent className="bg-slate-800 border-slate-700 text-white max-w-md">
+        <DialogContent className="w-[calc(100vw-2rem)] max-w-md max-h-[90vh] overflow-y-auto bg-slate-800 border-slate-700 text-white">
           <DialogHeader>
             <DialogTitle className="text-white">Utilizar Sala</DialogTitle>
             <DialogDescription className="text-gray-400">
-              {selectedRoomForUse?.name} &mdash; Preencha os dados do solicitante e período de uso
+              {selectedRoomForUse?.name} &mdash; Preencha os dados do
+              solicitante e período de uso
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -954,11 +1175,16 @@ export default function Rooms() {
                 type="text"
                 placeholder="Nome completo do responsável"
                 value={useRoomForm.responsibleUserName}
-                onChange={(e) => setUseRoomForm({ ...useRoomForm, responsibleUserName: e.target.value })}
+                onChange={e =>
+                  setUseRoomForm({
+                    ...useRoomForm,
+                    responsibleUserName: e.target.value,
+                  })
+                }
                 className="mt-1 bg-slate-700 border-slate-600 text-white"
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <Label className="text-gray-300">Data de Início *</Label>
                 <DateInputWithCalendar
@@ -988,13 +1214,18 @@ export default function Rooms() {
                 />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <Label className="text-gray-300">Hora de Início</Label>
                 <Input
                   type="time"
                   value={useRoomForm.startTime}
-                  onChange={(e) => setUseRoomForm({ ...useRoomForm, startTime: e.target.value })}
+                  onChange={e =>
+                    setUseRoomForm({
+                      ...useRoomForm,
+                      startTime: e.target.value,
+                    })
+                  }
                   className="mt-1 bg-slate-700 border-slate-600 text-white"
                 />
               </div>
@@ -1003,12 +1234,14 @@ export default function Rooms() {
                 <Input
                   type="time"
                   value={useRoomForm.endTime}
-                  onChange={(e) => setUseRoomForm({ ...useRoomForm, endTime: e.target.value })}
+                  onChange={e =>
+                    setUseRoomForm({ ...useRoomForm, endTime: e.target.value })
+                  }
                   className="mt-1 bg-slate-700 border-slate-600 text-white"
                 />
               </div>
             </div>
-            <div className="flex gap-2 pt-2">
+            <div className="flex flex-col sm:flex-row gap-2 pt-2">
               <Button
                 onClick={handleConfirmUseRoom}
                 className="flex-1 bg-orange-600 hover:bg-orange-700 text-white"

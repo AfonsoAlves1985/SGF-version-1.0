@@ -1,5 +1,11 @@
 import { useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,8 +17,30 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
-import { AlertTriangle, CheckCircle, Clock, Package, TrendingUp, Users, AlertCircle } from "lucide-react";
+import {
+  BarChart,
+  Bar,
+  LineChart,
+  Line,
+  PieChart,
+  Pie,
+  Cell,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from "recharts";
+import {
+  AlertTriangle,
+  CheckCircle,
+  Clock,
+  Package,
+  TrendingUp,
+  Users,
+  AlertCircle,
+} from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 
@@ -76,7 +104,9 @@ function getDaysUntilDate(value?: string | null) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  return Math.floor((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  return Math.floor(
+    (target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+  );
 }
 
 function formatContractDate(value?: string | null) {
@@ -113,7 +143,8 @@ export default function Dashboard() {
   });
 
   const { data: maintenance = [] } = trpc.maintenance.list.useQuery();
-  const { data: rooms = [], refetch: refetchRooms } = trpc.rooms.list.useQuery();
+  const { data: rooms = [], refetch: refetchRooms } =
+    trpc.rooms.list.useQuery();
   const { data: reservations = [] } = trpc.roomReservations.list.useQuery();
 
   const { data: teams = [] } = trpc.teams.list.useQuery();
@@ -141,7 +172,7 @@ export default function Dashboard() {
 
   // Calcular métricas
   const criticalAlerts = stockAlerts.filter(
-    (a: any) => a.alertType === "critical" || a.currentStock < a.minStock,
+    (a: any) => a.alertType === "critical" || a.currentStock < a.minStock
   );
 
   const expiredContracts = contracts.filter((contract: any) => {
@@ -152,7 +183,9 @@ export default function Dashboard() {
 
   const contractsExpiringSoon = contracts.filter((contract: any) => {
     const daysUntilExpiry = getDaysUntilDate(contract.endDate);
-    return daysUntilExpiry !== null && daysUntilExpiry >= 0 && daysUntilExpiry <= 30;
+    return (
+      daysUntilExpiry !== null && daysUntilExpiry >= 0 && daysUntilExpiry <= 30
+    );
   });
 
   const contractAlerts = contracts
@@ -188,8 +221,10 @@ export default function Dashboard() {
   const metrics = {
     lowStockItems: criticalAlerts.length,
     criticalAlerts: criticalAlerts.length,
-    maintenanceOpen: maintenance.filter((m: any) => m.status === "aberto").length,
-    maintenanceUrgent: maintenance.filter((m: any) => m.priority === "urgente").length,
+    maintenanceOpen: maintenance.filter((m: any) => m.status === "aberto")
+      .length,
+    maintenanceUrgent: maintenance.filter((m: any) => m.priority === "urgente")
+      .length,
     roomsAvailable: rooms.filter((r: any) => r.status === "disponivel").length,
     roomsTotal: rooms.length,
     reservationsToday: reservations.filter((r: any) => {
@@ -202,7 +237,9 @@ export default function Dashboard() {
     contractsExpiringSoon: contractsExpiringSoon.length,
   };
 
-  const availableRooms = rooms.filter((room: any) => room.status === "disponivel");
+  const availableRooms = rooms.filter(
+    (room: any) => room.status === "disponivel"
+  );
 
   const handleOpenUseRoom = (room: any) => {
     setSelectedRoomForUse(room);
@@ -230,7 +267,10 @@ export default function Dashboard() {
       return;
     }
 
-    if (!parseMaskedDate(useRoomForm.startDate) || !parseMaskedDate(useRoomForm.endDate)) {
+    if (
+      !parseMaskedDate(useRoomForm.startDate) ||
+      !parseMaskedDate(useRoomForm.endDate)
+    ) {
       toast.error("Use o formato DD-MM-YYYY para as datas.");
       return;
     }
@@ -257,34 +297,70 @@ export default function Dashboard() {
 
   // Dados para gráficos
   const maintenanceByPriority = [
-    { name: "Urgente", value: maintenance.filter((m: any) => m.priority === "urgente").length },
-    { name: "Alta", value: maintenance.filter((m: any) => m.priority === "alta").length },
-    { name: "Média", value: maintenance.filter((m: any) => m.priority === "media").length },
-    { name: "Baixa", value: maintenance.filter((m: any) => m.priority === "baixa").length },
+    {
+      name: "Urgente",
+      value: maintenance.filter((m: any) => m.priority === "urgente").length,
+    },
+    {
+      name: "Alta",
+      value: maintenance.filter((m: any) => m.priority === "alta").length,
+    },
+    {
+      name: "Média",
+      value: maintenance.filter((m: any) => m.priority === "media").length,
+    },
+    {
+      name: "Baixa",
+      value: maintenance.filter((m: any) => m.priority === "baixa").length,
+    },
   ];
 
   const maintenanceByStatus = [
-    { name: "Aberto", value: maintenance.filter((m: any) => m.status === "aberto").length },
-    { name: "Em Progresso", value: maintenance.filter((m: any) => m.status === "em_progresso").length },
-    { name: "Concluído", value: maintenance.filter((m: any) => m.status === "concluido").length },
+    {
+      name: "Aberto",
+      value: maintenance.filter((m: any) => m.status === "aberto").length,
+    },
+    {
+      name: "Em Progresso",
+      value: maintenance.filter((m: any) => m.status === "em_progresso").length,
+    },
+    {
+      name: "Concluído",
+      value: maintenance.filter((m: any) => m.status === "concluido").length,
+    },
   ];
 
   const roomOccupancy = [
-    { name: "Disponível", value: rooms.filter((r: any) => r.status === "disponivel").length },
-    { name: "Ocupada", value: rooms.filter((r: any) => r.status === "ocupada").length },
-    { name: "Manutenção", value: rooms.filter((r: any) => r.status === "manutencao").length },
+    {
+      name: "Disponível",
+      value: rooms.filter((r: any) => r.status === "disponivel").length,
+    },
+    {
+      name: "Ocupada",
+      value: rooms.filter((r: any) => r.status === "ocupada").length,
+    },
+    {
+      name: "Manutenção",
+      value: rooms.filter((r: any) => r.status === "manutencao").length,
+    },
   ];
 
   const COLORS = ["#3b82f6", "#ef4444", "#f59e0b", "#10b981", "#8b5cf6"];
 
   return (
     <div className="space-y-6">
-      <Dialog open={isCriticalDialogOpen} onOpenChange={setIsCriticalDialogOpen}>
-        <DialogContent className="max-w-2xl">
+      <Dialog
+        open={isCriticalDialogOpen}
+        onOpenChange={setIsCriticalDialogOpen}
+      >
+        <DialogContent className="w-[calc(100vw-2rem)] max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-orange-700">Itens Críticos de Consumíveis</DialogTitle>
+            <DialogTitle className="text-orange-700">
+              Itens Críticos de Consumíveis
+            </DialogTitle>
             <DialogDescription className="text-orange-600">
-              Lista de itens abaixo do estoque mínimo com quantidade atual e unidade.
+              Lista de itens abaixo do estoque mínimo com quantidade atual e
+              unidade.
             </DialogDescription>
           </DialogHeader>
 
@@ -300,7 +376,9 @@ export default function Dashboard() {
                     key={`${alert.spaceId ?? "sem-espaco"}-${alert.id}`}
                     className="rounded-lg border border-orange-200 p-3"
                   >
-                    <div className="font-medium text-orange-700">{alert.name}</div>
+                    <div className="font-medium text-orange-700">
+                      {alert.name}
+                    </div>
                     <div className="text-sm text-orange-600">
                       Quantidade atual: {alert.currentStock} {alert.unit}
                     </div>
@@ -315,10 +393,15 @@ export default function Dashboard() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={isContractsDialogOpen} onOpenChange={setIsContractsDialogOpen}>
-        <DialogContent className="max-w-2xl">
+      <Dialog
+        open={isContractsDialogOpen}
+        onOpenChange={setIsContractsDialogOpen}
+      >
+        <DialogContent className="w-[calc(100vw-2rem)] max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-orange-700">Contratos Vencidos ou Próximos</DialogTitle>
+            <DialogTitle className="text-orange-700">
+              Contratos Vencidos ou Próximos
+            </DialogTitle>
             <DialogDescription className="text-orange-600">
               Contratos vencidos e contratos com vencimento em até 30 dias.
             </DialogDescription>
@@ -357,14 +440,15 @@ export default function Dashboard() {
               </div>
             )}
           </div>
-
         </DialogContent>
       </Dialog>
 
       <Dialog open={isRoomsDialogOpen} onOpenChange={setIsRoomsDialogOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="w-[calc(100vw-2rem)] max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-green-700">Salas Disponíveis</DialogTitle>
+            <DialogTitle className="text-green-700">
+              Salas Disponíveis
+            </DialogTitle>
             <DialogDescription className="text-green-600">
               Lista de salas disponíveis para uso no momento.
             </DialogDescription>
@@ -384,7 +468,9 @@ export default function Dashboard() {
                     onClick={() => handleOpenUseRoom(room)}
                     className="w-full text-left rounded-lg border border-green-200 p-3 transition hover:bg-green-50/40"
                   >
-                    <div className="font-medium text-green-700">{room.name}</div>
+                    <div className="font-medium text-green-700">
+                      {room.name}
+                    </div>
                     <div className="text-sm text-green-600">
                       Localização: {room.location || "Não informada"}
                     </div>
@@ -399,16 +485,16 @@ export default function Dashboard() {
               </div>
             )}
           </div>
-
         </DialogContent>
       </Dialog>
 
       <Dialog open={isUseRoomDialogOpen} onOpenChange={setIsUseRoomDialogOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="w-[calc(100vw-2rem)] max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-green-700">Utilizar Sala</DialogTitle>
             <DialogDescription className="text-green-600">
-              {selectedRoomForUse?.name || "Sala"} — preencha os dados do solicitante e período.
+              {selectedRoomForUse?.name || "Sala"} — preencha os dados do
+              solicitante e período.
             </DialogDescription>
           </DialogHeader>
 
@@ -429,7 +515,7 @@ export default function Dashboard() {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <Label className="text-green-700">Data de Início *</Label>
                 <DateInputWithCalendar
@@ -461,7 +547,7 @@ export default function Dashboard() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <Label className="text-green-700">Hora de Início</Label>
                 <Input
@@ -493,7 +579,7 @@ export default function Dashboard() {
               </div>
             </div>
 
-            <div className="flex gap-2 pt-2">
+            <div className="flex flex-col sm:flex-row gap-2 pt-2">
               <Button
                 className="flex-1 bg-green-600 hover:bg-green-700 text-white"
                 onClick={handleConfirmUseRoom}
@@ -514,8 +600,12 @@ export default function Dashboard() {
       </Dialog>
 
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">Dashboard Executivo</h1>
-        <p className="text-gray-600 mt-1">Métricas e indicadores de desempenho</p>
+        <h1 className="text-3xl font-bold text-gray-900">
+          Dashboard Executivo
+        </h1>
+        <p className="text-gray-600 mt-1">
+          Métricas e indicadores de desempenho
+        </p>
       </div>
 
       {/* KPIs Principais */}
@@ -523,13 +613,19 @@ export default function Dashboard() {
         <Card>
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-sm font-medium">Chamados Abertos</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                Chamados Abertos
+              </CardTitle>
               <AlertTriangle className="w-4 h-4 text-red-600" />
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-red-600">{metrics.maintenanceOpen}</div>
-            <p className="text-xs text-gray-600 mt-1">{metrics.maintenanceUrgent} urgentes</p>
+            <div className="text-3xl font-bold text-red-600">
+              {metrics.maintenanceOpen}
+            </div>
+            <p className="text-xs text-gray-600 mt-1">
+              {metrics.maintenanceUrgent} urgentes
+            </p>
           </CardContent>
         </Card>
 
@@ -541,13 +637,19 @@ export default function Dashboard() {
           <Card className="cursor-pointer transition hover:border-red-300 hover:shadow-sm">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-medium">Alertas Críticos</CardTitle>
+                <CardTitle className="text-sm font-medium">
+                  Alertas Críticos
+                </CardTitle>
                 <AlertCircle className="w-4 h-4 text-red-600" />
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-red-600">{metrics.criticalAlerts}</div>
-              <p className="text-xs text-gray-600 mt-1">itens abaixo do estoque minimo</p>
+              <div className="text-3xl font-bold text-red-600">
+                {metrics.criticalAlerts}
+              </div>
+              <p className="text-xs text-gray-600 mt-1">
+                itens abaixo do estoque minimo
+              </p>
             </CardContent>
           </Card>
         </button>
@@ -560,13 +662,19 @@ export default function Dashboard() {
           <Card className="cursor-pointer transition hover:border-green-300 hover:shadow-sm">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-medium">Salas Disponíveis</CardTitle>
+                <CardTitle className="text-sm font-medium">
+                  Salas Disponíveis
+                </CardTitle>
                 <CheckCircle className="w-4 h-4 text-green-600" />
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-green-600">{metrics.roomsAvailable}</div>
-              <p className="text-xs text-gray-600 mt-1">de {metrics.roomsTotal} salas</p>
+              <div className="text-3xl font-bold text-green-600">
+                {metrics.roomsAvailable}
+              </div>
+              <p className="text-xs text-gray-600 mt-1">
+                de {metrics.roomsTotal} salas
+              </p>
             </CardContent>
           </Card>
         </button>
@@ -584,7 +692,9 @@ export default function Dashboard() {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-red-600">{metrics.contractsExpired}</div>
+              <div className="text-3xl font-bold text-red-600">
+                {metrics.contractsExpired}
+              </div>
               <p className="text-xs text-gray-600 mt-1">
                 vencidos • {metrics.contractsExpiringSoon} próximos (30 dias)
               </p>
@@ -615,7 +725,10 @@ export default function Dashboard() {
                   dataKey="value"
                 >
                   {maintenanceByPriority.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    <Cell
+                      key={`cell-${index}`}
+                      fill={COLORS[index % COLORS.length]}
+                    />
                   ))}
                 </Pie>
                 <Tooltip />
@@ -644,7 +757,10 @@ export default function Dashboard() {
                   dataKey="value"
                 >
                   {roomOccupancy.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    <Cell
+                      key={`cell-${index}`}
+                      fill={COLORS[index % COLORS.length]}
+                    />
                   ))}
                 </Pie>
                 <Tooltip />

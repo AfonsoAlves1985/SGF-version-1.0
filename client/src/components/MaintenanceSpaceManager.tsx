@@ -24,7 +24,10 @@ export interface MaintenanceSpaceManagerProps {
   selectedSpace: number | null;
   onSelectSpace: (spaceId: number) => void;
   onCreateSpace: (data: { name: string; description?: string }) => void;
-  onUpdateSpace: (id: number, data: { name?: string; description?: string }) => void;
+  onUpdateSpace: (
+    id: number,
+    data: { name?: string; description?: string }
+  ) => void;
   onDeleteSpace: (id: number) => void;
   isLoading?: boolean;
   showHeader?: boolean;
@@ -86,7 +89,11 @@ export function MaintenanceSpaceManager({
   };
 
   const handleDelete = (spaceId: number) => {
-    if (window.confirm("Tem certeza que deseja deletar esta unidade? Todas as requisições de manutenção associadas serão removidas.")) {
+    if (
+      window.confirm(
+        "Tem certeza que deseja deletar esta unidade? Todas as requisições de manutenção associadas serão removidas."
+      )
+    ) {
       onDeleteSpace(spaceId);
     }
   };
@@ -109,7 +116,7 @@ export function MaintenanceSpaceManager({
                 {buttonLabel}
               </Button>
             </DialogTrigger>
-            <DialogContent className="bg-slate-800 border-slate-700">
+            <DialogContent className="w-[calc(100vw-2rem)] max-w-lg max-h-[90vh] overflow-y-auto bg-slate-800 border-slate-700">
               <DialogHeader>
                 <DialogTitle className="text-white">
                   {editingId ? "Editar" : "Nova"} Unidade
@@ -120,25 +127,33 @@ export function MaintenanceSpaceManager({
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <label className="text-sm font-medium text-gray-300">Nome *</label>
+                  <label className="text-sm font-medium text-gray-300">
+                    Nome *
+                  </label>
                   <Input
                     value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    onChange={e =>
+                      setFormData({ ...formData, name: e.target.value })
+                    }
                     className="bg-slate-700 border-slate-600 text-white mt-1"
                     placeholder="Ex: Febracis, Lead Fit"
                     required
                   />
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-300">Descrição</label>
+                  <label className="text-sm font-medium text-gray-300">
+                    Descrição
+                  </label>
                   <Input
                     value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    onChange={e =>
+                      setFormData({ ...formData, description: e.target.value })
+                    }
                     className="bg-slate-700 border-slate-600 text-white mt-1"
                     placeholder="Descrição da unidade"
                   />
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row gap-2">
                   <Button
                     type="submit"
                     className="flex-1 bg-orange-600 hover:bg-orange-700"
@@ -170,13 +185,15 @@ export function MaintenanceSpaceManager({
           <CardContent className="pt-6">
             <div className="text-center py-8 text-gray-400">
               <p>Nenhuma unidade criada ainda.</p>
-              <p className="text-sm mt-2">Clique em "{buttonLabel}" para começar.</p>
+              <p className="text-sm mt-2">
+                Clique em "{buttonLabel}" para começar.
+              </p>
             </div>
           </CardContent>
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {spaces.map((space) => (
+          {spaces.map(space => (
             <div
               key={space.id}
               onClick={() => onSelectSpace(space.id)}
@@ -188,14 +205,16 @@ export function MaintenanceSpaceManager({
             >
               <div className="flex items-start justify-between">
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-white truncate">{space.name}</h3>
+                  <h3 className="font-semibold text-white truncate">
+                    {space.name}
+                  </h3>
                   <p className="text-sm text-gray-400 mt-1 line-clamp-2">
                     {space.description || "Sem descrição"}
                   </p>
                 </div>
                 <div className="flex gap-1 ml-2 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button
-                    onClick={(e) => {
+                    onClick={e => {
                       e.stopPropagation();
                       handleOpenDialog(space);
                     }}
@@ -205,7 +224,7 @@ export function MaintenanceSpaceManager({
                     <Edit2 className="h-4 w-4 text-blue-400" />
                   </button>
                   <button
-                    onClick={(e) => {
+                    onClick={e => {
                       e.stopPropagation();
                       handleDelete(space.id);
                     }}

@@ -1,13 +1,45 @@
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Plus, AlertTriangle, CheckCircle, Clock, Edit2, Trash2 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Plus,
+  AlertTriangle,
+  CheckCircle,
+  Clock,
+  Edit2,
+  Trash2,
+} from "lucide-react";
 import { toast } from "sonner";
 import { MaintenanceSpaceManager } from "@/components/MaintenanceSpaceManager";
 import { MaintenanceInlineEdit } from "@/components/MaintenanceInlineEdit";
@@ -32,9 +64,17 @@ export default function Maintenance() {
   });
 
   // Queries
-  const { data: spaces = [], isLoading: spacesLoading, refetch: refetchSpaces } = trpc.maintenanceSpaces.list.useQuery();
-  
-  const { data: requests = [], isLoading, refetch } = trpc.maintenance.list.useQuery({
+  const {
+    data: spaces = [],
+    isLoading: spacesLoading,
+    refetch: refetchSpaces,
+  } = trpc.maintenanceSpaces.list.useQuery();
+
+  const {
+    data: requests = [],
+    isLoading,
+    refetch,
+  } = trpc.maintenance.list.useQuery({
     status,
     priority,
     spaceId: selectedSpace || undefined,
@@ -46,7 +86,7 @@ export default function Maintenance() {
       toast.success("Unidade criada com sucesso!");
       refetchSpaces();
     },
-    onError: (error) => {
+    onError: error => {
       toast.error(`Erro: ${error.message}`);
     },
   });
@@ -56,7 +96,7 @@ export default function Maintenance() {
       toast.success("Unidade atualizada com sucesso!");
       refetchSpaces();
     },
-    onError: (error) => {
+    onError: error => {
       toast.error(`Erro: ${error.message}`);
     },
   });
@@ -67,7 +107,7 @@ export default function Maintenance() {
       setSelectedSpace(null);
       refetchSpaces();
     },
-    onError: (error) => {
+    onError: error => {
       toast.error(`Erro: ${error.message}`);
     },
   });
@@ -76,11 +116,17 @@ export default function Maintenance() {
   const createMutation = trpc.maintenance.create.useMutation({
     onSuccess: () => {
       toast.success("Chamado criado com sucesso!");
-      setFormData({ title: "", description: "", priority: "media", type: "correctiva", status: "aberto" });
+      setFormData({
+        title: "",
+        description: "",
+        priority: "media",
+        type: "correctiva",
+        status: "aberto",
+      });
       setIsDialogOpen(false);
       refetch();
     },
-    onError: (error) => {
+    onError: error => {
       toast.error(`Erro: ${error.message}`);
     },
   });
@@ -89,13 +135,19 @@ export default function Maintenance() {
     onSuccess: () => {
       toast.success("Chamado atualizado com sucesso!");
       setEditingRequest(null);
-      setFormData({ title: "", description: "", priority: "media", type: "correctiva", status: "aberto" });
+      setFormData({
+        title: "",
+        description: "",
+        priority: "media",
+        type: "correctiva",
+        status: "aberto",
+      });
       setIsDialogOpen(false);
       setInlineEditingId(null);
       setInlineEditField(null);
       refetch();
     },
-    onError: (error) => {
+    onError: error => {
       toast.error(`Erro: ${error.message}`);
     },
   });
@@ -105,7 +157,7 @@ export default function Maintenance() {
       toast.success("Chamado eliminado com sucesso!");
       refetch();
     },
-    onError: (error) => {
+    onError: error => {
       toast.error(`Erro: ${error.message}`);
     },
   });
@@ -116,7 +168,13 @@ export default function Maintenance() {
       return;
     }
     setEditingRequest(null);
-    setFormData({ title: "", description: "", priority: "media", type: "correctiva", status: "aberto" });
+    setFormData({
+      title: "",
+      description: "",
+      priority: "media",
+      type: "correctiva",
+      status: "aberto",
+    });
     setIsDialogOpen(true);
   };
 
@@ -222,23 +280,29 @@ export default function Maintenance() {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-white">Manutenção</h1>
-        <p className="text-gray-400 mt-1">Gestão de chamados preventivos e correctivos</p>
+        <p className="text-gray-400 mt-1">
+          Gestão de chamados preventivos e correctivos
+        </p>
       </div>
 
       {/* Space Manager */}
       <Card className="bg-slate-800/50 border-orange-700/30">
         <CardHeader>
           <CardTitle className="text-white">Unidades de Manutenção</CardTitle>
-          <CardDescription className="text-gray-400">Crie e gerencie unidades para organizar chamados</CardDescription>
+          <CardDescription className="text-gray-400">
+            Crie e gerencie unidades para organizar chamados
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <MaintenanceSpaceManager
             spaces={spaces}
             selectedSpace={selectedSpace}
             onSelectSpace={setSelectedSpace}
-            onCreateSpace={(data) => createSpaceMutation.mutate(data)}
-            onUpdateSpace={(id, data) => updateSpaceMutation.mutate({ id, ...data })}
-            onDeleteSpace={(id) => deleteSpaceMutation.mutate(id)}
+            onCreateSpace={data => createSpaceMutation.mutate(data)}
+            onUpdateSpace={(id, data) =>
+              updateSpaceMutation.mutate({ id, ...data })
+            }
+            onDeleteSpace={id => deleteSpaceMutation.mutate(id)}
             isLoading={spacesLoading}
             headerTitle="Selecione uma Unidade"
             headerDescription="Escolha uma unidade para gerenciar seus chamados"
@@ -252,9 +316,14 @@ export default function Maintenance() {
           <div className="flex justify-between items-center">
             <div>
               <h2 className="text-2xl font-bold text-white">Chamados</h2>
-              <p className="text-gray-400 mt-1">Unidade: {spaces.find((s: any) => s.id === selectedSpace)?.name}</p>
+              <p className="text-gray-400 mt-1">
+                Unidade: {spaces.find((s: any) => s.id === selectedSpace)?.name}
+              </p>
             </div>
-            <Button onClick={handleCreateSample} className="bg-orange-600 hover:bg-orange-700">
+            <Button
+              onClick={handleCreateSample}
+              className="bg-orange-600 hover:bg-orange-700"
+            >
               <Plus className="w-4 h-4 mr-2" />
               Novo Chamado
             </Button>
@@ -286,40 +355,58 @@ export default function Maintenance() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <Card className="bg-slate-800/50 border-orange-700/30">
               <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium text-white">Total de Chamados</CardTitle>
+                <CardTitle className="text-sm font-medium text-white">
+                  Total de Chamados
+                </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-orange-500">{stats.total}</div>
+                <div className="text-2xl font-bold text-orange-500">
+                  {stats.total}
+                </div>
                 <p className="text-xs text-gray-400 mt-1">Todos os chamados</p>
               </CardContent>
             </Card>
 
             <Card className="bg-slate-800/50 border-orange-700/30">
               <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium text-white">Abertos</CardTitle>
+                <CardTitle className="text-sm font-medium text-white">
+                  Abertos
+                </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-yellow-500">{stats.abertos}</div>
-                <p className="text-xs text-gray-400 mt-1">Aguardando atendimento</p>
+                <div className="text-2xl font-bold text-yellow-500">
+                  {stats.abertos}
+                </div>
+                <p className="text-xs text-gray-400 mt-1">
+                  Aguardando atendimento
+                </p>
               </CardContent>
             </Card>
 
             <Card className="bg-slate-800/50 border-orange-700/30">
               <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium text-white">Urgentes</CardTitle>
+                <CardTitle className="text-sm font-medium text-white">
+                  Urgentes
+                </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-red-500">{stats.urgentes}</div>
+                <div className="text-2xl font-bold text-red-500">
+                  {stats.urgentes}
+                </div>
                 <p className="text-xs text-gray-400 mt-1">Prioridade máxima</p>
               </CardContent>
             </Card>
 
             <Card className="bg-slate-800/50 border-orange-700/30">
               <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium text-white">Concluídos</CardTitle>
+                <CardTitle className="text-sm font-medium text-white">
+                  Concluídos
+                </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-green-500">{stats.concluidos}</div>
+                <div className="text-2xl font-bold text-green-500">
+                  {stats.concluidos}
+                </div>
                 <p className="text-xs text-gray-400 mt-1">Resolvidos</p>
               </CardContent>
             </Card>
@@ -328,12 +415,16 @@ export default function Maintenance() {
           <Card className="bg-slate-800/50 border-orange-700/30">
             <CardHeader>
               <CardTitle className="text-white">Filtros</CardTitle>
-              <CardDescription className="text-gray-400">Filtre chamados por status e prioridade</CardDescription>
+              <CardDescription className="text-gray-400">
+                Filtre chamados por status e prioridade
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm font-medium text-gray-300">Status</label>
+                  <label className="text-sm font-medium text-gray-300">
+                    Status
+                  </label>
                   <Select value={status} onValueChange={setStatus}>
                     <SelectTrigger className="mt-1 bg-slate-700 border-slate-600 text-white">
                       <SelectValue placeholder="Selecione um status" />
@@ -348,7 +439,9 @@ export default function Maintenance() {
                 </div>
 
                 <div>
-                  <label className="text-sm font-medium text-gray-300">Prioridade</label>
+                  <label className="text-sm font-medium text-gray-300">
+                    Prioridade
+                  </label>
                   <Select value={priority} onValueChange={setPriority}>
                     <SelectTrigger className="mt-1 bg-slate-700 border-slate-600 text-white">
                       <SelectValue placeholder="Selecione uma prioridade" />
@@ -380,7 +473,9 @@ export default function Maintenance() {
             <Card className="bg-slate-800/50 border-orange-700/30">
               <CardHeader>
                 <CardTitle className="text-white">Kanban de Chamados</CardTitle>
-                <CardDescription className="text-gray-400">Arraste os cards entre as colunas para alterar o status</CardDescription>
+                <CardDescription className="text-gray-400">
+                  Arraste os cards entre as colunas para alterar o status
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 {isLoading ? (
@@ -390,8 +485,12 @@ export default function Maintenance() {
                 ) : (
                   <MaintenanceKanban
                     requests={requests}
-                    onUpdateStatus={(id, status) => updateMutation.mutate({ id, status: status as any })}
-                    onUpdateField={(id, field, value) => updateMutation.mutate({ id, [field]: value } as any)}
+                    onUpdateStatus={(id, status) =>
+                      updateMutation.mutate({ id, status: status as any })
+                    }
+                    onUpdateField={(id, field, value) =>
+                      updateMutation.mutate({ id, [field]: value } as any)
+                    }
                     isLoading={updateMutation.isPending}
                   />
                 )}
@@ -400,8 +499,12 @@ export default function Maintenance() {
           ) : (
             <Card className="bg-slate-800/50 border-orange-700/30">
               <CardHeader>
-                <CardTitle className="text-white">Chamados de Manutenção</CardTitle>
-                <CardDescription className="text-gray-400">{requests.length} chamados encontrados</CardDescription>
+                <CardTitle className="text-white">
+                  Chamados de Manutenção
+                </CardTitle>
+                <CardDescription className="text-gray-400">
+                  {requests.length} chamados encontrados
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 {isLoading ? (
@@ -417,35 +520,58 @@ export default function Maintenance() {
                     <Table>
                       <TableHeader>
                         <TableRow className="border-slate-700 hover:bg-transparent">
-                          <TableHead className="text-gray-300">Título</TableHead>
+                          <TableHead className="text-gray-300">
+                            Título
+                          </TableHead>
                           <TableHead className="text-gray-300">Tipo</TableHead>
-                          <TableHead className="text-gray-300">Prioridade</TableHead>
-                          <TableHead className="text-gray-300">Status</TableHead>
+                          <TableHead className="text-gray-300">
+                            Prioridade
+                          </TableHead>
+                          <TableHead className="text-gray-300">
+                            Status
+                          </TableHead>
                           <TableHead className="text-gray-300">Ações</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {requests.map((request: any, idx: number) => (
-                          <TableRow key={`maintenance-${request.id}-${idx}`} className="border-slate-700 hover:bg-slate-700/30">
+                          <TableRow
+                            key={`maintenance-${request.id}-${idx}`}
+                            className="border-slate-700 hover:bg-slate-700/30"
+                          >
                             <TableCell className="text-white">
                               <MaintenanceInlineEdit
                                 value={request.title}
                                 field="title"
-                                onSave={(newValue) => updateMutation.mutate({ id: request.id, title: newValue })}
+                                onSave={newValue =>
+                                  updateMutation.mutate({
+                                    id: request.id,
+                                    title: newValue,
+                                  })
+                                }
                                 isLoading={updateMutation.isPending}
                               >
-                                <span className="cursor-pointer hover:text-orange-400">{request.title}</span>
+                                <span className="cursor-pointer hover:text-orange-400">
+                                  {request.title}
+                                </span>
                               </MaintenanceInlineEdit>
                             </TableCell>
                             <TableCell>
                               <MaintenanceInlineEdit
                                 value={request.type}
                                 field="type"
-                                onSave={(newValue) => updateMutation.mutate({ id: request.id, type: newValue as any })}
+                                onSave={newValue =>
+                                  updateMutation.mutate({
+                                    id: request.id,
+                                    type: newValue as any,
+                                  })
+                                }
                                 isLoading={updateMutation.isPending}
                               >
                                 <span className="px-2 py-1 rounded text-xs bg-blue-900/30 text-blue-400 cursor-pointer hover:bg-blue-900/50">
-                                  {request.type === "preventiva" ? "Preventiva" : "Corretiva"}
+                                  {request.type === "preventiva"
+                                    ? "Preventiva"
+                                    : "Corretiva"}
                                 </span>
                               </MaintenanceInlineEdit>
                             </TableCell>
@@ -453,11 +579,19 @@ export default function Maintenance() {
                               <MaintenanceInlineEdit
                                 value={request.priority}
                                 field="priority"
-                                onSave={(newValue) => updateMutation.mutate({ id: request.id, priority: newValue as any })}
+                                onSave={newValue =>
+                                  updateMutation.mutate({
+                                    id: request.id,
+                                    priority: newValue as any,
+                                  })
+                                }
                                 isLoading={updateMutation.isPending}
                               >
-                                <span className={`px-2 py-1 rounded text-xs cursor-pointer hover:opacity-80 ${getPriorityColor(request.priority)}`}>
-                                  {request.priority.charAt(0).toUpperCase() + request.priority.slice(1)}
+                                <span
+                                  className={`px-2 py-1 rounded text-xs cursor-pointer hover:opacity-80 ${getPriorityColor(request.priority)}`}
+                                >
+                                  {request.priority.charAt(0).toUpperCase() +
+                                    request.priority.slice(1)}
                                 </span>
                               </MaintenanceInlineEdit>
                             </TableCell>
@@ -465,15 +599,23 @@ export default function Maintenance() {
                               <MaintenanceInlineEdit
                                 value={request.status}
                                 field="status"
-                                onSave={(newValue) => updateMutation.mutate({ id: request.id, status: newValue as any })}
+                                onSave={newValue =>
+                                  updateMutation.mutate({
+                                    id: request.id,
+                                    status: newValue as any,
+                                  })
+                                }
                                 isLoading={updateMutation.isPending}
                               >
                                 <span className="flex items-center gap-2 text-gray-300 cursor-pointer hover:opacity-80">
                                   {getStatusIcon(request.status)}
                                   {request.status === "aberto" && "Aberto"}
-                                  {request.status === "em_progresso" && "Em Progresso"}
-                                  {request.status === "concluido" && "Concluído"}
-                                  {request.status === "cancelado" && "Cancelado"}
+                                  {request.status === "em_progresso" &&
+                                    "Em Progresso"}
+                                  {request.status === "concluido" &&
+                                    "Concluído"}
+                                  {request.status === "cancelado" &&
+                                    "Cancelado"}
                                 </span>
                               </MaintenanceInlineEdit>
                             </TableCell>
@@ -487,7 +629,9 @@ export default function Maintenance() {
                                   <Edit2 className="h-4 w-4 text-blue-400" />
                                 </button>
                                 <button
-                                  onClick={() => handleDeleteRequest(request.id)}
+                                  onClick={() =>
+                                    handleDeleteRequest(request.id)
+                                  }
                                   className="p-1 hover:bg-red-600/30 rounded transition-colors"
                                   title="Deletar"
                                 >
@@ -507,7 +651,7 @@ export default function Maintenance() {
 
           {/* Dialog for creating/editing requests */}
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogContent className="bg-slate-800 border-slate-700">
+            <DialogContent className="w-[calc(100vw-2rem)] max-w-lg max-h-[90vh] overflow-y-auto bg-slate-800 border-slate-700">
               <DialogHeader>
                 <DialogTitle className="text-white">
                   {editingRequest ? "Editar Chamado" : "Novo Chamado"}
@@ -521,7 +665,9 @@ export default function Maintenance() {
                   <Label className="text-gray-300">Título *</Label>
                   <Input
                     value={formData.title}
-                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                    onChange={e =>
+                      setFormData({ ...formData, title: e.target.value })
+                    }
                     className="bg-slate-700 border-slate-600 text-white mt-1"
                     placeholder="Ex: Vazamento na cozinha"
                   />
@@ -531,16 +677,23 @@ export default function Maintenance() {
                   <Label className="text-gray-300">Descrição *</Label>
                   <Input
                     value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    onChange={e =>
+                      setFormData({ ...formData, description: e.target.value })
+                    }
                     className="bg-slate-700 border-slate-600 text-white mt-1"
                     placeholder="Descreva o problema"
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <Label className="text-gray-300">Tipo</Label>
-                    <Select value={formData.type} onValueChange={(value: any) => setFormData({ ...formData, type: value })}>
+                    <Select
+                      value={formData.type}
+                      onValueChange={(value: any) =>
+                        setFormData({ ...formData, type: value })
+                      }
+                    >
                       <SelectTrigger className="bg-slate-700 border-slate-600 text-white mt-1">
                         <SelectValue />
                       </SelectTrigger>
@@ -553,7 +706,12 @@ export default function Maintenance() {
 
                   <div>
                     <Label className="text-gray-300">Prioridade</Label>
-                    <Select value={formData.priority} onValueChange={(value: any) => setFormData({ ...formData, priority: value })}>
+                    <Select
+                      value={formData.priority}
+                      onValueChange={(value: any) =>
+                        setFormData({ ...formData, priority: value })
+                      }
+                    >
                       <SelectTrigger className="bg-slate-700 border-slate-600 text-white mt-1">
                         <SelectValue />
                       </SelectTrigger>
@@ -567,11 +725,13 @@ export default function Maintenance() {
                   </div>
                 </div>
 
-                <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row gap-2">
                   <Button
                     onClick={handleSubmit}
                     className="flex-1 bg-orange-600 hover:bg-orange-700"
-                    disabled={createMutation.isPending || updateMutation.isPending}
+                    disabled={
+                      createMutation.isPending || updateMutation.isPending
+                    }
                   >
                     {editingRequest ? "Atualizar" : "Criar"} Chamado
                   </Button>
@@ -579,7 +739,13 @@ export default function Maintenance() {
                     onClick={() => {
                       setIsDialogOpen(false);
                       setEditingRequest(null);
-                      setFormData({ title: "", description: "", priority: "media", type: "correctiva", status: "aberto" });
+                      setFormData({
+                        title: "",
+                        description: "",
+                        priority: "media",
+                        type: "correctiva",
+                        status: "aberto",
+                      });
                     }}
                     variant="outline"
                     className="border-slate-600 text-gray-300 hover:bg-slate-800"

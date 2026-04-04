@@ -1,7 +1,17 @@
 import { useState, useEffect } from "react";
-import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
+import {
+  QueryClient,
+  QueryClientProvider,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
   Table,
@@ -19,7 +29,20 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Plus, Edit2, Trash2, AlertCircle, CheckCircle, AlertTriangle, X, Building2, Calendar, ChevronLeft, ChevronRight, Download } from "lucide-react";
+import {
+  Plus,
+  Edit2,
+  Trash2,
+  AlertCircle,
+  CheckCircle,
+  AlertTriangle,
+  X,
+  Building2,
+  Calendar,
+  ChevronLeft,
+  ChevronRight,
+  Download,
+} from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -46,9 +69,12 @@ export default function Consumables() {
   const [editingStockCell, setEditingStockCell] = useState<number | null>(null);
   const [editingStockValue, setEditingStockValue] = useState<number>(0);
   const [showAuditLog, setShowAuditLog] = useState(false);
-  const [selectedConsumableForAudit, setSelectedConsumableForAudit] = useState<number | null>(null);
+  const [selectedConsumableForAudit, setSelectedConsumableForAudit] = useState<
+    number | null
+  >(null);
   const [showTrendChart, setShowTrendChart] = useState(false);
-  const [selectedConsumableForChart, setSelectedConsumableForChart] = useState<any>(null);
+  const [selectedConsumableForChart, setSelectedConsumableForChart] =
+    useState<any>(null);
   const [formData, setFormData] = useState({
     name: "",
     category: "",
@@ -58,7 +84,6 @@ export default function Consumables() {
     currentStock: 0,
     replenishStock: 0,
   });
-
 
   // Calculate week start date (Monday)
   useEffect(() => {
@@ -70,13 +95,24 @@ export default function Consumables() {
   }, [selectedDate]);
 
   // Queries
-  const { data: spaces = [], isLoading: spacesLoading, refetch: refetchSpaces } = trpc.consumableSpaces.list.useQuery();
+  const {
+    data: spaces = [],
+    isLoading: spacesLoading,
+    refetch: refetchSpaces,
+  } = trpc.consumableSpaces.list.useQuery();
   // Converter weekStartDate para string YYYY-MM-DD usando data local (não UTC)
-  const weekStartDateStr = weekStartDate.getFullYear() + '-' + 
-    String(weekStartDate.getMonth() + 1).padStart(2, '0') + '-' + 
-    String(weekStartDate.getDate()).padStart(2, '0');
-  
-  const { data: consumables = [], isLoading, refetch } = trpc.consumablesWithSpace.listWithWeeklyData.useQuery(
+  const weekStartDateStr =
+    weekStartDate.getFullYear() +
+    "-" +
+    String(weekStartDate.getMonth() + 1).padStart(2, "0") +
+    "-" +
+    String(weekStartDate.getDate()).padStart(2, "0");
+
+  const {
+    data: consumables = [],
+    isLoading,
+    refetch,
+  } = trpc.consumablesWithSpace.listWithWeeklyData.useQuery(
     {
       spaceId: selectedSpace || undefined,
       weekStartDate: weekStartDateStr as any,
@@ -88,55 +124,62 @@ export default function Consumables() {
   );
 
   // Query para histórico de alterações
-  const { data: auditLog = [], isLoading: auditLoading } = trpc.consumableStockAuditLog.list.useQuery(
-    {
-      spaceId: selectedSpace || undefined,
-      consumableId: selectedConsumableForAudit || undefined,
-      weekStartDate: weekStartDate,
-    },
-    { enabled: !!selectedSpace && showAuditLog }
-  );
+  const { data: auditLog = [], isLoading: auditLoading } =
+    trpc.consumableStockAuditLog.list.useQuery(
+      {
+        spaceId: selectedSpace || undefined,
+        consumableId: selectedConsumableForAudit || undefined,
+        weekStartDate: weekStartDate,
+      },
+      { enabled: !!selectedSpace && showAuditLog }
+    );
 
   // Query para histórico de estoque (gráfico de tendência)
-  const { data: stockHistory = [], isLoading: historyLoading } = trpc.consumableWeeklyMovements.getHistory.useQuery(
-    {
-      consumableId: selectedConsumableForChart?.id || 0,
-      spaceId: selectedSpace || 0,
-      weeks: 12,
-    },
-    { enabled: !!selectedConsumableForChart && !!selectedSpace }
-  );
+  const { data: stockHistory = [], isLoading: historyLoading } =
+    trpc.consumableWeeklyMovements.getHistory.useQuery(
+      {
+        consumableId: selectedConsumableForChart?.id || 0,
+        spaceId: selectedSpace || 0,
+        weeks: 12,
+      },
+      { enabled: !!selectedConsumableForChart && !!selectedSpace }
+    );
 
   // Query para análise de padrões
-  const { data: stockAnalysis } = trpc.consumableWeeklyMovements.getAnalysis.useQuery(
-    {
-      consumableId: selectedConsumableForChart?.id || 0,
-      spaceId: selectedSpace || 0,
-      weeks: 12,
-    },
-    { enabled: !!selectedConsumableForChart && !!selectedSpace }
-  );
+  const { data: stockAnalysis } =
+    trpc.consumableWeeklyMovements.getAnalysis.useQuery(
+      {
+        consumableId: selectedConsumableForChart?.id || 0,
+        spaceId: selectedSpace || 0,
+        weeks: 12,
+      },
+      { enabled: !!selectedConsumableForChart && !!selectedSpace }
+    );
 
   // Mutation para atualizar estoque semanal
   const utils = trpc.useUtils();
-  const updateWeeklyStockMutation = trpc.consumablesWithSpace.updateWeeklyStock.useMutation({
-    onSuccess: () => {
-      toast.success("Salvo!");
-      // Invalidar cache e forçar atualização
-      utils.consumablesWithSpace.listWithWeeklyData.invalidate();
-    },
-    onError: (error) => {
-      toast.error(error.message);
-    },
-  });
+  const updateWeeklyStockMutation =
+    trpc.consumablesWithSpace.updateWeeklyStock.useMutation({
+      onSuccess: () => {
+        toast.success("Salvo!");
+        // Invalidar cache e forçar atualização
+        utils.consumablesWithSpace.listWithWeeklyData.invalidate();
+      },
+      onError: error => {
+        toast.error(error.message);
+      },
+    });
 
   // Reset editing state on mutation
   const handleUpdateStock = async (consumableId: number, newStock: number) => {
     if (!selectedSpace) return;
 
-    const weekStartDateStr = weekStartDate.getFullYear() + '-' + 
-      String(weekStartDate.getMonth() + 1).padStart(2, '0') + '-' + 
-      String(weekStartDate.getDate()).padStart(2, '0');
+    const weekStartDateStr =
+      weekStartDate.getFullYear() +
+      "-" +
+      String(weekStartDate.getMonth() + 1).padStart(2, "0") +
+      "-" +
+      String(weekStartDate.getDate()).padStart(2, "0");
 
     updateWeeklyStockMutation.mutate({
       consumableId,
@@ -156,7 +199,7 @@ export default function Consumables() {
       setIsOpen(false);
       resetForm();
     },
-    onError: (error) => toast.error(error.message),
+    onError: error => toast.error(error.message),
   });
 
   const updateMutation = trpc.consumablesWithSpace.update.useMutation({
@@ -166,7 +209,7 @@ export default function Consumables() {
       setIsOpen(false);
       resetForm();
     },
-    onError: (error) => toast.error(error.message),
+    onError: error => toast.error(error.message),
   });
 
   const deleteMutation = trpc.consumablesWithSpace.delete.useMutation({
@@ -174,7 +217,7 @@ export default function Consumables() {
       toast.success(t("app.success"));
       refetch();
     },
-    onError: (error) => toast.error(error.message),
+    onError: error => toast.error(error.message),
   });
 
   // Mutations for Spaces
@@ -183,7 +226,7 @@ export default function Consumables() {
       toast.success(t("app.success"));
       refetchSpaces();
     },
-    onError: (error) => toast.error(error.message),
+    onError: error => toast.error(error.message),
   });
 
   const updateSpaceMutation = trpc.consumableSpaces.update.useMutation({
@@ -191,7 +234,7 @@ export default function Consumables() {
       toast.success(t("app.success"));
       refetchSpaces();
     },
-    onError: (error) => toast.error(error.message),
+    onError: error => toast.error(error.message),
   });
 
   const deleteSpaceMutation = trpc.consumableSpaces.delete.useMutation({
@@ -200,7 +243,7 @@ export default function Consumables() {
       refetchSpaces();
       if (selectedSpace) setSelectedSpace(null);
     },
-    onError: (error) => toast.error(error.message),
+    onError: error => toast.error(error.message),
   });
 
   // Handlers
@@ -224,8 +267,6 @@ export default function Consumables() {
     }
   };
 
-
-
   const handleEdit = (consumable: any) => {
     setEditingId(consumable.id);
     setFormData({
@@ -239,8 +280,6 @@ export default function Consumables() {
     });
     setIsOpen(true);
   };
-
-
 
   const handleDelete = (id: number) => {
     if (window.confirm("Tem certeza que deseja deletar este consumível?")) {
@@ -278,8 +317,10 @@ export default function Consumables() {
     setSelectedDate(newDate);
   };
 
-  const exportReportExcelMutation = trpc.consumableWeeklyMovements.exportReportExcel.useMutation();
-  const exportReportPDFMutation = trpc.consumableWeeklyMovements.exportReportPDF.useMutation();
+  const exportReportExcelMutation =
+    trpc.consumableWeeklyMovements.exportReportExcel.useMutation();
+  const exportReportPDFMutation =
+    trpc.consumableWeeklyMovements.exportReportPDF.useMutation();
 
   const handleExportExcel = () => {
     if (!selectedSpace) {
@@ -287,9 +328,12 @@ export default function Consumables() {
       return;
     }
 
-    const weekStartDateStr = weekStartDate.getFullYear() + '-' + 
-      String(weekStartDate.getMonth() + 1).padStart(2, '0') + '-' + 
-      String(weekStartDate.getDate()).padStart(2, '0');
+    const weekStartDateStr =
+      weekStartDate.getFullYear() +
+      "-" +
+      String(weekStartDate.getMonth() + 1).padStart(2, "0") +
+      "-" +
+      String(weekStartDate.getDate()).padStart(2, "0");
 
     exportReportExcelMutation.mutate(
       {
@@ -299,7 +343,7 @@ export default function Consumables() {
       {
         onSuccess: (result: any) => {
           if (result.success && result.excelPath) {
-            const link = document.createElement('a');
+            const link = document.createElement("a");
             link.href = `/api/download-excel?path=${encodeURIComponent(result.excelPath)}`;
             link.download = `relatorio_consumo_${weekStartDateStr}.xlsx`;
             document.body.appendChild(link);
@@ -322,9 +366,12 @@ export default function Consumables() {
       return;
     }
 
-    const weekStartDateStr = weekStartDate.getFullYear() + '-' + 
-      String(weekStartDate.getMonth() + 1).padStart(2, '0') + '-' + 
-      String(weekStartDate.getDate()).padStart(2, '0');
+    const weekStartDateStr =
+      weekStartDate.getFullYear() +
+      "-" +
+      String(weekStartDate.getMonth() + 1).padStart(2, "0") +
+      "-" +
+      String(weekStartDate.getDate()).padStart(2, "0");
 
     exportReportPDFMutation.mutate(
       {
@@ -334,7 +381,7 @@ export default function Consumables() {
       {
         onSuccess: (result: any) => {
           if (result.success && result.pdfPath) {
-            const link = document.createElement('a');
+            const link = document.createElement("a");
             link.href = `/api/download-pdf?path=${encodeURIComponent(result.pdfPath)}`;
             link.download = `relatorio_consumo_${weekStartDateStr}.pdf`;
             document.body.appendChild(link);
@@ -360,9 +407,17 @@ export default function Consumables() {
 
   const getStockStatus = (current: number, min: number, max: number) => {
     if (current < min) {
-      return { label: "Repor Estoque", color: "bg-red-600", icon: AlertTriangle };
+      return {
+        label: "Repor Estoque",
+        color: "bg-red-600",
+        icon: AlertTriangle,
+      };
     } else if (current > max) {
-      return { label: "Acima do Estoque", color: "bg-yellow-600", icon: AlertCircle };
+      return {
+        label: "Acima do Estoque",
+        color: "bg-yellow-600",
+        icon: AlertCircle,
+      };
     } else {
       return { label: "Estoque OK", color: "bg-green-600", icon: CheckCircle };
     }
@@ -372,16 +427,22 @@ export default function Consumables() {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold text-white">Estoque de Consumíveis</h1>
-          <p className="text-gray-400 mt-2">Gestão de consumíveis por unidade com histórico semanal</p>
+          <h1 className="text-3xl font-bold text-white">
+            Estoque de Consumíveis
+          </h1>
+          <p className="text-gray-400 mt-2">
+            Gestão de consumíveis por unidade com histórico semanal
+          </p>
         </div>
         <SpaceManager
           spaces={spaces}
           selectedSpace={selectedSpace}
           onSelectSpace={setSelectedSpace}
-          onCreateSpace={(data) => createSpaceMutation.mutate(data)}
-          onUpdateSpace={(id, data) => updateSpaceMutation.mutate({ id, ...data })}
-          onDeleteSpace={(id) => deleteSpaceMutation.mutate(id)}
+          onCreateSpace={data => createSpaceMutation.mutate(data)}
+          onUpdateSpace={(id, data) =>
+            updateSpaceMutation.mutate({ id, ...data })
+          }
+          onDeleteSpace={id => deleteSpaceMutation.mutate(id)}
           isLoading={spacesLoading}
           headerTitle="Selecione uma Unidade"
           headerDescription="Escolha uma unidade para gerenciar consumíveis"
@@ -395,7 +456,9 @@ export default function Consumables() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-white">Consumíveis da Unidade</h1>
+          <h1 className="text-3xl font-bold text-white">
+            Consumíveis da Unidade
+          </h1>
           <p className="text-gray-400 mt-2">Semana de {formatWeekRange()}</p>
         </div>
         <div className="flex gap-2">
@@ -409,7 +472,10 @@ export default function Consumables() {
                 Exportar Relatório
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="bg-slate-800 border-slate-700">
+            <DropdownMenuContent
+              align="end"
+              className="bg-slate-800 border-slate-700"
+            >
               <DropdownMenuItem
                 onClick={handleExportExcel}
                 className="text-gray-300 hover:bg-slate-700 cursor-pointer"
@@ -439,69 +505,107 @@ export default function Consumables() {
                 Novo Consumível
               </Button>
             </DialogTrigger>
-            <DialogContent className="bg-slate-800 border-slate-700">
+            <DialogContent className="w-[calc(100vw-2rem)] max-w-lg max-h-[90vh] overflow-y-auto bg-slate-800 border-slate-700">
               <DialogHeader>
-                <DialogTitle className="text-white">{editingId ? "Editar" : "Novo"} Consumível</DialogTitle>
+                <DialogTitle className="text-white">
+                  {editingId ? "Editar" : "Novo"} Consumível
+                </DialogTitle>
                 <DialogDescription className="text-gray-400">
                   Preencha os dados do consumível para salvar nesta unidade.
                 </DialogDescription>
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <label className="text-sm font-medium text-gray-300">Nome</label>
+                  <label className="text-sm font-medium text-gray-300">
+                    Nome
+                  </label>
                   <Input
                     value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    onChange={e =>
+                      setFormData({ ...formData, name: e.target.value })
+                    }
                     className="bg-slate-700 border-slate-600 text-white mt-1"
                     required
                   />
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-300">Categoria</label>
+                  <label className="text-sm font-medium text-gray-300">
+                    Categoria
+                  </label>
                   <Input
                     value={formData.category}
-                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                    onChange={e =>
+                      setFormData({ ...formData, category: e.target.value })
+                    }
                     className="bg-slate-700 border-slate-600 text-white mt-1"
                   />
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-300">Unidade</label>
+                  <label className="text-sm font-medium text-gray-300">
+                    Unidade
+                  </label>
                   <Input
                     value={formData.unit}
-                    onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
+                    onChange={e =>
+                      setFormData({ ...formData, unit: e.target.value })
+                    }
                     className="bg-slate-700 border-slate-600 text-white mt-1"
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="text-sm font-medium text-gray-300">Est. Mínimo</label>
+                    <label className="text-sm font-medium text-gray-300">
+                      Est. Mínimo
+                    </label>
                     <Input
                       type="number"
                       value={formData.minStock}
-                      onChange={(e) => setFormData({ ...formData, minStock: parseInt(e.target.value) || 0 })}
+                      onChange={e =>
+                        setFormData({
+                          ...formData,
+                          minStock: parseInt(e.target.value) || 0,
+                        })
+                      }
                       className="bg-slate-700 border-slate-600 text-white mt-1"
                     />
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-gray-300">Est. Máximo</label>
+                    <label className="text-sm font-medium text-gray-300">
+                      Est. Máximo
+                    </label>
                     <Input
                       type="number"
                       value={formData.maxStock}
-                      onChange={(e) => setFormData({ ...formData, maxStock: parseInt(e.target.value) || 0 })}
+                      onChange={e =>
+                        setFormData({
+                          ...formData,
+                          maxStock: parseInt(e.target.value) || 0,
+                        })
+                      }
                       className="bg-slate-700 border-slate-600 text-white mt-1"
                     />
                   </div>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-300">Est. Atual</label>
+                  <label className="text-sm font-medium text-gray-300">
+                    Est. Atual
+                  </label>
                   <Input
                     type="number"
                     value={formData.currentStock}
-                    onChange={(e) => setFormData({ ...formData, currentStock: parseInt(e.target.value) || 0 })}
+                    onChange={e =>
+                      setFormData({
+                        ...formData,
+                        currentStock: parseInt(e.target.value) || 0,
+                      })
+                    }
                     className="bg-slate-700 border-slate-600 text-white mt-1"
                   />
                 </div>
-                <Button type="submit" className="w-full bg-orange-600 hover:bg-orange-700">
+                <Button
+                  type="submit"
+                  className="w-full bg-orange-600 hover:bg-orange-700"
+                >
                   {editingId ? "Atualizar" : "Criar"} Consumível
                 </Button>
               </form>
@@ -522,7 +626,9 @@ export default function Consumables() {
             </button>
             <div className="flex-1 text-center">
               <p className="text-sm text-gray-400">Semana de</p>
-              <p className="text-lg font-semibold text-white">{formatWeekRange()}</p>
+              <p className="text-lg font-semibold text-white">
+                {formatWeekRange()}
+              </p>
             </div>
             <button
               onClick={() => setShowCalendar(!showCalendar)}
@@ -543,7 +649,7 @@ export default function Consumables() {
               <CalendarComponent
                 mode="single"
                 selected={selectedDate}
-                onSelect={(date) => {
+                onSelect={date => {
                   if (date) setSelectedDate(date);
                   setShowCalendar(false);
                 }}
@@ -563,13 +669,17 @@ export default function Consumables() {
               <Input
                 placeholder="Buscar..."
                 value={filters.search}
-                onChange={(e) => setFilters({ ...filters, search: e.target.value })}
+                onChange={e =>
+                  setFilters({ ...filters, search: e.target.value })
+                }
                 className="bg-slate-700 border-slate-600 text-white w-48"
               />
               <Input
                 placeholder="Categoria..."
                 value={filters.category}
-                onChange={(e) => setFilters({ ...filters, category: e.target.value })}
+                onChange={e =>
+                  setFilters({ ...filters, category: e.target.value })
+                }
                 className="bg-slate-700 border-slate-600 text-white w-48"
               />
             </div>
@@ -579,7 +689,9 @@ export default function Consumables() {
           {isLoading ? (
             <div className="text-center text-gray-400 py-8">Carregando...</div>
           ) : consumables.length === 0 ? (
-            <div className="text-center text-gray-400 py-8">Nenhum consumível encontrado</div>
+            <div className="text-center text-gray-400 py-8">
+              Nenhum consumível encontrado
+            </div>
           ) : (
             <div className="overflow-x-auto">
               <Table>
@@ -598,29 +710,56 @@ export default function Consumables() {
                 </TableHeader>
                 <TableBody>
                   {consumables.map((consumable: any) => {
-                    const status = getStockStatus(consumable.currentStock, consumable.minStock, consumable.maxStock);
+                    const status = getStockStatus(
+                      consumable.currentStock,
+                      consumable.minStock,
+                      consumable.maxStock
+                    );
                     const StatusIcon = status.icon;
-                    const replenishStock = consumable.maxStock - consumable.currentStock;
+                    const replenishStock =
+                      consumable.maxStock - consumable.currentStock;
 
                     return (
-                      <TableRow key={consumable.id} className="border-slate-700 hover:bg-slate-700/50">
-                        <TableCell className="text-white font-medium">{consumable.name}</TableCell>
-                        <TableCell className="text-gray-300">{consumable.category}</TableCell>
-                        <TableCell className="text-gray-300">{consumable.unit}</TableCell>
-                        <TableCell className="text-gray-300">{consumable.minStock}</TableCell>
-                        <TableCell className="text-gray-300">{consumable.maxStock}</TableCell>
+                      <TableRow
+                        key={consumable.id}
+                        className="border-slate-700 hover:bg-slate-700/50"
+                      >
+                        <TableCell className="text-white font-medium">
+                          {consumable.name}
+                        </TableCell>
+                        <TableCell className="text-gray-300">
+                          {consumable.category}
+                        </TableCell>
+                        <TableCell className="text-gray-300">
+                          {consumable.unit}
+                        </TableCell>
+                        <TableCell className="text-gray-300">
+                          {consumable.minStock}
+                        </TableCell>
+                        <TableCell className="text-gray-300">
+                          {consumable.maxStock}
+                        </TableCell>
                         <TableCell>
                           {editingStockCell === consumable.id ? (
                             <div className="flex gap-1">
                               <input
                                 type="number"
                                 value={editingStockValue}
-                                onChange={(e) => setEditingStockValue(parseInt(e.target.value) || 0)}
+                                onChange={e =>
+                                  setEditingStockValue(
+                                    parseInt(e.target.value) || 0
+                                  )
+                                }
                                 className="w-16 px-2 py-1 bg-slate-700 border border-slate-600 text-white rounded text-sm"
                                 autoFocus
                               />
                               <button
-                                onClick={() => handleUpdateStock(consumable.id, editingStockValue)}
+                                onClick={() =>
+                                  handleUpdateStock(
+                                    consumable.id,
+                                    editingStockValue
+                                  )
+                                }
                                 className="px-2 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-sm"
                               >
                                 ✓
@@ -644,13 +783,23 @@ export default function Consumables() {
                             </button>
                           )}
                         </TableCell>
-                        <TableCell className={replenishStock > 0 ? "text-orange-400" : "text-green-400"}>
+                        <TableCell
+                          className={
+                            replenishStock > 0
+                              ? "text-orange-400"
+                              : "text-green-400"
+                          }
+                        >
                           {replenishStock > 0 ? replenishStock : "—"}
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
-                            <StatusIcon className={`h-4 w-4 ${status.color.replace("bg-", "text-")}`} />
-                            <span className="text-sm text-gray-300">{status.label}</span>
+                            <StatusIcon
+                              className={`h-4 w-4 ${status.color.replace("bg-", "text-")}`}
+                            />
+                            <span className="text-sm text-gray-300">
+                              {status.label}
+                            </span>
                           </div>
                         </TableCell>
                         <TableCell>
@@ -660,8 +809,18 @@ export default function Consumables() {
                               className="p-1 hover:bg-blue-600/30 rounded transition-colors"
                               title="Ver gráfico de tendência"
                             >
-                              <svg className="h-4 w-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                              <svg
+                                className="h-4 w-4 text-blue-400"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                                />
                               </svg>
                             </button>
                             <button
@@ -693,7 +852,9 @@ export default function Consumables() {
         <Dialog open={showTrendChart} onOpenChange={setShowTrendChart}>
           <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Histórico de Estoque - {selectedConsumableForChart.name}</DialogTitle>
+              <DialogTitle>
+                Histórico de Estoque - {selectedConsumableForChart.name}
+              </DialogTitle>
               <DialogDescription>
                 Análise de tendência de consumo semanal
               </DialogDescription>

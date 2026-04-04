@@ -55,13 +55,13 @@ function formatCnpj(value: string) {
   if (digits.length <= 12) {
     return `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(
       5,
-      8,
+      8
     )}/${digits.slice(8)}`;
   }
 
   return `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(
     5,
-    8,
+    8
   )}/${digits.slice(8, 12)}-${digits.slice(12)}`;
 }
 
@@ -74,21 +74,20 @@ function isValidCnpj(value: string) {
   const calcCheckDigit = (base: string, weights: number[]) => {
     const sum = base
       .split("")
-      .reduce(
-        (acc, digit, index) => acc + Number(digit) * weights[index],
-        0,
-      );
+      .reduce((acc, digit, index) => acc + Number(digit) * weights[index], 0);
 
     const remainder = sum % 11;
     return remainder < 2 ? 0 : 11 - remainder;
   };
 
-  const firstCheckDigit = calcCheckDigit(digits.slice(0, 12), [
-    5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2,
-  ]);
-  const secondCheckDigit = calcCheckDigit(digits.slice(0, 13), [
-    6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2,
-  ]);
+  const firstCheckDigit = calcCheckDigit(
+    digits.slice(0, 12),
+    [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]
+  );
+  const secondCheckDigit = calcCheckDigit(
+    digits.slice(0, 13),
+    [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]
+  );
 
   return (
     firstCheckDigit === Number(digits[12]) &&
@@ -200,8 +199,11 @@ export default function Contracts() {
     notes: "",
   });
 
-  const { data: spaces = [], isLoading: spacesLoading, refetch: refetchSpaces } =
-    trpc.contractSpaces.list.useQuery();
+  const {
+    data: spaces = [],
+    isLoading: spacesLoading,
+    refetch: refetchSpaces,
+  } = trpc.contractSpaces.list.useQuery();
 
   const {
     data: contracts = [],
@@ -212,7 +214,7 @@ export default function Contracts() {
       spaceId: selectedSpace || undefined,
       search: filters.search || undefined,
     },
-    { enabled: !!selectedSpace },
+    { enabled: !!selectedSpace }
   );
 
   const createMutation = trpc.contractsWithSpace.create.useMutation({
@@ -415,7 +417,9 @@ export default function Contracts() {
           selectedSpace={selectedSpace}
           onSelectSpace={setSelectedSpace}
           onCreateSpace={data => createSpaceMutation.mutate(data)}
-          onUpdateSpace={(id, data) => updateSpaceMutation.mutate({ id, ...data })}
+          onUpdateSpace={(id, data) =>
+            updateSpaceMutation.mutate({ id, ...data })
+          }
           onDeleteSpace={id => deleteSpaceMutation.mutate(id)}
           isLoading={spacesLoading}
           headerTitle="Selecione uma Unidade"
@@ -457,29 +461,36 @@ export default function Contracts() {
               </Button>
             </DialogTrigger>
 
-            <DialogContent className="bg-slate-800 border-slate-700 max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogContent className="w-[calc(100vw-2rem)] max-w-2xl max-h-[90vh] overflow-y-auto bg-slate-800 border-slate-700">
               <DialogHeader>
                 <DialogTitle className="text-white">
                   {editingId ? "Editar" : "Novo"} Contrato
                 </DialogTitle>
                 <DialogDescription className="text-gray-400">
-                  Cadastre os dados principais do contrato da unidade selecionada.
+                  Cadastre os dados principais do contrato da unidade
+                  selecionada.
                 </DialogDescription>
               </DialogHeader>
 
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <label className="text-sm font-medium text-gray-300">Nome da Empresa</label>
+                  <label className="text-sm font-medium text-gray-300">
+                    Nome da Empresa
+                  </label>
                   <Input
                     value={formData.companyName}
-                    onChange={e => setFormData({ ...formData, companyName: e.target.value })}
+                    onChange={e =>
+                      setFormData({ ...formData, companyName: e.target.value })
+                    }
                     className="bg-slate-700 border-slate-600 text-white mt-1"
                     required
                   />
                 </div>
 
                 <div>
-                  <label className="text-sm font-medium text-gray-300">CNPJ</label>
+                  <label className="text-sm font-medium text-gray-300">
+                    CNPJ
+                  </label>
                   <Input
                     value={formData.cnpj}
                     onChange={e =>
@@ -494,18 +505,26 @@ export default function Contracts() {
                   />
                   {showCnpjValidation ? (
                     cnpjIsValid ? (
-                      <p className="text-xs text-green-400 mt-1">CNPJ válido.</p>
+                      <p className="text-xs text-green-400 mt-1">
+                        CNPJ válido.
+                      </p>
                     ) : (
-                      <p className="text-xs text-red-400 mt-1">CNPJ inválido.</p>
+                      <p className="text-xs text-red-400 mt-1">
+                        CNPJ inválido.
+                      </p>
                     )
                   ) : null}
                 </div>
 
                 <div>
-                  <label className="text-sm font-medium text-gray-300">Natureza/Descrição do Contrato</label>
+                  <label className="text-sm font-medium text-gray-300">
+                    Natureza/Descrição do Contrato
+                  </label>
                   <Input
                     value={formData.description}
-                    onChange={e => setFormData({ ...formData, description: e.target.value })}
+                    onChange={e =>
+                      setFormData({ ...formData, description: e.target.value })
+                    }
                     className="bg-slate-700 border-slate-600 text-white mt-1"
                     placeholder="Ex: Prestação de serviços de limpeza"
                     required
@@ -513,10 +532,14 @@ export default function Contracts() {
                 </div>
 
                 <div>
-                  <label className="text-sm font-medium text-gray-300">Contato</label>
+                  <label className="text-sm font-medium text-gray-300">
+                    Contato
+                  </label>
                   <Input
                     value={formData.contact}
-                    onChange={e => setFormData({ ...formData, contact: e.target.value })}
+                    onChange={e =>
+                      setFormData({ ...formData, contact: e.target.value })
+                    }
                     className="bg-slate-700 border-slate-600 text-white mt-1"
                     placeholder="Telefone e/ou email"
                     required
@@ -524,7 +547,9 @@ export default function Contracts() {
                 </div>
 
                 <div>
-                  <label className="text-sm font-medium text-gray-300">Valor (R$)</label>
+                  <label className="text-sm font-medium text-gray-300">
+                    Valor (R$)
+                  </label>
                   <Input
                     type="text"
                     inputMode="decimal"
@@ -542,7 +567,9 @@ export default function Contracts() {
                 </div>
 
                 <div>
-                  <label className="text-sm font-medium text-gray-300">Periodicidade</label>
+                  <label className="text-sm font-medium text-gray-300">
+                    Periodicidade
+                  </label>
                   <Select
                     value={formData.contractType}
                     onValueChange={(value: ContractType) =>
@@ -561,7 +588,9 @@ export default function Contracts() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="text-sm font-medium text-gray-300">Data de Início</label>
+                    <label className="text-sm font-medium text-gray-300">
+                      Data de Início
+                    </label>
                     <Input
                       type="text"
                       inputMode="numeric"
@@ -578,12 +607,16 @@ export default function Contracts() {
                       required
                     />
                     {formData.startDate.length > 0 && !startDateIsValid ? (
-                      <p className="text-xs text-red-400 mt-1">Data inválida. Use DD-MM-YYYY.</p>
+                      <p className="text-xs text-red-400 mt-1">
+                        Data inválida. Use DD-MM-YYYY.
+                      </p>
                     ) : null}
                   </div>
 
                   <div>
-                    <label className="text-sm font-medium text-gray-300">Data de Fim</label>
+                    <label className="text-sm font-medium text-gray-300">
+                      Data de Fim
+                    </label>
                     <Input
                       type="text"
                       inputMode="numeric"
@@ -600,9 +633,13 @@ export default function Contracts() {
                       required
                     />
                     {formData.endDate.length > 0 && !endDateIsValid ? (
-                      <p className="text-xs text-red-400 mt-1">Data inválida. Use DD-MM-YYYY.</p>
+                      <p className="text-xs text-red-400 mt-1">
+                        Data inválida. Use DD-MM-YYYY.
+                      </p>
                     ) : null}
-                    {startDateIsValid && endDateIsValid && !hasValidDateRange ? (
+                    {startDateIsValid &&
+                    endDateIsValid &&
+                    !hasValidDateRange ? (
                       <p className="text-xs text-red-400 mt-1">
                         Data de fim não pode ser anterior à data de início.
                       </p>
@@ -611,7 +648,9 @@ export default function Contracts() {
                 </div>
 
                 <div>
-                  <label className="text-sm font-medium text-gray-300">Contrato Renovável?</label>
+                  <label className="text-sm font-medium text-gray-300">
+                    Contrato Renovável?
+                  </label>
                   <Select
                     value={formData.isRenewable ? "sim" : "nao"}
                     onValueChange={value =>
@@ -629,7 +668,9 @@ export default function Contracts() {
                 </div>
 
                 <div>
-                  <label className="text-sm font-medium text-gray-300">Status</label>
+                  <label className="text-sm font-medium text-gray-300">
+                    Status
+                  </label>
                   <Select
                     value={formData.status}
                     onValueChange={(value: ContractStatus) =>
@@ -648,16 +689,20 @@ export default function Contracts() {
                 </div>
 
                 <div>
-                  <label className="text-sm font-medium text-gray-300">Observações</label>
+                  <label className="text-sm font-medium text-gray-300">
+                    Observações
+                  </label>
                   <Input
                     value={formData.notes}
-                    onChange={e => setFormData({ ...formData, notes: e.target.value })}
+                    onChange={e =>
+                      setFormData({ ...formData, notes: e.target.value })
+                    }
                     className="bg-slate-700 border-slate-600 text-white mt-1"
                     placeholder="Informações adicionais"
                   />
                 </div>
 
-                <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row gap-2">
                   <Button
                     type="submit"
                     className="flex-1 bg-orange-600 hover:bg-orange-700 disabled:opacity-60"
@@ -711,24 +756,32 @@ export default function Contracts() {
                 <TableHead className="text-gray-300">Fim</TableHead>
                 <TableHead className="text-gray-300">Renovável</TableHead>
                 <TableHead className="text-gray-300">Contato</TableHead>
-                <TableHead className="text-right text-gray-300">Ações</TableHead>
+                <TableHead className="text-right text-gray-300">
+                  Ações
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
                 <TableRow className="border-slate-700">
-                  <TableCell colSpan={9} className="text-center text-gray-400 py-8">
+                  <TableCell
+                    colSpan={9}
+                    className="text-center text-gray-400 py-8"
+                  >
                     Carregando contratos...
                   </TableCell>
                 </TableRow>
               ) : contracts.length === 0 ? (
                 <TableRow className="border-slate-700">
-                  <TableCell colSpan={9} className="text-center text-gray-400 py-8">
+                  <TableCell
+                    colSpan={9}
+                    className="text-center text-gray-400 py-8"
+                  >
                     Nenhum contrato encontrado.
                   </TableCell>
                 </TableRow>
               ) : (
-                contracts.map((contract: any) => (
+                contracts.map((contract: any) =>
                   (() => {
                     const isExpired =
                       contract.status === "vencido" ||
@@ -751,7 +804,9 @@ export default function Contracts() {
                         >
                           {contract.companyName}
                         </TableCell>
-                        <TableCell className={defaultTextClass}>{contract.cnpj || "-"}</TableCell>
+                        <TableCell className={defaultTextClass}>
+                          {contract.cnpj || "-"}
+                        </TableCell>
                         <TableCell className={`${defaultTextClass} capitalize`}>
                           {contract.contractType}
                         </TableCell>
@@ -793,7 +848,7 @@ export default function Contracts() {
                       </TableRow>
                     );
                   })()
-                ))
+                )
               )}
             </TableBody>
           </Table>
