@@ -26,8 +26,9 @@ jobs:
             exit 0
           fi
 
-          echo "Neither RENDER_HEALTHCHECK_URL secret nor RENDER_APP_URL variable is configured." >&2
-          exit 1
+          default_url="https://sgf-online.onrender.com/healthz"
+          echo "value=${default_url}" >> "$GITHUB_OUTPUT"
+          echo "Using default health URL: ${default_url}"
 
       - name: Ping Render health endpoint
         shell: bash

@@ -93,11 +93,11 @@ Importante:
 
 Como ativar:
 
-1. No GitHub do repositório, vá em **Settings > Secrets and variables > Actions**.
-2. Configure uma das opções:
-   - Secret `RENDER_HEALTHCHECK_URL` com valor completo, ex:
-     - `https://sgf-online.onrender.com/healthz`
-   - ou Variable `RENDER_APP_URL` com a base, ex:
-     - `https://sgf-online.onrender.com`
-3. Garanta que GitHub Actions está habilitado no repositório.
-4. Opcional: execute manualmente em **Actions > Keep Render Alive > Run workflow**.
+1. Garanta que GitHub Actions está habilitado no repositório.
+2. O workflow já possui fallback padrão para:
+   - `https://sgf-online.onrender.com/healthz`
+3. Opcional (sobrescrever URL): em **Settings > Secrets and variables > Actions**,
+   configure uma das opções:
+   - Secret `RENDER_HEALTHCHECK_URL` com valor completo.
+   - ou Variable `RENDER_APP_URL` com a base.
+4. Execute manualmente em **Actions > Keep Render Alive > Run workflow** para validar.
