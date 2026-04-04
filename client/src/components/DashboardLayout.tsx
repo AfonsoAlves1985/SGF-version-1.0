@@ -22,23 +22,36 @@ import {
 } from "@/components/ui/sidebar";
 import { getLoginUrl } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
-import { LayoutDashboard, LogOut, PanelLeft, Users, Package, Calendar, Building2, Wrench, FileText, BarChart3 } from "lucide-react";
+import {
+  LayoutDashboard,
+  LogOut,
+  PanelLeft,
+  Users,
+  Package,
+  Calendar,
+  Building2,
+  Wrench,
+  FileText,
+  BarChart3,
+  PenLine,
+  Handshake,
+} from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
-import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
+import { DashboardLayoutSkeleton } from "./DashboardLayoutSkeleton";
 import { Button } from "./ui/button";
 import { Switch } from "./ui/switch";
 
 const menuItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
   { icon: BarChart3, label: "Início", path: "/" },
-  { icon: Package, label: "Inventário", path: "/inventory" },
+  { icon: PenLine, label: "Inventário", path: "/inventory" },
   { icon: Package, label: "Consumíveis", path: "/consumables" },
 
   { icon: Building2, label: "Salas", path: "/rooms" },
   { icon: Wrench, label: "Manutenção", path: "/maintenance" },
   { icon: FileText, label: "Fornecedores e Compras", path: "/suppliers" },
-  { icon: FileText, label: "Contratos", path: "/contracts" },
+  { icon: Handshake, label: "Contratos", path: "/contracts" },
 ];
 
 const SIDEBAR_WIDTH_KEY = "sidebar-width";
@@ -62,7 +75,7 @@ export default function DashboardLayout({
   }, [sidebarWidth]);
 
   if (loading) {
-    return <DashboardLayoutSkeleton />
+    return <DashboardLayoutSkeleton />;
   }
 
   if (!user) {
@@ -74,7 +87,8 @@ export default function DashboardLayout({
               Sign in to continue
             </h1>
             <p className="text-sm text-muted-foreground text-center max-w-sm">
-              Access to this dashboard requires authentication. Continue to launch the login flow.
+              Access to this dashboard requires authentication. Continue to
+              launch the login flow.
             </p>
           </div>
           <Button
