@@ -428,7 +428,7 @@ export default function Rooms() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case "disponivel":
-        return "bg-green-900/30 text-green-800 dark:text-green-400 border border-green-700/30";
+        return "bg-green-900/30 text-green-950 dark:text-green-300 border border-green-700/30";
       case "ocupada":
         return "bg-red-900/30 text-red-800 dark:text-red-300 border border-red-700/30";
       case "manutencao":
