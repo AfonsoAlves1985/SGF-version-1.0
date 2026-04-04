@@ -84,14 +84,20 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [, setLocation] = useLocation();
+  const utils = trpc.useUtils();
 
   const loginMutation = trpc.auth.login.useMutation({
-    onSuccess: (data) => {
+    onSuccess: async data => {
       localStorage.setItem("auth-token", data.token);
-      localStorage.setItem("manus-runtime-user-info", JSON.stringify(data.user));
+      localStorage.setItem(
+        "manus-runtime-user-info",
+        JSON.stringify(data.user)
+      );
+      window.dispatchEvent(new Event("auth-token-changed"));
+      await utils.auth.me.invalidate();
       setLocation("/");
     },
-    onError: (err) => {
+    onError: err => {
       setError(err.message);
     },
   });
@@ -213,10 +219,18 @@ export default function Login() {
           <div className="flex items-center gap-2 text-sm text-zinc-300">
             <motion.span
               className="h-2 w-2 rounded-full bg-cyan-400"
-              animate={isPending ? { opacity: [0.35, 1, 0.35] } : { opacity: 1 }}
-              transition={isPending ? { duration: 1, repeat: Infinity } : { duration: 0 }}
+              animate={
+                isPending ? { opacity: [0.35, 1, 0.35] } : { opacity: 1 }
+              }
+              transition={
+                isPending ? { duration: 1, repeat: Infinity } : { duration: 0 }
+              }
             />
-            <span>{isPending ? "Conectando e validando login" : "Conexão pronta para autenticação"}</span>
+            <span>
+              {isPending
+                ? "Conectando e validando login"
+                : "Conexão pronta para autenticação"}
+            </span>
           </div>
         </div>
 
@@ -227,15 +241,17 @@ export default function Login() {
               <input
                 type={showUser ? "text" : "password"}
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={e => setEmail(e.target.value)}
                 className="w-full rounded bg-zinc-800 px-4 py-2 pr-11 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
                 placeholder="******"
               />
               <button
                 type="button"
-                onClick={() => setShowUser((current) => !current)}
+                onClick={() => setShowUser(current => !current)}
                 className={`absolute inset-y-0 right-0 px-3 transition-colors ${
-                  showUser ? "text-cyan-400 hover:text-cyan-300" : "text-zinc-300 hover:text-white"
+                  showUser
+                    ? "text-cyan-400 hover:text-cyan-300"
+                    : "text-zinc-300 hover:text-white"
                 }`}
                 aria-label={showUser ? "Ocultar usuário" : "Mostrar usuário"}
               >
@@ -250,13 +266,13 @@ export default function Login() {
               <input
                 type={showPassword ? "text" : "password"}
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={e => setPassword(e.target.value)}
                 className="w-full rounded bg-zinc-800 px-4 py-2 pr-11 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
                 placeholder="******"
               />
               <button
                 type="button"
-                onClick={() => setShowPassword((current) => !current)}
+                onClick={() => setShowPassword(current => !current)}
                 className={`absolute inset-y-0 right-0 px-3 transition-colors ${
                   showPassword
                     ? "text-cyan-400 hover:text-cyan-300"
@@ -269,9 +285,7 @@ export default function Login() {
             </div>
           </div>
 
-          {error && (
-            <p className="text-red-500 text-sm">{error}</p>
-          )}
+          {error && <p className="text-red-500 text-sm">{error}</p>}
 
           <button
             type="submit"

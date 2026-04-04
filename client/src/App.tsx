@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect } from "react";
+import { Suspense, lazy, useEffect, useState } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Route, Switch, useLocation } from "wouter";
@@ -11,7 +11,9 @@ const Inventory = lazy(() => import("./pages/Inventory"));
 const InventoryHistory = lazy(() => import("./pages/InventoryHistory"));
 const Rooms = lazy(() => import("./pages/Rooms"));
 const Maintenance = lazy(() => import("./pages/Maintenance"));
-const SuppliersAndPurchases = lazy(() => import("./pages/SuppliersAndPurchases"));
+const SuppliersAndPurchases = lazy(
+  () => import("./pages/SuppliersAndPurchases")
+);
 const Contracts = lazy(() => import("./pages/Contracts"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Consumables = lazy(() => import("./pages/Consumables"));
@@ -26,7 +28,11 @@ function PageFallback() {
   );
 }
 
-function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
+function ProtectedRoute({
+  component: Component,
+}: {
+  component: React.ComponentType;
+}) {
   const [, setLocation] = useLocation();
   const token = localStorage.getItem("auth-token");
 
@@ -48,10 +54,40 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
 }
 
 function Router() {
-  const [location] = useLocation();
-  const token = localStorage.getItem("auth-token");
+  const [location, setLocation] = useLocation();
+  const [token, setToken] = useState<string | null>(() =>
+    localStorage.getItem("auth-token")
+  );
 
-  if (location === "/login") {
+  useEffect(() => {
+    const syncToken = () => {
+      setToken(localStorage.getItem("auth-token"));
+    };
+
+    const authChangedHandler: EventListener = () => syncToken();
+
+    window.addEventListener("storage", syncToken);
+    window.addEventListener("auth-token-changed", authChangedHandler);
+
+    return () => {
+      window.removeEventListener("storage", syncToken);
+      window.removeEventListener("auth-token-changed", authChangedHandler);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!token && location !== "/login") {
+      setLocation("/login");
+    }
+  }, [location, setLocation, token]);
+
+  useEffect(() => {
+    if (token && location === "/login") {
+      setLocation("/");
+    }
+  }, [location, setLocation, token]);
+
+  if (!token) {
     return (
       <Suspense fallback={<PageFallback />}>
         <Login />
@@ -59,10 +95,10 @@ function Router() {
     );
   }
 
-  if (!token) {
+  if (location === "/login") {
     return (
       <Suspense fallback={<PageFallback />}>
-        <Login />
+        <PageFallback />
       </Suspense>
     );
   }
