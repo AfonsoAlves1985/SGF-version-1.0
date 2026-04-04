@@ -313,7 +313,7 @@ export default function Maintenance() {
 
       {selectedSpace && (
         <>
-          <div className="flex justify-between items-center">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h2 className="text-2xl font-bold text-white">Chamados</h2>
               <p className="text-gray-400 mt-1">
@@ -322,7 +322,7 @@ export default function Maintenance() {
             </div>
             <Button
               onClick={handleCreateSample}
-              className="bg-orange-600 hover:bg-orange-700"
+              className="w-full bg-orange-600 hover:bg-orange-700 sm:w-auto"
             >
               <Plus className="w-4 h-4 mr-2" />
               Novo Chamado

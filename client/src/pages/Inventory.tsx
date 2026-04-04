@@ -226,7 +226,7 @@ export default function Inventory() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold text-white">Inventário</h1>
           <p className="text-gray-400 mt-1">
@@ -235,7 +235,7 @@ export default function Inventory() {
         </div>
         <Button
           onClick={handleCreateSample}
-          className="bg-orange-600 hover:bg-orange-700"
+          className="w-full bg-orange-600 hover:bg-orange-700 sm:w-auto"
         >
           <Plus className="w-4 h-4 mr-2" />
           Novo Item
@@ -267,7 +267,7 @@ export default function Inventory() {
               <label className="text-sm font-medium text-gray-300">
                 Categoria
               </label>
-              <div className="flex gap-2 mt-1">
+              <div className="mt-1 flex flex-col gap-2 sm:flex-row">
                 <Select value={category} onValueChange={setCategory}>
                   <SelectTrigger className="bg-slate-700 border-slate-600 text-white flex-1">
                     <SelectValue placeholder="Selecione uma categoria" />

@@ -101,7 +101,7 @@ export function MaintenanceSpaceManager({
   return (
     <div className="space-y-4">
       {showHeader && (
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-xl font-semibold text-white">{headerTitle}</h2>
             <p className="text-sm text-gray-400 mt-1">{headerDescription}</p>
@@ -110,7 +110,7 @@ export function MaintenanceSpaceManager({
             <DialogTrigger asChild>
               <Button
                 onClick={() => handleOpenDialog()}
-                className="bg-orange-600 hover:bg-orange-700 text-white"
+                className="w-full bg-orange-600 hover:bg-orange-700 text-white sm:w-auto"
               >
                 <Plus className="h-4 w-4 mr-2" />
                 {buttonLabel}

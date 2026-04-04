@@ -454,19 +454,19 @@ export default function Consumables() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold text-white">
             Consumíveis da Unidade
           </h1>
           <p className="text-gray-400 mt-2">Semana de {formatWeekRange()}</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
                 disabled={!selectedSpace || consumables.length === 0}
-                className="bg-orange-600 hover:bg-orange-700 text-white"
+                className="w-full bg-orange-600 hover:bg-orange-700 text-white sm:w-auto"
               >
                 <Download className="h-4 w-4 mr-2" />
                 Exportar Relatório
@@ -493,14 +493,14 @@ export default function Consumables() {
           <Button
             onClick={() => setSelectedSpace(null)}
             variant="outline"
-            className="border-slate-600 text-gray-300 hover:bg-slate-800"
+            className="w-full border-slate-600 text-gray-300 hover:bg-slate-800 sm:w-auto"
           >
             <Building2 className="h-4 w-4 mr-2" />
             Trocar Unidade
           </Button>
           <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogTrigger asChild>
-              <Button className="bg-orange-600 hover:bg-orange-700 text-white">
+              <Button className="w-full bg-orange-600 hover:bg-orange-700 text-white sm:w-auto">
                 <Plus className="h-4 w-4 mr-2" />
                 Novo Consumível
               </Button>
@@ -663,16 +663,16 @@ export default function Consumables() {
       {/* Consumables Table */}
       <Card className="bg-slate-800/50 border-slate-700">
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <CardTitle className="text-white">Consumíveis</CardTitle>
-            <div className="flex gap-2">
+            <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
               <Input
                 placeholder="Buscar..."
                 value={filters.search}
                 onChange={e =>
                   setFilters({ ...filters, search: e.target.value })
                 }
-                className="bg-slate-700 border-slate-600 text-white w-48"
+                className="w-full bg-slate-700 border-slate-600 text-white sm:w-48"
               />
               <Input
                 placeholder="Categoria..."
@@ -680,7 +680,7 @@ export default function Consumables() {
                 onChange={e =>
                   setFilters({ ...filters, category: e.target.value })
                 }
-                className="bg-slate-700 border-slate-600 text-white w-48"
+                className="w-full bg-slate-700 border-slate-600 text-white sm:w-48"
               />
             </div>
           </div>

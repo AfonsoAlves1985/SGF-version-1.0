@@ -236,7 +236,7 @@ export function MonthlyMovementsTable({
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
+      <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <CardTitle>Movimentações Mensais - {consumableName}</CardTitle>
           <CardDescription>
@@ -245,7 +245,7 @@ export function MonthlyMovementsTable({
         </div>
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
           <DialogTrigger asChild>
-            <Button onClick={() => resetForm()}>
+            <Button onClick={() => resetForm()} className="w-full sm:w-auto">
               <Plus className="w-4 h-4 mr-2" />
               Novo Mês
             </Button>
