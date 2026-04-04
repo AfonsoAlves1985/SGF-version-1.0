@@ -1,0 +1,44 @@
+name: Keep Render Alive
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve health URL
+        id: url
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -n "${{ secrets.RENDER_HEALTHCHECK_URL }}" ]; then
+            echo "value=${{ secrets.RENDER_HEALTHCHECK_URL }}" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ -n "${{ vars.RENDER_APP_URL }}" ]; then
+            base="${{ vars.RENDER_APP_URL }}"
+            base="${base%/}"
+            echo "value=${base}/healthz" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "Neither RENDER_HEALTHCHECK_URL secret nor RENDER_APP_URL variable is configured." >&2
+          exit 1
+
+      - name: Ping Render health endpoint
+        shell: bash
+        run: |
+          set -euo pipefail
+          URL="${{ steps.url.outputs.value }}"
+          STATUS_CODE=$(curl -L -s -o /tmp/keep-alive-body.txt -w "%{http_code}" "$URL")
+          echo "Health URL status: $STATUS_CODE"
+
+          if [ "$STATUS_CODE" -lt 200 ] || [ "$STATUS_CODE" -ge 400 ]; then
+            echo "Health check failed for $URL" >&2
+            cat /tmp/keep-alive-body.txt >&2 || true
+            exit 1
+          fi

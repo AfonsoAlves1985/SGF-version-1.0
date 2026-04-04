@@ -77,3 +77,27 @@ Exemplo:
 - **401 após login**: conferir se há `Authorization: Bearer ...` nas requests.
 - **500 no backend**: validar `DATABASE_URL`/`JWT_SECRET` no Render.
 - **Página branca em rota direta**: garantir rewrite para `/index.html` no `vercel.json`.
+
+## 6) Keep-alive para plano free do Render
+
+No plano free, o Render entra em sleep por inatividade. Este repositório inclui uma rotina automática em:
+
+- `.github/workflows/keep-render-alive.yml`
+
+Ela faz `GET` no endpoint de saúde (`/healthz`) a cada 10 minutos.
+
+Importante:
+
+- Essa rotina **não altera dados** e **não grava no banco**.
+- Apenas verifica disponibilidade do serviço.
+
+Como ativar:
+
+1. No GitHub do repositório, vá em **Settings > Secrets and variables > Actions**.
+2. Configure uma das opções:
+   - Secret `RENDER_HEALTHCHECK_URL` com valor completo, ex:
+     - `https://sgf-online.onrender.com/healthz`
+   - ou Variable `RENDER_APP_URL` com a base, ex:
+     - `https://sgf-online.onrender.com`
+3. Garanta que GitHub Actions está habilitado no repositório.
+4. Opcional: execute manualmente em **Actions > Keep Render Alive > Run workflow**.
