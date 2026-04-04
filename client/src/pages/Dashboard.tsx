@@ -600,10 +600,10 @@ export default function Dashboard() {
       </Dialog>
 
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">
+        <h1 className="text-3xl font-bold text-white">
           Dashboard Executivo
         </h1>
-        <p className="text-gray-600 mt-1">
+        <p className="text-white mt-1">
           Métricas e indicadores de desempenho
         </p>
       </div>
