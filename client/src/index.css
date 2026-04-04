@@ -54,26 +54,26 @@
   --chart-5: oklch(0.45 0.14 36);
   --radius: 0.65rem;
   /* Tema Profissional para Facilities - Light Mode */
-  --background: oklch(0.88 0.003 286.375);
+  --background: oklch(0.92 0.003 286.375);
   --foreground: oklch(0.14 0.015 65);
-  --card: oklch(0.91 0.002 286.375);
+  --card: oklch(0.95 0.002 286.375);
   --card-foreground: oklch(0.14 0.015 65);
-  --popover: oklch(0.91 0.002 286.375);
+  --popover: oklch(0.95 0.002 286.375);
   --popover-foreground: oklch(0.14 0.015 65);
-  --secondary: oklch(0.83 0.003 286.375);
+  --secondary: oklch(0.9 0.003 286.375);
   --secondary-foreground: oklch(0.28 0.014 65);
-  --muted: oklch(0.83 0.003 286.375);
+  --muted: oklch(0.9 0.003 286.375);
   --muted-foreground: oklch(0.33 0.015 285.938);
   --accent: oklch(0.6 0.2 39);
   --accent-foreground: oklch(1 0 0);
   --destructive: oklch(0.577 0.245 27.325);
   --destructive-foreground: oklch(0.985 0 0);
   --border: oklch(0.75 0.006 286.32);
-  --input: oklch(0.85 0.006 286.32);
+  --input: oklch(0.9 0.006 286.32);
   --ring: oklch(0.6 0.2 39);
-  --sidebar: oklch(0.89 0.002 286.375);
+  --sidebar: oklch(0.93 0.002 286.375);
   --sidebar-foreground: oklch(0.15 0.015 65);
-  --sidebar-accent: oklch(0.83 0.003 286.375);
+  --sidebar-accent: oklch(0.9 0.003 286.375);
   --sidebar-accent-foreground: oklch(0.141 0.005 285.823);
   --sidebar-border: oklch(0.75 0.006 286.32);
   --sidebar-ring: oklch(0.6 0.2 39);
@@ -120,7 +120,9 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-semibold;
+    font-size: 1.03rem;
+    line-height: 1.55;
   }
   button:not(:disabled),
   [role="button"]:not([aria-disabled="true"]),
@@ -176,6 +178,31 @@
   html:not(.dark) .border-red-700\/30,
   html:not(.dark) .border-red-700\/50 {
     border-color: oklch(0.7 0.01 286.32) !important;
+  }
+
+  html:not(.dark) .bg-slate-900,
+  html:not(.dark) .bg-slate-900\/50,
+  html:not(.dark) .bg-slate-800,
+  html:not(.dark) .bg-slate-800\/50,
+  html:not(.dark) .bg-slate-800\/60,
+  html:not(.dark) .bg-slate-800\/70,
+  html:not(.dark) .bg-slate-700,
+  html:not(.dark) .bg-slate-700\/50,
+  html:not(.dark) .bg-slate-700\/30,
+  html:not(.dark) .bg-gray-800,
+  html:not(.dark) .bg-gray-700,
+  html:not(.dark) .bg-zinc-900,
+  html:not(.dark) .bg-zinc-800 {
+    background-color: oklch(0.95 0.003 286.32) !important;
+  }
+
+  html:not(.dark) .bg-slate-900\/20,
+  html:not(.dark) .bg-slate-800\/20,
+  html:not(.dark) .bg-slate-700\/20,
+  html:not(.dark) .bg-gray-900\/20,
+  html:not(.dark) .bg-gray-800\/20,
+  html:not(.dark) .bg-zinc-900\/20 {
+    background-color: oklch(0.95 0.003 286.32 / 0.85) !important;
   }
 }
 
