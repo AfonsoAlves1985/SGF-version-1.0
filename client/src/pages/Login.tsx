@@ -5,26 +5,76 @@ import { Eye, EyeOff, LoaderCircle } from "lucide-react";
 import { motion } from "framer-motion";
 
 const neuralNodes = [
-  { id: 0, x: 12, y: 22 },
-  { id: 1, x: 24, y: 34 },
-  { id: 2, x: 18, y: 58 },
-  { id: 3, x: 33, y: 68 },
-  { id: 4, x: 64, y: 30 },
-  { id: 5, x: 77, y: 45 },
-  { id: 6, x: 70, y: 66 },
-  { id: 7, x: 88, y: 58 },
+  { id: 0, x: 8, y: 28 },
+  { id: 1, x: 14, y: 18 },
+  { id: 2, x: 18, y: 35 },
+  { id: 3, x: 14, y: 52 },
+  { id: 4, x: 20, y: 64 },
+  { id: 5, x: 29, y: 22 },
+  { id: 6, x: 32, y: 40 },
+  { id: 7, x: 30, y: 58 },
+  { id: 8, x: 39, y: 30 },
+  { id: 9, x: 42, y: 48 },
+  { id: 10, x: 50, y: 40 },
+  { id: 11, x: 58, y: 28 },
+  { id: 12, x: 61, y: 46 },
+  { id: 13, x: 59, y: 64 },
+  { id: 14, x: 68, y: 22 },
+  { id: 15, x: 71, y: 38 },
+  { id: 16, x: 74, y: 56 },
+  { id: 17, x: 82, y: 30 },
+  { id: 18, x: 85, y: 46 },
+  { id: 19, x: 80, y: 64 },
+  { id: 20, x: 50, y: 56 },
+  { id: 21, x: 24, y: 44 },
+  { id: 22, x: 76, y: 44 },
 ];
 
 const neuralLinks = [
   [0, 1],
+  [1, 5],
+  [5, 8],
+  [8, 10],
   [1, 2],
+  [2, 21],
+  [21, 6],
   [1, 4],
   [2, 3],
-  [3, 6],
-  [4, 5],
-  [5, 6],
-  [5, 7],
-  [4, 6],
+  [3, 4],
+  [3, 21],
+  [2, 6],
+  [6, 7],
+  [7, 4],
+  [6, 9],
+  [7, 9],
+  [8, 9],
+  [6, 10],
+  [9, 10],
+  [9, 20],
+  [7, 20],
+  [20, 10],
+  [10, 11],
+  [10, 12],
+  [10, 15],
+  [11, 14],
+  [14, 15],
+  [15, 22],
+  [22, 16],
+  [22, 12],
+  [11, 12],
+  [12, 13],
+  [12, 15],
+  [12, 16],
+  [20, 12],
+  [20, 13],
+  [14, 17],
+  [17, 18],
+  [15, 18],
+  [16, 18],
+  [16, 19],
+  [18, 19],
+  [11, 8],
+  [12, 9],
 ] as const;
 
 export default function Login() {
@@ -58,7 +108,7 @@ export default function Login() {
     <div className="relative min-h-screen flex items-center justify-center bg-black px-4">
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <svg
-          className="absolute inset-0 h-full w-full opacity-40"
+          className="absolute inset-0 h-full w-full opacity-50"
           viewBox="0 0 100 100"
           preserveAspectRatio="none"
         >
@@ -76,7 +126,7 @@ export default function Login() {
                   stroke="rgb(34 211 238)"
                   strokeWidth="0.2"
                   initial={{ opacity: 0.15 }}
-                  animate={{ opacity: [0.15, 0.55, 0.15] }}
+                  animate={{ opacity: [0.15, 0.6, 0.15] }}
                   transition={{
                     duration: 3.8,
                     repeat: Infinity,
@@ -92,7 +142,7 @@ export default function Login() {
                     opacity: [0, 1, 0],
                   }}
                   transition={{
-                    duration: 2.4,
+                    duration: isPending ? 1.15 : 2.2,
                     repeat: Infinity,
                     ease: "linear",
                     delay: index * 0.22,
@@ -103,20 +153,45 @@ export default function Login() {
           })}
 
           {neuralNodes.map((node, index) => (
-            <motion.circle
-              key={`node-${node.id}`}
-              cx={node.x}
-              cy={node.y}
-              r="0.7"
-              fill="rgb(34 211 238)"
-              initial={{ opacity: 0.35, scale: 1 }}
-              animate={{ opacity: [0.35, 1, 0.35], scale: [1, 1.25, 1] }}
-              transition={{
-                duration: 2.6,
-                repeat: Infinity,
-                delay: index * 0.2,
-              }}
-            />
+            <g key={`node-${node.id}`}>
+              <motion.circle
+                cx={node.x}
+                cy={node.y}
+                r="0.7"
+                fill="rgb(34 211 238)"
+                initial={{ opacity: 0.45 }}
+                animate={{ opacity: [0.45, 1, 0.45] }}
+                transition={{
+                  duration: 2.8,
+                  repeat: Infinity,
+                  delay: index * 0.16,
+                }}
+              />
+              <motion.circle
+                cx={node.x}
+                cy={node.y}
+                r="1.4"
+                fill="rgb(34 211 238)"
+                animate={{ opacity: [0, 0.3, 0], r: [1.1, 2, 1.1] }}
+                transition={{
+                  duration: 2.2,
+                  repeat: Infinity,
+                  delay: index * 0.14,
+                }}
+              />
+              <motion.circle
+                cx={node.x}
+                cy={node.y}
+                r="0.35"
+                fill="rgb(207 250 254)"
+                animate={{ opacity: [0, 0, 1, 0], r: [0.2, 0.2, 1.1, 0.2] }}
+                transition={{
+                  duration: isPending ? 0.95 : 1.7,
+                  repeat: Infinity,
+                  delay: index * 0.11,
+                }}
+              />
+            </g>
           ))}
         </svg>
 
