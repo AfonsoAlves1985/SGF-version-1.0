@@ -1,7 +1,24 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, Package, Calendar, Building2, Wrench, FileText, BarChart3, AlertCircle } from "lucide-react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Loader2,
+  Package,
+  Calendar,
+  Building2,
+  Wrench,
+  FileText,
+  BarChart3,
+  AlertCircle,
+  PenLine,
+  Handshake,
+} from "lucide-react";
 import { getLoginUrl } from "@/const";
 import { useLocation } from "wouter";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -13,7 +30,9 @@ function CriticalStockAlertsWidget() {
   const [, setLocation] = useLocation();
   const { data: consumables = [] } = trpc.consumables.list.useQuery({});
 
-  const criticalItems = consumables.filter((item: any) => item.status === "REPOR_ESTOQUE");
+  const criticalItems = consumables.filter(
+    (item: any) => item.status === "REPOR_ESTOQUE"
+  );
 
   if (criticalItems.length === 0) {
     return null;
@@ -33,10 +52,16 @@ function CriticalStockAlertsWidget() {
       <CardContent>
         <div className="space-y-2 mb-4">
           {criticalItems.slice(0, 3).map((item: any) => (
-            <div key={item.id} className="flex items-center justify-between bg-red-900/20 p-3 rounded border border-red-700/30">
+            <div
+              key={item.id}
+              className="flex items-center justify-between bg-red-900/20 p-3 rounded border border-red-700/30"
+            >
               <div className="flex-1">
                 <p className="text-white font-medium">{item.name}</p>
-                <p className="text-red-300/70 text-sm">Estoque: {item.currentStock} {item.unit} (Minimo: {item.minStock})</p>
+                <p className="text-red-300/70 text-sm">
+                  Estoque: {item.currentStock} {item.unit} (Minimo:{" "}
+                  {item.minStock})
+                </p>
               </div>
             </div>
           ))}
@@ -61,7 +86,7 @@ export default function Home() {
 
   const modules = [
     {
-      icon: Package,
+      icon: PenLine,
       label: t("home.inventory"),
       description: t("home.inventory.desc"),
       path: "/inventory",
@@ -89,7 +114,7 @@ export default function Home() {
       color: "bg-orange-900/20 hover:bg-orange-900/30 border-orange-700/30",
     },
     {
-      icon: FileText,
+      icon: Handshake,
       label: t("home.suppliers"),
       description: t("home.suppliers.desc"),
       path: "/suppliers",
@@ -128,14 +153,18 @@ export default function Home() {
       <div className="border-b border-border bg-card/80 backdrop-blur">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img 
-              src="https://d2xsxph8kpxj0f.cloudfront.net/310419663029190932/Ztp8T7Vpr2FQpGULvKFpsw/frz-logo-gold-3fS8xoBHwRKChvSMDViXhP.webp" 
-              alt="FRZ Logo" 
-              className="h-10 bg-transparent" 
+            <img
+              src="https://d2xsxph8kpxj0f.cloudfront.net/310419663029190932/Ztp8T7Vpr2FQpGULvKFpsw/frz-logo-gold-3fS8xoBHwRKChvSMDViXhP.webp"
+              alt="FRZ Logo"
+              className="h-10 bg-transparent"
             />
             <div>
-              <h1 className="text-lg font-bold text-foreground">{t("home.title")}</h1>
-              <p className="text-xs text-muted-foreground">{t("home.subtitle")}</p>
+              <h1 className="text-lg font-bold text-foreground">
+                {t("home.title")}
+              </h1>
+              <p className="text-xs text-muted-foreground">
+                {t("home.subtitle")}
+              </p>
             </div>
           </div>
           <LanguageSelector />
@@ -159,7 +188,7 @@ export default function Home() {
 
             {/* Grid de Módulos */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
-              {modules.map((module) => {
+              {modules.map(module => {
                 const Icon = module.icon;
                 return (
                   <Card
@@ -170,11 +199,15 @@ export default function Home() {
                     <CardHeader>
                       <div className="flex items-center gap-3">
                         <Icon className="h-8 w-8 text-orange-500" />
-                        <CardTitle className="text-foreground">{module.label}</CardTitle>
+                        <CardTitle className="text-foreground">
+                          {module.label}
+                        </CardTitle>
                       </div>
                     </CardHeader>
                     <CardContent>
-                      <CardDescription className="text-muted-foreground">{module.description}</CardDescription>
+                      <CardDescription className="text-muted-foreground">
+                        {module.description}
+                      </CardDescription>
                     </CardContent>
                   </Card>
                 );
@@ -184,8 +217,12 @@ export default function Home() {
             {/* Dicas de Utilização */}
             <Card className="bg-card border-border">
               <CardHeader>
-                <CardTitle className="text-orange-500">{t("home.tips")}</CardTitle>
-                <CardDescription className="text-muted-foreground">{t("home.tips.maximize")}</CardDescription>
+                <CardTitle className="text-orange-500">
+                  {t("home.tips")}
+                </CardTitle>
+                <CardDescription className="text-muted-foreground">
+                  {t("home.tips.maximize")}
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
@@ -216,13 +253,17 @@ export default function Home() {
             {/* Tela de Login */}
             <div className="flex flex-col items-center justify-center min-h-[60vh]">
               <div className="text-center mb-8">
-                <img 
-                  src="https://d2xsxph8kpxj0f.cloudfront.net/310419663029190932/Ztp8T7Vpr2FQpGULvKFpsw/frz-logo-gold-3fS8xoBHwRKChvSMDViXhP.webp" 
-                  alt="FRZ Logo" 
+                <img
+                  src="https://d2xsxph8kpxj0f.cloudfront.net/310419663029190932/Ztp8T7Vpr2FQpGULvKFpsw/frz-logo-gold-3fS8xoBHwRKChvSMDViXhP.webp"
+                  alt="FRZ Logo"
                   className="h-24 mx-auto mb-6 bg-transparent"
                 />
-                <h1 className="text-4xl font-bold text-foreground mb-2">{t("home.title")}</h1>
-                <p className="text-xl text-muted-foreground">{t("home.subtitle")}</p>
+                <h1 className="text-4xl font-bold text-foreground mb-2">
+                  {t("home.title")}
+                </h1>
+                <p className="text-xl text-muted-foreground">
+                  {t("home.subtitle")}
+                </p>
               </div>
               <Button
                 onClick={() => (window.location.href = getLoginUrl())}
