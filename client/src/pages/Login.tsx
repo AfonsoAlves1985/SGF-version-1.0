@@ -36,11 +36,11 @@ export default function Login() {
           <div>
             <label className="block text-gray-400 text-sm mb-1">Usuário</label>
             <input
-              type="text"
+              type="password"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full bg-gray-700 text-white px-4 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="admin"
+              placeholder="******"
             />
           </div>
           
@@ -51,7 +51,7 @@ export default function Login() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="w-full bg-gray-700 text-white px-4 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="admin123"
+              placeholder="******"
             />
           </div>
 
