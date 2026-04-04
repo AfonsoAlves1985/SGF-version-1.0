@@ -84,7 +84,7 @@ No plano free, o Render entra em sleep por inatividade. Este repositório inclui
 
 - `.github/workflows/keep-render-alive.yml`
 
-Ela faz `GET` no endpoint de saúde (`/healthz`) a cada 10 minutos.
+Ela faz `GET` no endpoint de saúde (`/healthz`) a cada 5 minutos.
 
 Importante:
 
