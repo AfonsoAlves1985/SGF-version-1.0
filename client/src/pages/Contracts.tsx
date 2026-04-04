@@ -787,7 +787,7 @@ export default function Contracts() {
                       contract.status === "vencido" ||
                       isExpiredContractDate(contract.endDate);
                     const defaultTextClass = isExpired
-                      ? "text-red-400"
+                      ? "text-red-700 dark:text-red-300"
                       : "text-gray-300";
 
                     return (
@@ -799,7 +799,9 @@ export default function Contracts() {
                       >
                         <TableCell
                           className={`font-medium ${
-                            isExpired ? "text-red-300" : "text-white"
+                            isExpired
+                              ? "text-red-800 dark:text-red-200"
+                              : "text-white"
                           }`}
                         >
                           {contract.companyName}

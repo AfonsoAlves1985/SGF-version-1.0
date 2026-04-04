@@ -428,13 +428,13 @@ export default function Rooms() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case "disponivel":
-        return "bg-green-900/30 text-green-400 border border-green-700/30";
+        return "bg-green-900/30 text-green-800 dark:text-green-400 border border-green-700/30";
       case "ocupada":
-        return "bg-red-900/30 text-red-400 border border-red-700/30";
+        return "bg-red-900/30 text-red-800 dark:text-red-300 border border-red-700/30";
       case "manutencao":
-        return "bg-yellow-900/30 text-yellow-400 border border-yellow-700/30";
+        return "bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 border border-yellow-700/30";
       default:
-        return "bg-gray-900/30 text-gray-400 border border-gray-700/30";
+        return "bg-gray-900/30 text-gray-700 dark:text-gray-300 border border-gray-700/30";
     }
   };
 
