@@ -243,7 +243,7 @@ export default function Suppliers() {
                 Novo Fornecedor
               </Button>
             </DialogTrigger>
-            <DialogContent className="bg-slate-800 border-slate-700 max-w-2xl">
+            <DialogContent className="w-[calc(100vw-2rem)] max-w-2xl max-h-[90vh] overflow-y-auto bg-slate-800 border-slate-700">
               <DialogHeader>
                 <DialogTitle className="text-white">{editingId ? "Editar" : "Novo"} Fornecedor</DialogTitle>
                 <DialogDescription className="text-gray-400">
@@ -263,7 +263,7 @@ export default function Suppliers() {
 
                 <div>
                   <label className="text-sm font-medium text-gray-300">Tipos de Serviço</label>
-                  <div className="grid grid-cols-2 gap-2 mt-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
                     {SERVICE_TYPES.map((type) => (
                       <label key={type} className="flex items-center gap-2 cursor-pointer">
                         <input
@@ -324,7 +324,7 @@ export default function Suppliers() {
                   />
                 </div>
 
-                <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row gap-2">
                   <Button type="submit" className="flex-1 bg-orange-600 hover:bg-orange-700">
                     {editingId ? "Atualizar" : "Criar"} Fornecedor
                   </Button>
