@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Popover,
   PopoverContent,
@@ -14,6 +14,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Check, X } from "lucide-react";
+import { toast } from "sonner";
+
+const ADD_DEPARTMENT_VALUE = "__add_new_department__";
 
 interface MaintenanceInlineEditProps {
   value: string;
@@ -27,6 +30,8 @@ interface MaintenanceInlineEditProps {
   onSave: (newValue: string) => void;
   isLoading?: boolean;
   children: React.ReactNode;
+  departmentOptions?: string[];
+  onAddDepartmentOption?: (department: string) => boolean;
 }
 
 const formatDateMask = (value: string) => {
@@ -43,9 +48,17 @@ export function MaintenanceInlineEdit({
   onSave,
   isLoading = false,
   children,
+  departmentOptions = [],
+  onAddDepartmentOption,
 }: MaintenanceInlineEditProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [editValue, setEditValue] = useState(value);
+  const [isAddingDepartment, setIsAddingDepartment] = useState(false);
+  const [newDepartmentName, setNewDepartmentName] = useState("");
+
+  useEffect(() => {
+    setEditValue(value);
+  }, [value]);
 
   const handleSave = () => {
     if (editValue !== value && editValue.trim()) {
@@ -56,7 +69,36 @@ export function MaintenanceInlineEdit({
 
   const handleCancel = () => {
     setEditValue(value);
+    setIsAddingDepartment(false);
+    setNewDepartmentName("");
     setIsOpen(false);
+  };
+
+  const handleAddDepartment = () => {
+    const department = newDepartmentName.trim();
+
+    if (!department) {
+      toast.error("Digite o nome do departamento");
+      return;
+    }
+
+    if (
+      departmentOptions.some(
+        option => option.toLowerCase() === department.toLowerCase()
+      )
+    ) {
+      toast.error("Esse departamento já existe na lista");
+      return;
+    }
+
+    const wasAdded = onAddDepartmentOption?.(department);
+    if (wasAdded === false) {
+      return;
+    }
+
+    setEditValue(department);
+    setNewDepartmentName("");
+    setIsAddingDepartment(false);
   };
 
   const getOptions = () => {
@@ -86,17 +128,68 @@ export function MaintenanceInlineEdit({
   };
 
   const renderInput = () => {
-    if (field === "title" || field === "department") {
+    if (field === "title") {
       return (
         <Input
           value={editValue}
           onChange={e => setEditValue(e.target.value)}
-          placeholder={
-            field === "title" ? "Digite o novo título" : "Digite o departamento"
-          }
+          placeholder="Digite o novo título"
           className="bg-slate-700 border-slate-600 text-white"
           autoFocus
         />
+      );
+    }
+
+    if (field === "department") {
+      return (
+        <div className="space-y-2">
+          <Select
+            value={editValue || undefined}
+            onValueChange={selected => {
+              if (selected === ADD_DEPARTMENT_VALUE) {
+                setIsAddingDepartment(true);
+                return;
+              }
+
+              setEditValue(selected);
+              setIsAddingDepartment(false);
+            }}
+          >
+            <SelectTrigger className="bg-slate-700 border-slate-600 text-white">
+              <SelectValue placeholder="Selecione um departamento" />
+            </SelectTrigger>
+            <SelectContent>
+              {departmentOptions.map(option => (
+                <SelectItem key={option} value={option}>
+                  {option}
+                </SelectItem>
+              ))}
+              <SelectItem value={ADD_DEPARTMENT_VALUE}>
+                + Adicionar novo departamento
+              </SelectItem>
+            </SelectContent>
+          </Select>
+
+          {isAddingDepartment && (
+            <div className="flex flex-col gap-2">
+              <Input
+                value={newDepartmentName}
+                onChange={e => setNewDepartmentName(e.target.value)}
+                placeholder="Novo departamento"
+                className="bg-slate-700 border-slate-600 text-white"
+                autoFocus
+              />
+              <Button
+                type="button"
+                size="sm"
+                onClick={handleAddDepartment}
+                className="bg-orange-600 hover:bg-orange-700"
+              >
+                Adicionar departamento
+              </Button>
+            </div>
+          )}
+        </div>
       );
     }
 

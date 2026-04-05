@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import {
@@ -99,6 +99,27 @@ export default function Maintenance() {
     priority,
     spaceId: selectedSpace || undefined,
   });
+
+  useEffect(() => {
+    setDepartmentOptions(prev => {
+      const existing = new Set(prev.map(option => option.toLowerCase()));
+      const discovered: string[] = requests
+        .map((request: any) => request.department)
+        .filter((department: string | undefined): department is string =>
+          Boolean(department && department.trim())
+        );
+
+      const toAdd = discovered.filter(
+        (department: string) => !existing.has(department.toLowerCase())
+      );
+
+      if (toAdd.length === 0) {
+        return prev;
+      }
+
+      return [...prev, ...toAdd];
+    });
+  }, [requests]);
 
   // Mutations - Spaces
   const createSpaceMutation = trpc.maintenanceSpaces.create.useMutation({
@@ -211,12 +232,12 @@ export default function Maintenance() {
     setIsDialogOpen(true);
   };
 
-  const handleAddDepartment = () => {
-    const department = newDepartmentName.trim();
+  const addDepartmentOption = (departmentName: string) => {
+    const department = departmentName.trim();
 
     if (!department) {
       toast.error("Digite o nome do departamento");
-      return;
+      return false;
     }
 
     if (
@@ -225,14 +246,25 @@ export default function Maintenance() {
       )
     ) {
       toast.error("Esse departamento já existe na lista");
-      return;
+      return false;
     }
 
     setDepartmentOptions(prev => [...prev, department]);
+    toast.success(`Departamento "${department}" adicionado`);
+    return true;
+  };
+
+  const handleAddDepartment = () => {
+    const department = newDepartmentName.trim();
+    const added = addDepartmentOption(department);
+
+    if (!added) {
+      return;
+    }
+
     setFormData({ ...formData, department });
     setNewDepartmentName("");
     setIsAddingDepartment(false);
-    toast.success(`Departamento "${department}" adicionado`);
   };
 
   const handleInlineEdit = (request: any, field: string) => {
@@ -647,6 +679,8 @@ export default function Maintenance() {
                               <MaintenanceInlineEdit
                                 value={request.department || ""}
                                 field="department"
+                                departmentOptions={departmentOptions}
+                                onAddDepartmentOption={addDepartmentOption}
                                 onSave={newValue =>
                                   updateMutation.mutate({
                                     id: request.id,
