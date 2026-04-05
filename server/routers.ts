@@ -6,6 +6,7 @@ import { z } from "zod";
 import * as db from "./db";
 import { comparePassword, generateToken, hashPassword } from "./auth.helpers";
 import { TRPCError } from "@trpc/server";
+import { ENV } from "./_core/env";
 
 const DEFAULT_ADMIN = {
   openId: "local-admin",
@@ -18,6 +19,109 @@ const LEGACY_ADMIN_OPEN_IDS = ["local-admin", "admin-local"];
 const LEGACY_ADMIN_EMAILS = ["admin@admin.com", "admin@local.com"];
 
 const DATE_MASK_REGEX = /^\d{2}-\d{2}-\d{4}$/;
+
+type LoginAttemptState = {
+  failedAttempts: number;
+  firstFailedAt: number;
+  lockedUntil: number;
+};
+
+const loginAttemptStore = new Map<string, LoginAttemptState>();
+
+const LOGIN_MAX_FAILED_ATTEMPTS = Math.max(
+  1,
+  Number(process.env.LOGIN_MAX_FAILED_ATTEMPTS ?? "5") || 5
+);
+const LOGIN_LOCK_MINUTES = Math.max(
+  1,
+  Number(process.env.LOGIN_LOCK_MINUTES ?? "15") || 15
+);
+const LOGIN_WINDOW_MINUTES = Math.max(
+  1,
+  Number(process.env.LOGIN_WINDOW_MINUTES ?? "30") || 30
+);
+const DEFAULT_ADMIN_PASSWORD = "admin123";
+const ALLOW_DEFAULT_ADMIN_LOGIN =
+  process.env.ALLOW_DEFAULT_ADMIN_LOGIN === "true" || !ENV.isProduction;
+
+function getClientIp(req: { ip?: string; headers?: Record<string, unknown> }) {
+  const forwardedFor = req.headers?.["x-forwarded-for"];
+
+  if (typeof forwardedFor === "string" && forwardedFor.trim().length > 0) {
+    return forwardedFor.split(",")[0]?.trim().toLowerCase() || "unknown";
+  }
+
+  return req.ip?.toLowerCase() || "unknown";
+}
+
+function buildLoginAttemptKey(
+  loginIdentifier: string,
+  req: { ip?: string; headers?: Record<string, unknown> }
+) {
+  return `${loginIdentifier}::${getClientIp(req)}`;
+}
+
+function getRemainingLockMinutes(lockMs: number) {
+  return Math.max(1, Math.ceil(lockMs / 60_000));
+}
+
+function getCurrentAttemptState(loginAttemptKey: string, now: number) {
+  const current = loginAttemptStore.get(loginAttemptKey);
+  if (!current) return null;
+
+  const windowMs = LOGIN_WINDOW_MINUTES * 60_000;
+  if (current.lockedUntil <= now && now - current.firstFailedAt > windowMs) {
+    loginAttemptStore.delete(loginAttemptKey);
+    return null;
+  }
+
+  return current;
+}
+
+function registerFailedLoginAttempt(loginAttemptKey: string, now: number) {
+  const current = getCurrentAttemptState(loginAttemptKey, now);
+
+  const next: LoginAttemptState = current
+    ? {
+        ...current,
+        failedAttempts: current.failedAttempts + 1,
+      }
+    : {
+        failedAttempts: 1,
+        firstFailedAt: now,
+        lockedUntil: 0,
+      };
+
+  if (next.failedAttempts >= LOGIN_MAX_FAILED_ATTEMPTS) {
+    next.lockedUntil = now + LOGIN_LOCK_MINUTES * 60_000;
+  }
+
+  loginAttemptStore.set(loginAttemptKey, next);
+  return next;
+}
+
+function clearFailedLoginAttempts(loginAttemptKey: string) {
+  loginAttemptStore.delete(loginAttemptKey);
+}
+
+function throwUnauthorizedWithRateLimit(loginAttemptKey: string): never {
+  const now = Date.now();
+  const next = registerFailedLoginAttempt(loginAttemptKey, now);
+
+  if (next.lockedUntil > now) {
+    throw new TRPCError({
+      code: "TOO_MANY_REQUESTS",
+      message: `Muitas tentativas de login. Tente novamente em ${getRemainingLockMinutes(
+        next.lockedUntil - now
+      )} minuto(s).`,
+    });
+  }
+
+  throw new TRPCError({
+    code: "UNAUTHORIZED",
+    message: "Usuário ou senha incorretos",
+  });
+}
 
 function parseMaskedDate(value: string) {
   if (!DATE_MASK_REGEX.test(value)) return null;
@@ -91,6 +195,26 @@ async function ensureDefaultAdminUser() {
   return user;
 }
 
+async function findDefaultAdminUser() {
+  let user = await db.getUserByEmail(DEFAULT_ADMIN.email);
+
+  if (!user) {
+    for (const email of LEGACY_ADMIN_EMAILS) {
+      user = await db.getUserByEmail(email);
+      if (user) break;
+    }
+  }
+
+  if (!user) {
+    for (const openId of LEGACY_ADMIN_OPEN_IDS) {
+      user = (await db.getUserByOpenId(openId)) ?? null;
+      if (user) break;
+    }
+  }
+
+  return user;
+}
+
 export const appRouter = router({
   system: systemRouter,
   auth: router({
@@ -101,19 +225,47 @@ export const appRouter = router({
           password: z.string(),
         })
       )
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
         const loginIdentifier = input.email.trim().toLowerCase();
+        const loginAttemptKey = buildLoginAttemptKey(loginIdentifier, ctx.req);
+        const now = Date.now();
+
+        const attemptState = getCurrentAttemptState(loginAttemptKey, now);
+        if (attemptState?.lockedUntil && attemptState.lockedUntil > now) {
+          throw new TRPCError({
+            code: "TOO_MANY_REQUESTS",
+            message: `Muitas tentativas de login. Tente novamente em ${getRemainingLockMinutes(
+              attemptState.lockedUntil - now
+            )} minuto(s).`,
+          });
+        }
+
+        if (
+          loginIdentifier === "admin" &&
+          input.password === DEFAULT_ADMIN_PASSWORD &&
+          !ALLOW_DEFAULT_ADMIN_LOGIN
+        ) {
+          throwUnauthorizedWithRateLimit(loginAttemptKey);
+        }
 
         let user: Awaited<ReturnType<typeof db.getUserByEmail>> = null;
 
         try {
-          user = loginIdentifier === "admin"
-            ? await ensureDefaultAdminUser()
-            : await db.getUserByEmail(loginIdentifier);
+          user =
+            loginIdentifier === "admin"
+              ? ENV.isProduction
+                ? await findDefaultAdminUser()
+                : await ensureDefaultAdminUser()
+              : await db.getUserByEmail(loginIdentifier);
         } catch (error) {
           console.warn("[Auth] DB lookup failed during login:", error);
 
-          if (loginIdentifier === "admin" && input.password === "admin123") {
+          if (
+            loginIdentifier === "admin" &&
+            input.password === DEFAULT_ADMIN_PASSWORD &&
+            ALLOW_DEFAULT_ADMIN_LOGIN
+          ) {
+            clearFailedLoginAttempts(loginAttemptKey);
             const token = generateToken(1, "admin");
             return {
               success: true,
@@ -134,56 +286,52 @@ export const appRouter = router({
         }
 
         if (!user || !user.password) {
-          throw new TRPCError({
-            code: "UNAUTHORIZED",
-            message: "Usuário ou senha incorretos",
-          });
+          throwUnauthorizedWithRateLimit(loginAttemptKey);
         }
 
-        let passwordMatches = await comparePassword(input.password, user.password);
+        let passwordMatches = await comparePassword(
+          input.password,
+          user.password
+        );
 
         if (
           !passwordMatches &&
           loginIdentifier === "admin" &&
           LEGACY_ADMIN_OPEN_IDS.includes(user.openId) &&
-          input.password === "admin123"
+          input.password === DEFAULT_ADMIN_PASSWORD
         ) {
-          const passwordHash = await hashPassword("admin123");
-          await db.updateUserPassword(user.id, passwordHash);
-          user = await db.getUserById(user.id);
-          if (!user || !user.password) {
-            throw new TRPCError({
-              code: "INTERNAL_SERVER_ERROR",
-              message: "Falha ao atualizar senha do administrador",
-            });
+          if (ALLOW_DEFAULT_ADMIN_LOGIN) {
+            const passwordHash = await hashPassword(DEFAULT_ADMIN_PASSWORD);
+            await db.updateUserPassword(user.id, passwordHash);
+            user = await db.getUserById(user.id);
+            if (!user || !user.password) {
+              throw new TRPCError({
+                code: "INTERNAL_SERVER_ERROR",
+                message: "Falha ao atualizar senha do administrador",
+              });
+            }
+            passwordMatches = true;
+          } else {
+            throwUnauthorizedWithRateLimit(loginAttemptKey);
           }
-          passwordMatches = true;
         }
 
         if (!passwordMatches) {
-          throw new TRPCError({
-            code: "UNAUTHORIZED",
-            message: "Usuário ou senha incorretos",
-          });
+          throwUnauthorizedWithRateLimit(loginAttemptKey);
         }
 
         if (!user.isActive) {
-          throw new TRPCError({
-            code: "UNAUTHORIZED",
-            message: "Usuário inativo",
-          });
+          throwUnauthorizedWithRateLimit(loginAttemptKey);
         }
 
         await db.updateUserLastLogin(user.id);
         user = await db.getUserById(user.id);
 
         if (!user) {
-          throw new TRPCError({
-            code: "UNAUTHORIZED",
-            message: "Usuário inválido",
-          });
+          throwUnauthorizedWithRateLimit(loginAttemptKey);
         }
 
+        clearFailedLoginAttempts(loginAttemptKey);
         const token = generateToken(user.id, user.role);
         return {
           success: true,
@@ -209,63 +357,69 @@ export const appRouter = router({
   // ============ INVENTÁRIO ============
   inventory: router({
     list: protectedProcedure
-      .input(z.object({
-        category: z.string().optional(),
-        status: z.string().optional(),
-        search: z.string().optional(),
-      }).optional())
+      .input(
+        z
+          .object({
+            category: z.string().optional(),
+            status: z.string().optional(),
+            search: z.string().optional(),
+          })
+          .optional()
+      )
       .query(async ({ input }) => {
         return db.listInventory(input);
       }),
 
-    getById: protectedProcedure
-      .input(z.number())
-      .query(async ({ input }) => {
-        return db.getInventoryById(input);
-      }),
+    getById: protectedProcedure.input(z.number()).query(async ({ input }) => {
+      return db.getInventoryById(input);
+    }),
 
     create: protectedProcedure
-      .input(z.object({
-        name: z.string(),
-        category: z.string(),
-        quantity: z.number().default(0),
-        minQuantity: z.number().default(5),
-        unit: z.string().default("unidade"),
-        location: z.string(),
-      }))
+      .input(
+        z.object({
+          name: z.string(),
+          category: z.string(),
+          quantity: z.number().default(0),
+          minQuantity: z.number().default(5),
+          unit: z.string().default("unidade"),
+          location: z.string(),
+        })
+      )
       .mutation(async ({ input }) => {
         return db.createInventory(input);
       }),
 
     update: protectedProcedure
-      .input(z.object({
-        id: z.number(),
-        name: z.string().optional(),
-        category: z.string().optional(),
-        quantity: z.number().optional(),
-        minQuantity: z.number().optional(),
-        unit: z.string().optional(),
-        location: z.string().optional(),
-        status: z.enum(["ativo", "inativo", "descontinuado"]).optional(),
-      }))
+      .input(
+        z.object({
+          id: z.number(),
+          name: z.string().optional(),
+          category: z.string().optional(),
+          quantity: z.number().optional(),
+          minQuantity: z.number().optional(),
+          unit: z.string().optional(),
+          location: z.string().optional(),
+          status: z.enum(["ativo", "inativo", "descontinuado"]).optional(),
+        })
+      )
       .mutation(async ({ input }) => {
         const { id, ...data } = input;
         return db.updateInventory(id, data);
       }),
 
-    delete: protectedProcedure
-      .input(z.number())
-      .mutation(async ({ input }) => {
-        return db.deleteInventory(input);
-      }),
+    delete: protectedProcedure.input(z.number()).mutation(async ({ input }) => {
+      return db.deleteInventory(input);
+    }),
 
     addMovement: protectedProcedure
-      .input(z.object({
-        inventoryId: z.number(),
-        type: z.enum(["entrada", "saida"]),
-        quantity: z.number(),
-        reason: z.string().optional(),
-      }))
+      .input(
+        z.object({
+          inventoryId: z.number(),
+          type: z.enum(["entrada", "saida"]),
+          quantity: z.number(),
+          reason: z.string().optional(),
+        })
+      )
       .mutation(async ({ input, ctx }) => {
         return db.addInventoryMovement({
           ...input,
@@ -279,154 +433,165 @@ export const appRouter = router({
         return db.getInventoryMovements(input);
       }),
 
-    getAllMovements: protectedProcedure
-      .query(async () => {
-        return db.getAllInventoryMovements();
-      }),
+    getAllMovements: protectedProcedure.query(async () => {
+      return db.getAllInventoryMovements();
+    }),
   }),
 
   // ============ EQUIPA ============
   teams: router({
     list: protectedProcedure
-      .input(z.object({
-        role: z.string().optional(),
-        status: z.string().optional(),
-      }).optional())
+      .input(
+        z
+          .object({
+            role: z.string().optional(),
+            status: z.string().optional(),
+          })
+          .optional()
+      )
       .query(async ({ input }) => {
         return db.listTeams(input);
       }),
 
-    getById: protectedProcedure
-      .input(z.number())
-      .query(async ({ input }) => {
-        return db.getTeamById(input);
-      }),
+    getById: protectedProcedure.input(z.number()).query(async ({ input }) => {
+      return db.getTeamById(input);
+    }),
 
     create: protectedProcedure
-      .input(z.object({
-        name: z.string(),
-        email: z.string().email().optional(),
-        phone: z.string().optional(),
-        role: z.enum(["limpeza", "manutencao", "admin"]),
-        sector: z.string().optional(),
-      }))
+      .input(
+        z.object({
+          name: z.string(),
+          email: z.string().email().optional(),
+          phone: z.string().optional(),
+          role: z.enum(["limpeza", "manutencao", "admin"]),
+          sector: z.string().optional(),
+        })
+      )
       .mutation(async ({ input }) => {
         return db.createTeam(input);
       }),
 
     update: protectedProcedure
-      .input(z.object({
-        id: z.number(),
-        name: z.string().optional(),
-        email: z.string().email().optional(),
-        phone: z.string().optional(),
-        role: z.enum(["limpeza", "manutencao", "admin"]).optional(),
-        sector: z.string().optional(),
-        status: z.enum(["ativo", "inativo"]).optional(),
-      }))
+      .input(
+        z.object({
+          id: z.number(),
+          name: z.string().optional(),
+          email: z.string().email().optional(),
+          phone: z.string().optional(),
+          role: z.enum(["limpeza", "manutencao", "admin"]).optional(),
+          sector: z.string().optional(),
+          status: z.enum(["ativo", "inativo"]).optional(),
+        })
+      )
       .mutation(async ({ input }) => {
         const { id, ...data } = input;
         return db.updateTeam(id, data);
       }),
 
-    delete: protectedProcedure
-      .input(z.number())
-      .mutation(async ({ input }) => {
-        return db.deleteTeam(input);
-      }),
+    delete: protectedProcedure.input(z.number()).mutation(async ({ input }) => {
+      return db.deleteTeam(input);
+    }),
   }),
 
   // ============ SALAS ============
   rooms: router({
     list: protectedProcedure
-      .input(z.object({
-        status: z.string().optional(),
-      }).optional())
+      .input(
+        z
+          .object({
+            status: z.string().optional(),
+          })
+          .optional()
+      )
       .query(async ({ input }) => {
         return db.listRooms(input);
       }),
 
-    getById: protectedProcedure
-      .input(z.number())
-      .query(async ({ input }) => {
-        return db.getRoomById(input);
-      }),
+    getById: protectedProcedure.input(z.number()).query(async ({ input }) => {
+      return db.getRoomById(input);
+    }),
 
     create: protectedProcedure
-      .input(z.object({
-        name: z.string(),
-        capacity: z.number(),
-        location: z.string(),
-        type: z.enum(["sala", "auditorio", "cozinha", "outro"]),
-        startDate: z.string().optional(),
-        endDate: z.string().optional(),
-        startTime: z.string().optional(),
-        endTime: z.string().optional(),
-      }).refine(
-        (data) => {
-          if (data.startDate && data.endDate) {
-            const startDate = parseMaskedDate(data.startDate);
-            const endDate = parseMaskedDate(data.endDate);
-            if (!startDate || !endDate) return false;
+      .input(
+        z
+          .object({
+            name: z.string(),
+            capacity: z.number(),
+            location: z.string(),
+            type: z.enum(["sala", "auditorio", "cozinha", "outro"]),
+            startDate: z.string().optional(),
+            endDate: z.string().optional(),
+            startTime: z.string().optional(),
+            endTime: z.string().optional(),
+          })
+          .refine(
+            data => {
+              if (data.startDate && data.endDate) {
+                const startDate = parseMaskedDate(data.startDate);
+                const endDate = parseMaskedDate(data.endDate);
+                if (!startDate || !endDate) return false;
 
-            startDate.setHours(0, 0, 0, 0);
-            endDate.setHours(0, 0, 0, 0);
+                startDate.setHours(0, 0, 0, 0);
+                endDate.setHours(0, 0, 0, 0);
 
-            return endDate.getTime() >= startDate.getTime();
-          }
-          return true;
-        },
-        {
-          message: "Data de termino nao pode ser anterior a data de inicio",
-          path: ["endDate"],
-        }
-      ))
+                return endDate.getTime() >= startDate.getTime();
+              }
+              return true;
+            },
+            {
+              message: "Data de termino nao pode ser anterior a data de inicio",
+              path: ["endDate"],
+            }
+          )
+      )
       .mutation(async ({ input }) => {
         return db.createRoom(input);
       }),
 
     update: protectedProcedure
-      .input(z.object({
-        id: z.number(),
-        name: z.string().optional(),
-        capacity: z.number().optional(),
-        location: z.string().optional(),
-        type: z.enum(["sala", "auditorio", "cozinha", "outro"]).optional(),
-        status: z.enum(["disponivel", "ocupada", "manutencao"]).optional(),
-        responsibleUserName: z.string().optional(),
-        startDate: z.string().optional(),
-        endDate: z.string().optional(),
-        startTime: z.string().optional(),
-        endTime: z.string().optional(),
-      }).refine(
-        (data) => {
-          if (data.startDate && data.endDate) {
-            const startDate = parseMaskedDate(data.startDate);
-            const endDate = parseMaskedDate(data.endDate);
-            if (!startDate || !endDate) return false;
+      .input(
+        z
+          .object({
+            id: z.number(),
+            name: z.string().optional(),
+            capacity: z.number().optional(),
+            location: z.string().optional(),
+            type: z.enum(["sala", "auditorio", "cozinha", "outro"]).optional(),
+            status: z.enum(["disponivel", "ocupada", "manutencao"]).optional(),
+            responsibleUserName: z.string().optional(),
+            startDate: z.string().optional(),
+            endDate: z.string().optional(),
+            startTime: z.string().optional(),
+            endTime: z.string().optional(),
+          })
+          .refine(
+            data => {
+              if (data.startDate && data.endDate) {
+                const startDate = parseMaskedDate(data.startDate);
+                const endDate = parseMaskedDate(data.endDate);
+                if (!startDate || !endDate) return false;
 
-            startDate.setHours(0, 0, 0, 0);
-            endDate.setHours(0, 0, 0, 0);
+                startDate.setHours(0, 0, 0, 0);
+                endDate.setHours(0, 0, 0, 0);
 
-            return endDate.getTime() >= startDate.getTime();
-          }
-          return true;
-        },
-        {
-          message: "Data de termino nao pode ser anterior a data de inicio",
-          path: ["endDate"],
-        }
-      ))
+                return endDate.getTime() >= startDate.getTime();
+              }
+              return true;
+            },
+            {
+              message: "Data de termino nao pode ser anterior a data de inicio",
+              path: ["endDate"],
+            }
+          )
+      )
       .mutation(async ({ input }) => {
         const { id, ...data } = input;
         return db.updateRoom(id, data);
       }),
 
-    delete: protectedProcedure
-      .input(z.number())
-      .mutation(async ({ input }) => {
-        return db.deleteRoom(input);
-      }),
+    delete: protectedProcedure.input(z.number()).mutation(async ({ input }) => {
+      return db.deleteRoom(input);
+    }),
 
     getUsageStats: protectedProcedure
       .input(z.number().optional())
@@ -435,30 +600,35 @@ export const appRouter = router({
         return db.getRoomUsageStats(input);
       }),
 
-    getAllUsageStats: protectedProcedure
-      .query(async () => {
-        return db.getAllRoomsUsageStats();
-      }),
+    getAllUsageStats: protectedProcedure.query(async () => {
+      return db.getAllRoomsUsageStats();
+    }),
   }),
 
   // ============ RESERVAS DE SALAS ============
   roomReservations: router({
     list: protectedProcedure
-      .input(z.object({
-        roomId: z.number().optional(),
-        status: z.string().optional(),
-      }).optional())
+      .input(
+        z
+          .object({
+            roomId: z.number().optional(),
+            status: z.string().optional(),
+          })
+          .optional()
+      )
       .query(async ({ input }) => {
         return db.listRoomReservations(input);
       }),
 
     create: protectedProcedure
-      .input(z.object({
-        roomId: z.number(),
-        startTime: z.date(),
-        endTime: z.date(),
-        purpose: z.string().optional(),
-      }))
+      .input(
+        z.object({
+          roomId: z.number(),
+          startTime: z.date(),
+          endTime: z.date(),
+          purpose: z.string().optional(),
+        })
+      )
       .mutation(async ({ input, ctx }) => {
         return db.createRoomReservation({
           ...input,
@@ -469,14 +639,16 @@ export const appRouter = router({
       }),
 
     update: protectedProcedure
-      .input(z.object({
-        id: z.number(),
-        roomId: z.number().optional(),
-        startTime: z.date().optional(),
-        endTime: z.date().optional(),
-        purpose: z.string().optional(),
-        status: z.enum(["confirmada", "pendente", "cancelada"]).optional(),
-      }))
+      .input(
+        z.object({
+          id: z.number(),
+          roomId: z.number().optional(),
+          startTime: z.date().optional(),
+          endTime: z.date().optional(),
+          purpose: z.string().optional(),
+          status: z.enum(["confirmada", "pendente", "cancelada"]).optional(),
+        })
+      )
       .mutation(async ({ input }) => {
         const { id, startTime, endTime, ...rest } = input;
         return db.updateRoomReservation(id, {
@@ -486,42 +658,49 @@ export const appRouter = router({
         });
       }),
 
-    delete: protectedProcedure
-      .input(z.number())
-      .mutation(async ({ input }) => {
-        return db.deleteRoomReservation(input);
-      }),
+    delete: protectedProcedure.input(z.number()).mutation(async ({ input }) => {
+      return db.deleteRoomReservation(input);
+    }),
   }),
 
   // ============ MANUTENÇÃO ============
   maintenance: router({
     list: protectedProcedure
-      .input(z.object({
-        status: z.string().optional(),
-        priority: z.string().optional(),
-        assignedTo: z.number().optional(),
-        spaceId: z.number().optional(),
-      }).optional())
+      .input(
+        z
+          .object({
+            status: z.string().optional(),
+            priority: z.string().optional(),
+            assignedTo: z.number().optional(),
+            spaceId: z.number().optional(),
+          })
+          .optional()
+      )
       .query(async ({ input }) => {
         return db.listMaintenanceRequests(input);
       }),
 
-    getById: protectedProcedure
-      .input(z.number())
-      .query(async ({ input }) => {
-        return db.getMaintenanceRequestById(input);
-      }),
+    getById: protectedProcedure.input(z.number()).query(async ({ input }) => {
+      return db.getMaintenanceRequestById(input);
+    }),
 
     create: protectedProcedure
-      .input(z.object({
-        title: z.string(),
-        description: z.string().optional(),
-        department: z.string().optional(),
-        requestDate: z.string().regex(/^\d{2}-\d{2}-\d{4}$/).optional(),
-        priority: z.enum(["baixa", "media", "alta", "urgente"]).default("media"),
-        type: z.enum(["preventiva", "correctiva"]),
-        spaceId: z.number(),
-      }))
+      .input(
+        z.object({
+          title: z.string(),
+          description: z.string().optional(),
+          department: z.string().optional(),
+          requestDate: z
+            .string()
+            .regex(/^\d{2}-\d{2}-\d{4}$/)
+            .optional(),
+          priority: z
+            .enum(["baixa", "media", "alta", "urgente"])
+            .default("media"),
+          type: z.enum(["preventiva", "correctiva"]),
+          spaceId: z.number(),
+        })
+      )
       .mutation(async ({ input, ctx }) => {
         return db.createMaintenanceRequest({
           ...input,
@@ -530,19 +709,26 @@ export const appRouter = router({
       }),
 
     update: protectedProcedure
-      .input(z.object({
-        id: z.number(),
-        title: z.string().optional(),
-        description: z.string().optional(),
-        department: z.string().optional(),
-        requestDate: z.string().regex(/^\d{2}-\d{2}-\d{4}$/).optional(),
-        priority: z.enum(["baixa", "media", "alta", "urgente"]).optional(),
-        type: z.enum(["preventiva", "correctiva"]).optional(),
-        status: z.enum(["aberto", "em_progresso", "concluido", "cancelado"]).optional(),
-        assignedTo: z.number().optional(),
-        notes: z.string().optional(),
-        completedAt: z.date().optional(),
-      }))
+      .input(
+        z.object({
+          id: z.number(),
+          title: z.string().optional(),
+          description: z.string().optional(),
+          department: z.string().optional(),
+          requestDate: z
+            .string()
+            .regex(/^\d{2}-\d{2}-\d{4}$/)
+            .optional(),
+          priority: z.enum(["baixa", "media", "alta", "urgente"]).optional(),
+          type: z.enum(["preventiva", "correctiva"]).optional(),
+          status: z
+            .enum(["aberto", "em_progresso", "concluido", "cancelado"])
+            .optional(),
+          assignedTo: z.number().optional(),
+          notes: z.string().optional(),
+          completedAt: z.date().optional(),
+        })
+      )
       .mutation(async ({ input }) => {
         const { id, completedAt, ...data } = input;
         return db.updateMaintenanceRequest(id, {
@@ -551,192 +737,210 @@ export const appRouter = router({
         });
       }),
 
-    delete: protectedProcedure
-      .input(z.number())
-      .mutation(async ({ input }) => {
-        return db.deleteMaintenanceRequest(input);
-      }),
+    delete: protectedProcedure.input(z.number()).mutation(async ({ input }) => {
+      return db.deleteMaintenanceRequest(input);
+    }),
   }),
 
   // ============ FORNECEDORES ============
   suppliers: router({
     list: protectedProcedure
-      .input(z.object({
-        category: z.string().optional(),
-        status: z.string().optional(),
-      }).optional())
+      .input(
+        z
+          .object({
+            category: z.string().optional(),
+            status: z.string().optional(),
+          })
+          .optional()
+      )
       .query(async ({ input }) => {
         return db.listSuppliers(input);
       }),
 
-    getById: protectedProcedure
-      .input(z.number())
-      .query(async ({ input }) => {
-        return db.getSupplierById(input);
-      }),
+    getById: protectedProcedure.input(z.number()).query(async ({ input }) => {
+      return db.getSupplierById(input);
+    }),
 
     create: protectedProcedure
-      .input(z.object({
-        companyName: z.string(),
-        serviceTypes: z.array(z.string()),
-        contact: z.string(),
-        contactPerson: z.string(),
-        status: z.enum(["ativo", "inativo", "suspenso"]).optional(),
-        notes: z.string().optional(),
-      }))
+      .input(
+        z.object({
+          companyName: z.string(),
+          serviceTypes: z.array(z.string()),
+          contact: z.string(),
+          contactPerson: z.string(),
+          status: z.enum(["ativo", "inativo", "suspenso"]).optional(),
+          notes: z.string().optional(),
+        })
+      )
       .mutation(async ({ input }) => {
         return db.createSupplier(input);
       }),
 
     update: protectedProcedure
-      .input(z.object({
-        id: z.number(),
-        companyName: z.string().optional(),
-        serviceTypes: z.array(z.string()).optional(),
-        contact: z.string().optional(),
-        contactPerson: z.string().optional(),
-        status: z.enum(["ativo", "inativo", "suspenso"]).optional(),
-        notes: z.string().optional(),
-      }))
+      .input(
+        z.object({
+          id: z.number(),
+          companyName: z.string().optional(),
+          serviceTypes: z.array(z.string()).optional(),
+          contact: z.string().optional(),
+          contactPerson: z.string().optional(),
+          status: z.enum(["ativo", "inativo", "suspenso"]).optional(),
+          notes: z.string().optional(),
+        })
+      )
       .mutation(async ({ input }) => {
         const { id, ...data } = input;
         return db.updateSupplier(id, data);
       }),
 
-    delete: protectedProcedure
-      .input(z.number())
-      .mutation(async ({ input }) => {
-        return db.deleteSupplier(input);
-      }),
+    delete: protectedProcedure.input(z.number()).mutation(async ({ input }) => {
+      return db.deleteSupplier(input);
+    }),
   }),
 
   // Fornecedores por Espaço
   suppliersWithSpace: router({
     list: protectedProcedure
-      .input(z.object({
-        spaceId: z.number().optional(),
-      }).optional())
+      .input(
+        z
+          .object({
+            spaceId: z.number().optional(),
+          })
+          .optional()
+      )
       .query(async ({ input }) => {
         return db.listSuppliersWithSpace(input?.spaceId);
       }),
 
-    getById: protectedProcedure
-      .input(z.number())
-      .query(async ({ input }) => {
-        return db.getSupplierWithSpaceById(input);
-      }),
+    getById: protectedProcedure.input(z.number()).query(async ({ input }) => {
+      return db.getSupplierWithSpaceById(input);
+    }),
 
     create: protectedProcedure
-      .input(z.object({
-        spaceId: z.number(),
-        companyName: z.string(),
-        serviceTypes: z.array(z.string()),
-        contact: z.string(),
-        contactPerson: z.string(),
-        status: z.enum(["ativo", "inativo", "suspenso"]).optional(),
-        notes: z.string().optional(),
-      }))
+      .input(
+        z.object({
+          spaceId: z.number(),
+          companyName: z.string(),
+          serviceTypes: z.array(z.string()),
+          contact: z.string(),
+          contactPerson: z.string(),
+          status: z.enum(["ativo", "inativo", "suspenso"]).optional(),
+          notes: z.string().optional(),
+        })
+      )
       .mutation(async ({ input }) => {
         return db.createSupplierWithSpace(input);
       }),
 
     update: protectedProcedure
-      .input(z.object({
-        id: z.number(),
-        companyName: z.string().optional(),
-        serviceTypes: z.array(z.string()).optional(),
-        contact: z.string().optional(),
-        contactPerson: z.string().optional(),
-        status: z.enum(["ativo", "inativo", "suspenso"]).optional(),
-        notes: z.string().optional(),
-      }))
+      .input(
+        z.object({
+          id: z.number(),
+          companyName: z.string().optional(),
+          serviceTypes: z.array(z.string()).optional(),
+          contact: z.string().optional(),
+          contactPerson: z.string().optional(),
+          status: z.enum(["ativo", "inativo", "suspenso"]).optional(),
+          notes: z.string().optional(),
+        })
+      )
       .mutation(async ({ input }) => {
         const { id, ...data } = input;
         return db.updateSupplierWithSpace(id, data);
       }),
 
-    delete: protectedProcedure
-      .input(z.number())
-      .mutation(async ({ input }) => {
-        return db.deleteSupplierWithSpace(input);
-      }),
+    delete: protectedProcedure.input(z.number()).mutation(async ({ input }) => {
+      return db.deleteSupplierWithSpace(input);
+    }),
   }),
-
-
 
   // ============ CONSUMÍVEIS ============
   consumables: router({
     list: protectedProcedure
-      .input(z.object({
-        category: z.string().optional(),
-        status: z.string().optional(),
-        search: z.string().optional(),
-      }).optional())
+      .input(
+        z
+          .object({
+            category: z.string().optional(),
+            status: z.string().optional(),
+            search: z.string().optional(),
+          })
+          .optional()
+      )
       .query(async ({ input }) => {
         return db.listConsumables(input);
       }),
 
-    getById: protectedProcedure
-      .input(z.number())
-      .query(async ({ input }) => {
-        return db.getConsumableById(input);
-      }),
+    getById: protectedProcedure.input(z.number()).query(async ({ input }) => {
+      return db.getConsumableById(input);
+    }),
 
     create: protectedProcedure
-      .input(z.object({
-        name: z.string(),
-        category: z.string(),
-        unit: z.string(),
-        minStock: z.number().default(0),
-        maxStock: z.number().default(0),
-        currentStock: z.number().default(0),
-        replenishStock: z.number().default(0),
-      }))
+      .input(
+        z.object({
+          name: z.string(),
+          category: z.string(),
+          unit: z.string(),
+          minStock: z.number().default(0),
+          maxStock: z.number().default(0),
+          currentStock: z.number().default(0),
+          replenishStock: z.number().default(0),
+        })
+      )
       .mutation(async ({ input }) => {
         return db.createConsumable(input);
       }),
 
     update: protectedProcedure
-      .input(z.object({
-        id: z.number(),
-        name: z.string().optional(),
-        category: z.string().optional(),
-        unit: z.string().optional(),
-        minStock: z.number().optional(),
-        maxStock: z.number().optional(),
-        currentStock: z.number().optional(),
-        replenishStock: z.number().optional(),
-        status: z.enum(["ESTOQUE_OK", "ACIMA_DO_ESTOQUE", "REPOR_ESTOQUE"]).optional(),
-      }))
+      .input(
+        z.object({
+          id: z.number(),
+          name: z.string().optional(),
+          category: z.string().optional(),
+          unit: z.string().optional(),
+          minStock: z.number().optional(),
+          maxStock: z.number().optional(),
+          currentStock: z.number().optional(),
+          replenishStock: z.number().optional(),
+          status: z
+            .enum(["ESTOQUE_OK", "ACIMA_DO_ESTOQUE", "REPOR_ESTOQUE"])
+            .optional(),
+        })
+      )
       .mutation(async ({ input }) => {
         const { id, ...data } = input;
         return db.updateConsumable(id, data);
       }),
 
-    delete: protectedProcedure
-      .input(z.number())
-      .mutation(async ({ input }) => {
-        return db.deleteConsumable(input);
-      }),
+    delete: protectedProcedure.input(z.number()).mutation(async ({ input }) => {
+      return db.deleteConsumable(input);
+    }),
 
     listWeekly: protectedProcedure
-      .input(z.object({
-        consumableId: z.number().optional(),
-      }).optional())
+      .input(
+        z
+          .object({
+            consumableId: z.number().optional(),
+          })
+          .optional()
+      )
       .query(async ({ input }) => {
         return db.listConsumablesWeekly(input);
       }),
 
     createWeekly: protectedProcedure
-      .input(z.object({
-        consumableId: z.number(),
-        weekStartDate: z.date(),
-        minStock: z.number(),
-        maxStock: z.number(),
-        currentStock: z.number(),
-        replenishStock: z.number(),
-        status: z.enum(["ESTOQUE_OK", "ACIMA_DO_ESTOQUE", "REPOR_ESTOQUE"]).default("ESTOQUE_OK"),
-      }))
+      .input(
+        z.object({
+          consumableId: z.number(),
+          weekStartDate: z.date(),
+          minStock: z.number(),
+          maxStock: z.number(),
+          currentStock: z.number(),
+          replenishStock: z.number(),
+          status: z
+            .enum(["ESTOQUE_OK", "ACIMA_DO_ESTOQUE", "REPOR_ESTOQUE"])
+            .default("ESTOQUE_OK"),
+        })
+      )
       .mutation(async ({ input }) => {
         return db.createConsumableWeekly({
           ...input,
@@ -745,37 +949,49 @@ export const appRouter = router({
       }),
 
     updateWeekly: protectedProcedure
-      .input(z.object({
-        id: z.number(),
-        minStock: z.number().optional(),
-        maxStock: z.number().optional(),
-        currentStock: z.number().optional(),
-        replenishStock: z.number().optional(),
-        status: z.enum(["ESTOQUE_OK", "ACIMA_DO_ESTOQUE", "REPOR_ESTOQUE"]).optional(),
-      }))
+      .input(
+        z.object({
+          id: z.number(),
+          minStock: z.number().optional(),
+          maxStock: z.number().optional(),
+          currentStock: z.number().optional(),
+          replenishStock: z.number().optional(),
+          status: z
+            .enum(["ESTOQUE_OK", "ACIMA_DO_ESTOQUE", "REPOR_ESTOQUE"])
+            .optional(),
+        })
+      )
       .mutation(async ({ input }) => {
         const { id, ...data } = input;
         return db.updateConsumableWeekly(id, data);
       }),
 
     listMonthly: protectedProcedure
-      .input(z.object({
-        consumableId: z.number().optional(),
-      }).optional())
+      .input(
+        z
+          .object({
+            consumableId: z.number().optional(),
+          })
+          .optional()
+      )
       .query(async ({ input }) => {
         return db.listConsumablesMonthly(input);
       }),
 
     createMonthly: protectedProcedure
-      .input(z.object({
-        consumableId: z.number(),
-        monthStartDate: z.date(),
-        minStock: z.number(),
-        maxStock: z.number(),
-        currentStock: z.number(),
-        replenishStock: z.number(),
-        status: z.enum(["ESTOQUE_OK", "ACIMA_DO_ESTOQUE", "REPOR_ESTOQUE"]).default("ESTOQUE_OK"),
-      }))
+      .input(
+        z.object({
+          consumableId: z.number(),
+          monthStartDate: z.date(),
+          minStock: z.number(),
+          maxStock: z.number(),
+          currentStock: z.number(),
+          replenishStock: z.number(),
+          status: z
+            .enum(["ESTOQUE_OK", "ACIMA_DO_ESTOQUE", "REPOR_ESTOQUE"])
+            .default("ESTOQUE_OK"),
+        })
+      )
       .mutation(async ({ input }) => {
         return db.createConsumableMonthly({
           ...input,
@@ -784,14 +1000,18 @@ export const appRouter = router({
       }),
 
     updateMonthly: protectedProcedure
-      .input(z.object({
-        id: z.number(),
-        minStock: z.number().optional(),
-        maxStock: z.number().optional(),
-        currentStock: z.number().optional(),
-        replenishStock: z.number().optional(),
-        status: z.enum(["ESTOQUE_OK", "ACIMA_DO_ESTOQUE", "REPOR_ESTOQUE"]).optional(),
-      }))
+      .input(
+        z.object({
+          id: z.number(),
+          minStock: z.number().optional(),
+          maxStock: z.number().optional(),
+          currentStock: z.number().optional(),
+          replenishStock: z.number().optional(),
+          status: z
+            .enum(["ESTOQUE_OK", "ACIMA_DO_ESTOQUE", "REPOR_ESTOQUE"])
+            .optional(),
+        })
+      )
       .mutation(async ({ input }) => {
         const { id, ...data } = input;
         return db.updateConsumableMonthly(id, data);
@@ -800,159 +1020,172 @@ export const appRouter = router({
 
   // ============ CONSUMABLE SPACES ============
   consumableSpaces: router({
-    list: protectedProcedure
-      .query(async () => {
-        return db.listConsumableSpaces();
-      }),
+    list: protectedProcedure.query(async () => {
+      return db.listConsumableSpaces();
+    }),
 
     create: protectedProcedure
-      .input(z.object({
-        name: z.string(),
-        description: z.string().optional(),
-        location: z.string().optional(),
-      }))
+      .input(
+        z.object({
+          name: z.string(),
+          description: z.string().optional(),
+          location: z.string().optional(),
+        })
+      )
       .mutation(async ({ input }) => {
         return db.createConsumableSpace(input);
       }),
 
     update: protectedProcedure
-      .input(z.object({
-        id: z.number(),
-        name: z.string().optional(),
-        description: z.string().optional(),
-        location: z.string().optional(),
-      }))
+      .input(
+        z.object({
+          id: z.number(),
+          name: z.string().optional(),
+          description: z.string().optional(),
+          location: z.string().optional(),
+        })
+      )
       .mutation(async ({ input }) => {
         const { id, ...data } = input;
         return db.updateConsumableSpace(id, data);
       }),
 
-    delete: protectedProcedure
-      .input(z.number())
-      .mutation(async ({ input }) => {
-        return db.deleteConsumableSpace(input);
-      }),
+    delete: protectedProcedure.input(z.number()).mutation(async ({ input }) => {
+      return db.deleteConsumableSpace(input);
+    }),
   }),
 
   // ============ SUPPLIER SPACES ============
   supplierSpaces: router({
-    list: protectedProcedure
-      .query(async () => {
-        return db.listSupplierSpaces();
-      }),
+    list: protectedProcedure.query(async () => {
+      return db.listSupplierSpaces();
+    }),
 
     create: protectedProcedure
-      .input(z.object({
-        name: z.string(),
-        description: z.string().optional(),
-        location: z.string().optional(),
-      }))
+      .input(
+        z.object({
+          name: z.string(),
+          description: z.string().optional(),
+          location: z.string().optional(),
+        })
+      )
       .mutation(async ({ input }) => {
         return db.createSupplierSpace(input);
       }),
 
     update: protectedProcedure
-      .input(z.object({
-        id: z.number(),
-        name: z.string().optional(),
-        description: z.string().optional(),
-        location: z.string().optional(),
-      }))
+      .input(
+        z.object({
+          id: z.number(),
+          name: z.string().optional(),
+          description: z.string().optional(),
+          location: z.string().optional(),
+        })
+      )
       .mutation(async ({ input }) => {
         const { id, ...data } = input;
         return db.updateSupplierSpace(id, data);
       }),
 
-    delete: protectedProcedure
-      .input(z.number())
-      .mutation(async ({ input }) => {
-        return db.deleteSupplierSpace(input);
-      }),
+    delete: protectedProcedure.input(z.number()).mutation(async ({ input }) => {
+      return db.deleteSupplierSpace(input);
+    }),
   }),
 
   // ============ CONTRACT SPACES ============
   contractSpaces: router({
-    list: protectedProcedure
-      .query(async () => {
-        return db.listContractSpaces();
-      }),
+    list: protectedProcedure.query(async () => {
+      return db.listContractSpaces();
+    }),
 
     create: protectedProcedure
-      .input(z.object({
-        name: z.string(),
-        description: z.string().optional(),
-        location: z.string().optional(),
-      }))
+      .input(
+        z.object({
+          name: z.string(),
+          description: z.string().optional(),
+          location: z.string().optional(),
+        })
+      )
       .mutation(async ({ input }) => {
         return db.createContractSpace(input);
       }),
 
     update: protectedProcedure
-      .input(z.object({
-        id: z.number(),
-        name: z.string().optional(),
-        description: z.string().optional(),
-        location: z.string().optional(),
-      }))
+      .input(
+        z.object({
+          id: z.number(),
+          name: z.string().optional(),
+          description: z.string().optional(),
+          location: z.string().optional(),
+        })
+      )
       .mutation(async ({ input }) => {
         const { id, ...data } = input;
         return db.updateContractSpace(id, data);
       }),
 
-    delete: protectedProcedure
-      .input(z.number())
-      .mutation(async ({ input }) => {
-        return db.deleteContractSpace(input);
-      }),
+    delete: protectedProcedure.input(z.number()).mutation(async ({ input }) => {
+      return db.deleteContractSpace(input);
+    }),
   }),
 
   // ============ CONTRACTS WITH SPACE ============
   contractsWithSpace: router({
     list: protectedProcedure
-      .input(z.object({
-        spaceId: z.number().optional(),
-        search: z.string().optional(),
-      }).optional())
+      .input(
+        z
+          .object({
+            spaceId: z.number().optional(),
+            search: z.string().optional(),
+          })
+          .optional()
+      )
       .query(async ({ input }) => {
         return db.listContractsWithSpace(input);
       }),
 
-    getById: protectedProcedure
-      .input(z.number())
-      .query(async ({ input }) => {
-        return db.getContractWithSpaceById(input);
-      }),
+    getById: protectedProcedure.input(z.number()).query(async ({ input }) => {
+      return db.getContractWithSpaceById(input);
+    }),
 
     create: protectedProcedure
-      .input(z.object({
-        spaceId: z.number(),
-        companyName: z.string(),
-        cnpj: z.string(),
-        description: z.string(),
-        contact: z.string(),
-        value: z.number(),
-        contractType: z.enum(["mensal", "anual"]),
-        startDate: z.string().regex(DATE_MASK_REGEX, "Use formato DD-MM-YYYY"),
-        endDate: z.string().regex(DATE_MASK_REGEX, "Use formato DD-MM-YYYY"),
-        isRenewable: z.boolean(),
-        status: z.enum(["ativo", "inativo", "vencido"]).optional(),
-        notes: z.string().optional(),
-      }).refine(
-        data => {
-          const startDate = parseMaskedDate(data.startDate);
-          const endDate = parseMaskedDate(data.endDate);
-          if (!startDate || !endDate) return false;
+      .input(
+        z
+          .object({
+            spaceId: z.number(),
+            companyName: z.string(),
+            cnpj: z.string(),
+            description: z.string(),
+            contact: z.string(),
+            value: z.number(),
+            contractType: z.enum(["mensal", "anual"]),
+            startDate: z
+              .string()
+              .regex(DATE_MASK_REGEX, "Use formato DD-MM-YYYY"),
+            endDate: z
+              .string()
+              .regex(DATE_MASK_REGEX, "Use formato DD-MM-YYYY"),
+            isRenewable: z.boolean(),
+            status: z.enum(["ativo", "inativo", "vencido"]).optional(),
+            notes: z.string().optional(),
+          })
+          .refine(
+            data => {
+              const startDate = parseMaskedDate(data.startDate);
+              const endDate = parseMaskedDate(data.endDate);
+              if (!startDate || !endDate) return false;
 
-          startDate.setHours(0, 0, 0, 0);
-          endDate.setHours(0, 0, 0, 0);
+              startDate.setHours(0, 0, 0, 0);
+              endDate.setHours(0, 0, 0, 0);
 
-          return endDate.getTime() >= startDate.getTime();
-        },
-        {
-          message: "Data de fim nao pode ser anterior a data de inicio",
-          path: ["endDate"],
-        },
-      ))
+              return endDate.getTime() >= startDate.getTime();
+            },
+            {
+              message: "Data de fim nao pode ser anterior a data de inicio",
+              path: ["endDate"],
+            }
+          )
+      )
       .mutation(async ({ input }) => {
         const { spaceId, startDate, value, ...rest } = input;
         return db.createContractWithSpace(spaceId, {
@@ -963,44 +1196,48 @@ export const appRouter = router({
       }),
 
     update: protectedProcedure
-      .input(z.object({
-        id: z.number(),
-        spaceId: z.number().optional(),
-        companyName: z.string().optional(),
-        cnpj: z.string().optional(),
-        description: z.string().optional(),
-        contact: z.string().optional(),
-        value: z.number().optional(),
-        contractType: z.enum(["mensal", "anual"]).optional(),
-        startDate: z
-          .string()
-          .regex(DATE_MASK_REGEX, "Use formato DD-MM-YYYY")
-          .optional(),
-        endDate: z
-          .string()
-          .regex(DATE_MASK_REGEX, "Use formato DD-MM-YYYY")
-          .optional(),
-        isRenewable: z.boolean().optional(),
-        status: z.enum(["ativo", "inativo", "vencido"]).optional(),
-        notes: z.string().optional(),
-      }).refine(
-        data => {
-          if (!data.startDate || !data.endDate) return true;
+      .input(
+        z
+          .object({
+            id: z.number(),
+            spaceId: z.number().optional(),
+            companyName: z.string().optional(),
+            cnpj: z.string().optional(),
+            description: z.string().optional(),
+            contact: z.string().optional(),
+            value: z.number().optional(),
+            contractType: z.enum(["mensal", "anual"]).optional(),
+            startDate: z
+              .string()
+              .regex(DATE_MASK_REGEX, "Use formato DD-MM-YYYY")
+              .optional(),
+            endDate: z
+              .string()
+              .regex(DATE_MASK_REGEX, "Use formato DD-MM-YYYY")
+              .optional(),
+            isRenewable: z.boolean().optional(),
+            status: z.enum(["ativo", "inativo", "vencido"]).optional(),
+            notes: z.string().optional(),
+          })
+          .refine(
+            data => {
+              if (!data.startDate || !data.endDate) return true;
 
-          const startDate = parseMaskedDate(data.startDate);
-          const endDate = parseMaskedDate(data.endDate);
-          if (!startDate || !endDate) return false;
+              const startDate = parseMaskedDate(data.startDate);
+              const endDate = parseMaskedDate(data.endDate);
+              if (!startDate || !endDate) return false;
 
-          startDate.setHours(0, 0, 0, 0);
-          endDate.setHours(0, 0, 0, 0);
+              startDate.setHours(0, 0, 0, 0);
+              endDate.setHours(0, 0, 0, 0);
 
-          return endDate.getTime() >= startDate.getTime();
-        },
-        {
-          message: "Data de fim nao pode ser anterior a data de inicio",
-          path: ["endDate"],
-        },
-      ))
+              return endDate.getTime() >= startDate.getTime();
+            },
+            {
+              message: "Data de fim nao pode ser anterior a data de inicio",
+              path: ["endDate"],
+            }
+          )
+      )
       .mutation(async ({ input }) => {
         const { id, spaceId, startDate, value, ...rest } = input;
 
@@ -1011,129 +1248,144 @@ export const appRouter = router({
             signatureDate: startDate,
             value: value !== undefined ? value.toString() : undefined,
           } as any,
-          spaceId,
+          spaceId
         );
       }),
 
-    delete: protectedProcedure
-      .input(z.number())
-      .mutation(async ({ input }) => {
-        return db.deleteContractWithSpace(input);
-      }),
+    delete: protectedProcedure.input(z.number()).mutation(async ({ input }) => {
+      return db.deleteContractWithSpace(input);
+    }),
   }),
 
   // ============ MAINTENANCE SPACES ============
   maintenanceSpaces: router({
-    list: protectedProcedure
-      .query(async () => {
-        return db.listMaintenanceSpaces();
-      }),
+    list: protectedProcedure.query(async () => {
+      return db.listMaintenanceSpaces();
+    }),
 
     create: protectedProcedure
-      .input(z.object({
-        name: z.string(),
-        description: z.string().optional(),
-      }))
+      .input(
+        z.object({
+          name: z.string(),
+          description: z.string().optional(),
+        })
+      )
       .mutation(async ({ input }) => {
         return db.createMaintenanceSpace(input);
       }),
 
     update: protectedProcedure
-      .input(z.object({
-        id: z.number(),
-        name: z.string().optional(),
-        description: z.string().optional(),
-      }))
+      .input(
+        z.object({
+          id: z.number(),
+          name: z.string().optional(),
+          description: z.string().optional(),
+        })
+      )
       .mutation(async ({ input }) => {
         const { id, ...data } = input;
         return db.updateMaintenanceSpace(id, data);
       }),
 
-    delete: protectedProcedure
-      .input(z.number())
-      .mutation(async ({ input }) => {
-        return db.deleteMaintenanceSpace(input);
-      }),
+    delete: protectedProcedure.input(z.number()).mutation(async ({ input }) => {
+      return db.deleteMaintenanceSpace(input);
+    }),
   }),
 
   // ============ CONSUMABLES WITH SPACE ============
   consumablesWithSpace: router({
     list: protectedProcedure
-      .input(z.object({
-        spaceId: z.number().optional(),
-        search: z.string().optional(),
-        category: z.string().optional(),
-      }).optional())
+      .input(
+        z
+          .object({
+            spaceId: z.number().optional(),
+            search: z.string().optional(),
+            category: z.string().optional(),
+          })
+          .optional()
+      )
       .query(async ({ input }) => {
         return db.listConsumablesWithSpace(input);
       }),
 
     listWithWeeklyData: protectedProcedure
-      .input(z.object({
-        spaceId: z.number().optional(),
-        weekStartDate: z.string().optional(),
-        category: z.string().optional(),
-        search: z.string().optional(),
-      }).optional())
+      .input(
+        z
+          .object({
+            spaceId: z.number().optional(),
+            weekStartDate: z.string().optional(),
+            category: z.string().optional(),
+            search: z.string().optional(),
+          })
+          .optional()
+      )
       .query(async ({ input }) => {
         return db.listConsumablesWithWeeklyData(input);
       }),
 
     updateWeeklyStock: protectedProcedure
-      .input(z.object({
-        consumableId: z.number(),
-        spaceId: z.number(),
-        weekStartDate: z.string(),
-        currentStock: z.number(),
-      }))
+      .input(
+        z.object({
+          consumableId: z.number(),
+          spaceId: z.number(),
+          weekStartDate: z.string(),
+          currentStock: z.number(),
+        })
+      )
       .mutation(async ({ input }) => {
         return db.upsertConsumableWeeklyStock(input);
       }),
 
     create: protectedProcedure
-      .input(z.object({
-        spaceId: z.number(),
-        name: z.string(),
-        category: z.string(),
-        unit: z.string(),
-        minStock: z.number().default(0),
-        maxStock: z.number().default(0),
-        currentStock: z.number().default(0),
-        replenishStock: z.number().default(0),
-      }))
+      .input(
+        z.object({
+          spaceId: z.number(),
+          name: z.string(),
+          category: z.string(),
+          unit: z.string(),
+          minStock: z.number().default(0),
+          maxStock: z.number().default(0),
+          currentStock: z.number().default(0),
+          replenishStock: z.number().default(0),
+        })
+      )
       .mutation(async ({ input }) => {
         return db.createConsumableWithSpace(input);
       }),
 
     update: protectedProcedure
-      .input(z.object({
-        id: z.number(),
-        name: z.string().optional(),
-        category: z.string().optional(),
-        unit: z.string().optional(),
-        minStock: z.number().optional(),
-        maxStock: z.number().optional(),
-        currentStock: z.number().optional(),
-        replenishStock: z.number().optional(),
-        status: z.enum(["ESTOQUE_OK", "ACIMA_DO_ESTOQUE", "REPOR_ESTOQUE"]).optional(),
-      }))
+      .input(
+        z.object({
+          id: z.number(),
+          name: z.string().optional(),
+          category: z.string().optional(),
+          unit: z.string().optional(),
+          minStock: z.number().optional(),
+          maxStock: z.number().optional(),
+          currentStock: z.number().optional(),
+          replenishStock: z.number().optional(),
+          status: z
+            .enum(["ESTOQUE_OK", "ACIMA_DO_ESTOQUE", "REPOR_ESTOQUE"])
+            .optional(),
+        })
+      )
       .mutation(async ({ input }) => {
         const { id, ...data } = input;
         return db.updateConsumableWithSpace(id, data);
       }),
 
-    delete: protectedProcedure
-      .input(z.number())
-      .mutation(async ({ input }) => {
-        return db.deleteConsumableWithSpace(input);
-      }),
+    delete: protectedProcedure.input(z.number()).mutation(async ({ input }) => {
+      return db.deleteConsumableWithSpace(input);
+    }),
 
     listWithMonthlyConsumption: protectedProcedure
-      .input(z.object({
-        spaceId: z.number(),
-        month: z.number(),
-        year: z.number(),
-      }))
+      .input(
+        z.object({
+          spaceId: z.number(),
+          month: z.number(),
+          year: z.number(),
+        })
+      )
       .query(async ({ input }) => {
         return db.listConsumablesWithMonthlyConsumption(input);
       }),
@@ -1141,31 +1393,42 @@ export const appRouter = router({
 
   consumableWeeklyMovements: router({
     list: protectedProcedure
-      .input(z.object({
-        spaceId: z.number().optional(),
-        consumableId: z.number().optional(),
-      }).optional())
+      .input(
+        z
+          .object({
+            spaceId: z.number().optional(),
+            consumableId: z.number().optional(),
+          })
+          .optional()
+      )
       .query(async ({ input }) => {
-        return db.getConsumableWeeklyMovements(input?.spaceId, input?.consumableId);
+        return db.getConsumableWeeklyMovements(
+          input?.spaceId,
+          input?.consumableId
+        );
       }),
 
     create: protectedProcedure
-      .input(z.object({
-        consumableId: z.number(),
-        spaceId: z.number(),
-        weekStartDate: z.date(),
-        weekNumber: z.number(),
-        year: z.number(),
-        mondayStock: z.number().default(0),
-        tuesdayStock: z.number().default(0),
-        wednesdayStock: z.number().default(0),
-        thursdayStock: z.number().default(0),
-        fridayStock: z.number().default(0),
-        saturdayStock: z.number().default(0),
-        sundayStock: z.number().default(0),
-        totalMovement: z.number().default(0),
-        status: z.enum(["ESTOQUE_OK", "ACIMA_DO_ESTOQUE", "REPOR_ESTOQUE"]).default("ESTOQUE_OK"),
-      }))
+      .input(
+        z.object({
+          consumableId: z.number(),
+          spaceId: z.number(),
+          weekStartDate: z.date(),
+          weekNumber: z.number(),
+          year: z.number(),
+          mondayStock: z.number().default(0),
+          tuesdayStock: z.number().default(0),
+          wednesdayStock: z.number().default(0),
+          thursdayStock: z.number().default(0),
+          fridayStock: z.number().default(0),
+          saturdayStock: z.number().default(0),
+          sundayStock: z.number().default(0),
+          totalMovement: z.number().default(0),
+          status: z
+            .enum(["ESTOQUE_OK", "ACIMA_DO_ESTOQUE", "REPOR_ESTOQUE"])
+            .default("ESTOQUE_OK"),
+        })
+      )
       .mutation(async ({ input }) => {
         return db.createConsumableWeeklyMovement({
           ...input,
@@ -1174,69 +1437,89 @@ export const appRouter = router({
       }),
 
     update: protectedProcedure
-      .input(z.object({
-        id: z.number(),
-        mondayStock: z.number().optional(),
-        tuesdayStock: z.number().optional(),
-        wednesdayStock: z.number().optional(),
-        thursdayStock: z.number().optional(),
-        fridayStock: z.number().optional(),
-        saturdayStock: z.number().optional(),
-        sundayStock: z.number().optional(),
-        totalMovement: z.number().optional(),
-        status: z.enum(["ESTOQUE_OK", "ACIMA_DO_ESTOQUE", "REPOR_ESTOQUE"]).optional(),
-      }))
+      .input(
+        z.object({
+          id: z.number(),
+          mondayStock: z.number().optional(),
+          tuesdayStock: z.number().optional(),
+          wednesdayStock: z.number().optional(),
+          thursdayStock: z.number().optional(),
+          fridayStock: z.number().optional(),
+          saturdayStock: z.number().optional(),
+          sundayStock: z.number().optional(),
+          totalMovement: z.number().optional(),
+          status: z
+            .enum(["ESTOQUE_OK", "ACIMA_DO_ESTOQUE", "REPOR_ESTOQUE"])
+            .optional(),
+        })
+      )
       .mutation(async ({ input }) => {
         const { id, ...data } = input;
         return db.updateConsumableWeeklyMovement(id, data);
       }),
 
-    delete: protectedProcedure
-      .input(z.number())
-      .mutation(async ({ input }) => {
-        return db.deleteConsumableWeeklyMovement(input);
-      }),
+    delete: protectedProcedure.input(z.number()).mutation(async ({ input }) => {
+      return db.deleteConsumableWeeklyMovement(input);
+    }),
 
     getHistory: protectedProcedure
-      .input(z.object({
-        consumableId: z.number(),
-        spaceId: z.number(),
-        weeks: z.number().optional().default(12),
-      }))
+      .input(
+        z.object({
+          consumableId: z.number(),
+          spaceId: z.number(),
+          weeks: z.number().optional().default(12),
+        })
+      )
       .query(async ({ input }) => {
         return db.getConsumableStockHistory(input);
       }),
 
     getAnalysis: protectedProcedure
-      .input(z.object({
-        consumableId: z.number(),
-        spaceId: z.number(),
-        weeks: z.number().optional().default(12),
-      }))
+      .input(
+        z.object({
+          consumableId: z.number(),
+          spaceId: z.number(),
+          weeks: z.number().optional().default(12),
+        })
+      )
       .query(async ({ input }) => {
         return db.getConsumableStockAnalysis(input);
       }),
 
     exportReportExcel: protectedProcedure
-      .input(z.object({
-        spaceId: z.number(),
-        weekStartDate: z.string(),
-      }))
+      .input(
+        z.object({
+          spaceId: z.number(),
+          weekStartDate: z.string(),
+        })
+      )
       .mutation(async ({ input }) => {
-        const { generateReportData, generateExcelReport } = await import('./excel-report');
-        const reportData = await generateReportData(input.spaceId, input.weekStartDate);
+        const { generateReportData, generateExcelReport } = await import(
+          "./excel-report"
+        );
+        const reportData = await generateReportData(
+          input.spaceId,
+          input.weekStartDate
+        );
         const excelPath = await generateExcelReport(reportData);
         return { success: true, excelPath };
       }),
 
     exportReportPDF: protectedProcedure
-      .input(z.object({
-        spaceId: z.number(),
-        weekStartDate: z.string(),
-      }))
+      .input(
+        z.object({
+          spaceId: z.number(),
+          weekStartDate: z.string(),
+        })
+      )
       .mutation(async ({ input }) => {
-        const { generatePDFReportData, generatePDFReport } = await import('./pdf-report');
-        const reportData = await generatePDFReportData(input.spaceId, input.weekStartDate);
+        const { generatePDFReportData, generatePDFReport } = await import(
+          "./pdf-report"
+        );
+        const reportData = await generatePDFReportData(
+          input.spaceId,
+          input.weekStartDate
+        );
         const pdfPath = await generatePDFReport(reportData);
         return { success: true, pdfPath };
       }),
@@ -1244,30 +1527,41 @@ export const appRouter = router({
 
   consumableMonthlyMovements: router({
     list: protectedProcedure
-      .input(z.object({
-        spaceId: z.number().optional(),
-        consumableId: z.number().optional(),
-      }).optional())
+      .input(
+        z
+          .object({
+            spaceId: z.number().optional(),
+            consumableId: z.number().optional(),
+          })
+          .optional()
+      )
       .query(async ({ input }) => {
-        return db.getConsumableMonthlyMovements(input?.spaceId, input?.consumableId);
+        return db.getConsumableMonthlyMovements(
+          input?.spaceId,
+          input?.consumableId
+        );
       }),
 
     create: protectedProcedure
-      .input(z.object({
-        consumableId: z.number(),
-        spaceId: z.number(),
-        monthStartDate: z.date(),
-        month: z.number(),
-        year: z.number(),
-        week1Stock: z.number().default(0),
-        week2Stock: z.number().default(0),
-        week3Stock: z.number().default(0),
-        week4Stock: z.number().default(0),
-        week5Stock: z.number().default(0),
-        totalMovement: z.number().default(0),
-        averageStock: z.number().default(0),
-        status: z.enum(["ESTOQUE_OK", "ACIMA_DO_ESTOQUE", "REPOR_ESTOQUE"]).default("ESTOQUE_OK"),
-      }))
+      .input(
+        z.object({
+          consumableId: z.number(),
+          spaceId: z.number(),
+          monthStartDate: z.date(),
+          month: z.number(),
+          year: z.number(),
+          week1Stock: z.number().default(0),
+          week2Stock: z.number().default(0),
+          week3Stock: z.number().default(0),
+          week4Stock: z.number().default(0),
+          week5Stock: z.number().default(0),
+          totalMovement: z.number().default(0),
+          averageStock: z.number().default(0),
+          status: z
+            .enum(["ESTOQUE_OK", "ACIMA_DO_ESTOQUE", "REPOR_ESTOQUE"])
+            .default("ESTOQUE_OK"),
+        })
+      )
       .mutation(async ({ input }) => {
         return db.createConsumableMonthlyMovement({
           ...input,
@@ -1276,37 +1570,43 @@ export const appRouter = router({
       }),
 
     update: protectedProcedure
-      .input(z.object({
-        id: z.number(),
-        week1Stock: z.number().optional(),
-        week2Stock: z.number().optional(),
-        week3Stock: z.number().optional(),
-        week4Stock: z.number().optional(),
-        week5Stock: z.number().optional(),
-        totalMovement: z.number().optional(),
-        averageStock: z.number().optional(),
-        status: z.enum(["ESTOQUE_OK", "ACIMA_DO_ESTOQUE", "REPOR_ESTOQUE"]).optional(),
-      }))
+      .input(
+        z.object({
+          id: z.number(),
+          week1Stock: z.number().optional(),
+          week2Stock: z.number().optional(),
+          week3Stock: z.number().optional(),
+          week4Stock: z.number().optional(),
+          week5Stock: z.number().optional(),
+          totalMovement: z.number().optional(),
+          averageStock: z.number().optional(),
+          status: z
+            .enum(["ESTOQUE_OK", "ACIMA_DO_ESTOQUE", "REPOR_ESTOQUE"])
+            .optional(),
+        })
+      )
       .mutation(async ({ input }) => {
         const { id, ...data } = input;
         return db.updateConsumableMonthlyMovement(id, data);
       }),
 
-    delete: protectedProcedure
-      .input(z.number())
-      .mutation(async ({ input }) => {
-        return db.deleteConsumableMonthlyMovement(input);
-      }),
+    delete: protectedProcedure.input(z.number()).mutation(async ({ input }) => {
+      return db.deleteConsumableMonthlyMovement(input);
+    }),
   }),
 
   consumableStockAuditLog: router({
     list: protectedProcedure
-      .input(z.object({
-        spaceId: z.number().optional(),
-        consumableId: z.number().optional(),
-        weekStartDate: z.date().optional(),
-        limit: z.number().optional(),
-      }).optional())
+      .input(
+        z
+          .object({
+            spaceId: z.number().optional(),
+            consumableId: z.number().optional(),
+            weekStartDate: z.date().optional(),
+            limit: z.number().optional(),
+          })
+          .optional()
+      )
       .query(async ({ input }) => {
         return db.getStockAuditLog(input);
       }),
@@ -1318,17 +1618,19 @@ export const appRouter = router({
       }),
 
     create: protectedProcedure
-      .input(z.object({
-        consumableWeeklyMovementId: z.number(),
-        consumableId: z.number(),
-        spaceId: z.number(),
-        weekStartDate: z.date(),
-        userId: z.number(),
-        previousValue: z.number(),
-        newValue: z.number(),
-        fieldName: z.string(),
-        changeReason: z.string().optional(),
-      }))
+      .input(
+        z.object({
+          consumableWeeklyMovementId: z.number(),
+          consumableId: z.number(),
+          spaceId: z.number(),
+          weekStartDate: z.date(),
+          userId: z.number(),
+          previousValue: z.number(),
+          newValue: z.number(),
+          fieldName: z.string(),
+          changeReason: z.string().optional(),
+        })
+      )
       .mutation(async ({ input }) => {
         return db.createStockAuditLog({
           ...input,
@@ -1339,9 +1641,13 @@ export const appRouter = router({
 
   dashboard: router({
     getStockAlerts: protectedProcedure
-      .input(z.object({
-        spaceId: z.number().optional(),
-      }).optional())
+      .input(
+        z
+          .object({
+            spaceId: z.number().optional(),
+          })
+          .optional()
+      )
       .query(async ({ input }) => {
         return db.getStockAlerts(input?.spaceId);
       }),
@@ -1352,8 +1658,6 @@ export const appRouter = router({
         return db.getStockAlertsBySpace(input);
       }),
   }),
-
-
 });
 
 export type AppRouter = typeof appRouter;
