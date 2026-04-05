@@ -290,6 +290,19 @@ export default function Maintenance() {
     }
   };
 
+  const isValidMaskedDate = (value: string) => {
+    if (!/^\d{2}-\d{2}-\d{4}$/.test(value)) return false;
+
+    const [day, month, year] = value.split("-").map(Number);
+    const date = new Date(year, month - 1, day);
+
+    return (
+      date.getFullYear() === year &&
+      date.getMonth() === month - 1 &&
+      date.getDate() === day
+    );
+  };
+
   const getPriorityColor = (priority: string) => {
     switch (priority) {
       case "urgente":
@@ -631,14 +644,43 @@ export default function Maintenance() {
                               </MaintenanceInlineEdit>
                             </TableCell>
                             <TableCell>
-                              <span className="text-gray-300">
-                                {request.department || "-"}
-                              </span>
+                              <MaintenanceInlineEdit
+                                value={request.department || ""}
+                                field="department"
+                                onSave={newValue =>
+                                  updateMutation.mutate({
+                                    id: request.id,
+                                    department: newValue,
+                                  })
+                                }
+                                isLoading={updateMutation.isPending}
+                              >
+                                <span className="text-gray-300 cursor-pointer hover:text-orange-400">
+                                  {request.department || "-"}
+                                </span>
+                              </MaintenanceInlineEdit>
                             </TableCell>
                             <TableCell>
-                              <span className="text-gray-300">
-                                {request.requestDate || "-"}
-                              </span>
+                              <MaintenanceInlineEdit
+                                value={request.requestDate || ""}
+                                field="requestDate"
+                                onSave={newValue => {
+                                  if (!isValidMaskedDate(newValue)) {
+                                    toast.error("Use o formato DD-MM-YYYY");
+                                    return;
+                                  }
+
+                                  updateMutation.mutate({
+                                    id: request.id,
+                                    requestDate: newValue,
+                                  });
+                                }}
+                                isLoading={updateMutation.isPending}
+                              >
+                                <span className="text-gray-300 cursor-pointer hover:text-orange-400">
+                                  {request.requestDate || "-"}
+                                </span>
+                              </MaintenanceInlineEdit>
                             </TableCell>
                             <TableCell>
                               <MaintenanceInlineEdit
