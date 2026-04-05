@@ -215,6 +215,8 @@ export const maintenanceRequests = pgTable("maintenance_requests", {
 	id: serial().primaryKey(),
 	title: varchar({ length: 255 }).notNull(),
 	description: text(),
+	department: varchar({ length: 120 }),
+	requestDate: varchar({ length: 10 }),
 	priority: maintenancePriorityEnum().default('media').notNull(),
 	type: maintenanceTypeEnum().notNull(),
 	status: maintenanceStatusEnum().default('aberto').notNull(),

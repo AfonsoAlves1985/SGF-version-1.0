@@ -44,8 +44,19 @@ import { toast } from "sonner";
 import { MaintenanceSpaceManager } from "@/components/MaintenanceSpaceManager";
 import { MaintenanceInlineEdit } from "@/components/MaintenanceInlineEdit";
 import { MaintenanceKanban } from "@/components/MaintenanceKanban";
+import { DateInputWithCalendar } from "@/components/DateInputWithCalendar";
 
 export default function Maintenance() {
+  const getInitialFormData = () => ({
+    title: "",
+    description: "",
+    department: "",
+    requestDate: "",
+    priority: "media" as "urgente" | "alta" | "media" | "baixa",
+    type: "correctiva" as "preventiva" | "correctiva",
+    status: "aberto" as "aberto" | "em_progresso" | "concluido" | "cancelado",
+  });
+
   const [selectedSpace, setSelectedSpace] = useState<number | null>(null);
   const [viewMode, setViewMode] = useState<"table" | "kanban">("table");
   const [status, setStatus] = useState<string | undefined>();
@@ -55,13 +66,7 @@ export default function Maintenance() {
   const [inlineEditingId, setInlineEditingId] = useState<number | null>(null);
   const [inlineEditField, setInlineEditField] = useState<string | null>(null);
   const [inlineEditValue, setInlineEditValue] = useState<string>("");
-  const [formData, setFormData] = useState({
-    title: "",
-    description: "",
-    priority: "media" as "urgente" | "alta" | "media" | "baixa",
-    type: "correctiva" as "preventiva" | "correctiva",
-    status: "aberto" as "aberto" | "em_progresso" | "concluido" | "cancelado",
-  });
+  const [formData, setFormData] = useState(getInitialFormData());
 
   // Queries
   const {
@@ -116,13 +121,7 @@ export default function Maintenance() {
   const createMutation = trpc.maintenance.create.useMutation({
     onSuccess: () => {
       toast.success("Chamado criado com sucesso!");
-      setFormData({
-        title: "",
-        description: "",
-        priority: "media",
-        type: "correctiva",
-        status: "aberto",
-      });
+      setFormData(getInitialFormData());
       setIsDialogOpen(false);
       refetch();
     },
@@ -135,13 +134,7 @@ export default function Maintenance() {
     onSuccess: () => {
       toast.success("Chamado atualizado com sucesso!");
       setEditingRequest(null);
-      setFormData({
-        title: "",
-        description: "",
-        priority: "media",
-        type: "correctiva",
-        status: "aberto",
-      });
+      setFormData(getInitialFormData());
       setIsDialogOpen(false);
       setInlineEditingId(null);
       setInlineEditField(null);
@@ -168,13 +161,7 @@ export default function Maintenance() {
       return;
     }
     setEditingRequest(null);
-    setFormData({
-      title: "",
-      description: "",
-      priority: "media",
-      type: "correctiva",
-      status: "aberto",
-    });
+    setFormData(getInitialFormData());
     setIsDialogOpen(true);
   };
 
@@ -183,6 +170,8 @@ export default function Maintenance() {
     setFormData({
       title: request.title,
       description: request.description,
+      department: request.department || "",
+      requestDate: request.requestDate || "",
       priority: request.priority,
       type: request.type,
       status: request.status,
@@ -221,12 +210,16 @@ export default function Maintenance() {
       const updateData: any = {
         id: editingRequest.id,
         ...formData,
+        department: formData.department || undefined,
+        requestDate: formData.requestDate || undefined,
       };
       updateMutation.mutate(updateData);
     } else {
       const createData: any = {
         title: formData.title,
         description: formData.description,
+        department: formData.department || undefined,
+        requestDate: formData.requestDate || undefined,
         priority: formData.priority,
         type: formData.type,
         spaceId: selectedSpace,
@@ -525,6 +518,12 @@ export default function Maintenance() {
                           </TableHead>
                           <TableHead className="text-gray-300">Tipo</TableHead>
                           <TableHead className="text-gray-300">
+                            Departamento
+                          </TableHead>
+                          <TableHead className="text-gray-300">
+                            Data do Chamado
+                          </TableHead>
+                          <TableHead className="text-gray-300">
                             Prioridade
                           </TableHead>
                           <TableHead className="text-gray-300">
@@ -574,6 +573,16 @@ export default function Maintenance() {
                                     : "Corretiva"}
                                 </span>
                               </MaintenanceInlineEdit>
+                            </TableCell>
+                            <TableCell>
+                              <span className="text-gray-300">
+                                {request.department || "-"}
+                              </span>
+                            </TableCell>
+                            <TableCell>
+                              <span className="text-gray-300">
+                                {request.requestDate || "-"}
+                              </span>
                             </TableCell>
                             <TableCell>
                               <MaintenanceInlineEdit
@@ -687,6 +696,32 @@ export default function Maintenance() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
+                    <Label className="text-gray-300">Departamento</Label>
+                    <Input
+                      value={formData.department}
+                      onChange={e =>
+                        setFormData({ ...formData, department: e.target.value })
+                      }
+                      className="bg-slate-700 border-slate-600 text-white mt-1"
+                      placeholder="Ex: Administrativo"
+                    />
+                  </div>
+
+                  <div>
+                    <Label className="text-gray-300">Data do Chamado</Label>
+                    <DateInputWithCalendar
+                      value={formData.requestDate}
+                      onChange={value =>
+                        setFormData({ ...formData, requestDate: value })
+                      }
+                      className="bg-slate-700 border-slate-600 text-white mt-1"
+                      calendarClassName="[&_.rdp-cell]:text-white [&_.rdp-button]:text-white [&_.rdp-button_today]:bg-orange-600 [&_.rdp-button_selected]:bg-orange-600 [&_.rdp-button_selected]:text-white"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
                     <Label className="text-gray-300">Tipo</Label>
                     <Select
                       value={formData.type}
@@ -739,13 +774,7 @@ export default function Maintenance() {
                     onClick={() => {
                       setIsDialogOpen(false);
                       setEditingRequest(null);
-                      setFormData({
-                        title: "",
-                        description: "",
-                        priority: "media",
-                        type: "correctiva",
-                        status: "aberto",
-                      });
+                      setFormData(getInitialFormData());
                     }}
                     variant="outline"
                     className="border-slate-600 text-gray-300 hover:bg-slate-800"

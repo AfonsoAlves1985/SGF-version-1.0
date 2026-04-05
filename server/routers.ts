@@ -516,6 +516,8 @@ export const appRouter = router({
       .input(z.object({
         title: z.string(),
         description: z.string().optional(),
+        department: z.string().optional(),
+        requestDate: z.string().regex(/^\d{2}-\d{2}-\d{4}$/).optional(),
         priority: z.enum(["baixa", "media", "alta", "urgente"]).default("media"),
         type: z.enum(["preventiva", "correctiva"]),
         spaceId: z.number(),
@@ -532,6 +534,8 @@ export const appRouter = router({
         id: z.number(),
         title: z.string().optional(),
         description: z.string().optional(),
+        department: z.string().optional(),
+        requestDate: z.string().regex(/^\d{2}-\d{2}-\d{4}$/).optional(),
         priority: z.enum(["baixa", "media", "alta", "urgente"]).optional(),
         type: z.enum(["preventiva", "correctiva"]).optional(),
         status: z.enum(["aberto", "em_progresso", "concluido", "cancelado"]).optional(),

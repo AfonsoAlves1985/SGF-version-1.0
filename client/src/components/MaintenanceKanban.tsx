@@ -7,6 +7,8 @@ interface MaintenanceRequest {
   id: number;
   title: string;
   description?: string;
+  department?: string;
+  requestDate?: string;
   priority: "baixa" | "media" | "alta" | "urgente";
   type: "preventiva" | "correctiva";
   status: "aberto" | "em_progresso" | "concluido" | "cancelado";
@@ -150,6 +152,21 @@ export function MaintenanceKanban({
                     {/* Descrição */}
                     {request.description && (
                       <p className="text-xs text-gray-400 mb-2 line-clamp-2">{request.description}</p>
+                    )}
+
+                    {(request.department || request.requestDate) && (
+                      <div className="mb-2 space-y-1">
+                        {request.department && (
+                          <p className="text-xs text-gray-300">
+                            Departamento: {request.department}
+                          </p>
+                        )}
+                        {request.requestDate && (
+                          <p className="text-xs text-gray-300">
+                            Data do chamado: {request.requestDate}
+                          </p>
+                        )}
+                      </div>
                     )}
 
                     {/* Data */}

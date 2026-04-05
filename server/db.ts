@@ -30,6 +30,7 @@ const MIGRATION_FILES = [
   "0000_lonely_luckman.sql",
   "0001_add_spaceid.sql",
   "0002_contract_fields.sql",
+  "0003_maintenance_request_fields.sql",
 ] as const;
 
 const NON_FATAL_MIGRATION_ERROR_CODES = new Set([
@@ -139,6 +140,8 @@ async function ensureEssentialModuleTables(db: ReturnType<typeof drizzle>) {
       "id" serial PRIMARY KEY,
       "title" varchar(255) NOT NULL,
       "description" text,
+      "department" varchar(120),
+      "requestDate" varchar(10),
       "priority" varchar(32) NOT NULL DEFAULT 'media',
       "type" varchar(32) NOT NULL DEFAULT 'preventiva',
       "status" varchar(32) NOT NULL DEFAULT 'aberto',
@@ -151,6 +154,9 @@ async function ensureEssentialModuleTables(db: ReturnType<typeof drizzle>) {
       "spaceId" integer DEFAULT 1 NOT NULL
     );
   `);
+
+  await run(`ALTER TABLE "maintenance_requests" ADD COLUMN IF NOT EXISTS "department" varchar(120);`);
+  await run(`ALTER TABLE "maintenance_requests" ADD COLUMN IF NOT EXISTS "requestDate" varchar(10);`);
 
   await run(`
     CREATE TABLE IF NOT EXISTS "consumable_spaces" (
