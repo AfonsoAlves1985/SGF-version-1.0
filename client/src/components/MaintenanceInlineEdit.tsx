@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/select";
 import { Check, X } from "lucide-react";
 import { toast } from "sonner";
+import { DateInputWithCalendar } from "@/components/DateInputWithCalendar";
 
 const ADD_DEPARTMENT_VALUE = "__add_new_department__";
 
@@ -33,14 +34,6 @@ interface MaintenanceInlineEditProps {
   departmentOptions?: string[];
   onAddDepartmentOption?: (department: string) => boolean;
 }
-
-const formatDateMask = (value: string) => {
-  const digits = value.replace(/\D/g, "").slice(0, 8);
-
-  if (digits.length <= 2) return digits;
-  if (digits.length <= 4) return `${digits.slice(0, 2)}-${digits.slice(2)}`;
-  return `${digits.slice(0, 2)}-${digits.slice(2, 4)}-${digits.slice(4)}`;
-};
 
 export function MaintenanceInlineEdit({
   value,
@@ -195,15 +188,12 @@ export function MaintenanceInlineEdit({
 
     if (field === "requestDate") {
       return (
-        <Input
-          type="text"
-          inputMode="numeric"
-          maxLength={10}
+        <DateInputWithCalendar
           value={editValue}
-          onChange={e => setEditValue(formatDateMask(e.target.value))}
+          onChange={setEditValue}
           placeholder="DD-MM-YYYY"
           className="bg-slate-700 border-slate-600 text-white"
-          autoFocus
+          calendarClassName="[&_.rdp-cell]:text-white [&_.rdp-button]:text-white [&_.rdp-button_today]:bg-orange-600 [&_.rdp-button_selected]:bg-orange-600 [&_.rdp-button_selected]:text-white"
         />
       );
     }
