@@ -47,6 +47,17 @@ import { MaintenanceKanban } from "@/components/MaintenanceKanban";
 import { DateInputWithCalendar } from "@/components/DateInputWithCalendar";
 
 export default function Maintenance() {
+  const defaultDepartments = [
+    "Administrativo",
+    "Financeiro",
+    "Recursos Humanos",
+    "Operações",
+    "Manutenção",
+    "Limpeza",
+    "TI",
+    "Comercial",
+  ];
+
   const getInitialFormData = () => ({
     title: "",
     description: "",
@@ -66,6 +77,10 @@ export default function Maintenance() {
   const [inlineEditingId, setInlineEditingId] = useState<number | null>(null);
   const [inlineEditField, setInlineEditField] = useState<string | null>(null);
   const [inlineEditValue, setInlineEditValue] = useState<string>("");
+  const [departmentOptions, setDepartmentOptions] =
+    useState<string[]>(defaultDepartments);
+  const [isAddingDepartment, setIsAddingDepartment] = useState(false);
+  const [newDepartmentName, setNewDepartmentName] = useState("");
   const [formData, setFormData] = useState(getInitialFormData());
 
   // Queries
@@ -122,6 +137,8 @@ export default function Maintenance() {
     onSuccess: () => {
       toast.success("Chamado criado com sucesso!");
       setFormData(getInitialFormData());
+      setIsAddingDepartment(false);
+      setNewDepartmentName("");
       setIsDialogOpen(false);
       refetch();
     },
@@ -135,6 +152,8 @@ export default function Maintenance() {
       toast.success("Chamado atualizado com sucesso!");
       setEditingRequest(null);
       setFormData(getInitialFormData());
+      setIsAddingDepartment(false);
+      setNewDepartmentName("");
       setIsDialogOpen(false);
       setInlineEditingId(null);
       setInlineEditField(null);
@@ -162,10 +181,21 @@ export default function Maintenance() {
     }
     setEditingRequest(null);
     setFormData(getInitialFormData());
+    setIsAddingDepartment(false);
+    setNewDepartmentName("");
     setIsDialogOpen(true);
   };
 
   const handleEditRequest = (request: any) => {
+    if (
+      request.department &&
+      !departmentOptions.some(
+        option => option.toLowerCase() === request.department.toLowerCase()
+      )
+    ) {
+      setDepartmentOptions(prev => [...prev, request.department]);
+    }
+
     setEditingRequest(request);
     setFormData({
       title: request.title,
@@ -176,7 +206,33 @@ export default function Maintenance() {
       type: request.type,
       status: request.status,
     });
+    setIsAddingDepartment(false);
+    setNewDepartmentName("");
     setIsDialogOpen(true);
+  };
+
+  const handleAddDepartment = () => {
+    const department = newDepartmentName.trim();
+
+    if (!department) {
+      toast.error("Digite o nome do departamento");
+      return;
+    }
+
+    if (
+      departmentOptions.some(
+        option => option.toLowerCase() === department.toLowerCase()
+      )
+    ) {
+      toast.error("Esse departamento já existe na lista");
+      return;
+    }
+
+    setDepartmentOptions(prev => [...prev, department]);
+    setFormData({ ...formData, department });
+    setNewDepartmentName("");
+    setIsAddingDepartment(false);
+    toast.success(`Departamento "${department}" adicionado`);
   };
 
   const handleInlineEdit = (request: any, field: string) => {
@@ -697,14 +753,50 @@ export default function Maintenance() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <Label className="text-gray-300">Departamento</Label>
-                    <Input
-                      value={formData.department}
-                      onChange={e =>
-                        setFormData({ ...formData, department: e.target.value })
-                      }
-                      className="bg-slate-700 border-slate-600 text-white mt-1"
-                      placeholder="Ex: Administrativo"
-                    />
+                    <Select
+                      value={formData.department || undefined}
+                      onValueChange={value => {
+                        if (value === "__add_department__") {
+                          setIsAddingDepartment(true);
+                          return;
+                        }
+
+                        setFormData({ ...formData, department: value });
+                        setIsAddingDepartment(false);
+                      }}
+                    >
+                      <SelectTrigger className="bg-slate-700 border-slate-600 text-white mt-1">
+                        <SelectValue placeholder="Selecione um departamento" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {departmentOptions.map(department => (
+                          <SelectItem key={department} value={department}>
+                            {department}
+                          </SelectItem>
+                        ))}
+                        <SelectItem value="__add_department__">
+                          + Adicionar novo departamento
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+
+                    {isAddingDepartment && (
+                      <div className="mt-2 flex flex-col sm:flex-row gap-2">
+                        <Input
+                          value={newDepartmentName}
+                          onChange={e => setNewDepartmentName(e.target.value)}
+                          className="bg-slate-700 border-slate-600 text-white"
+                          placeholder="Novo departamento"
+                        />
+                        <Button
+                          type="button"
+                          onClick={handleAddDepartment}
+                          className="bg-orange-600 hover:bg-orange-700"
+                        >
+                          Adicionar
+                        </Button>
+                      </div>
+                    )}
                   </div>
 
                   <div>
@@ -775,6 +867,8 @@ export default function Maintenance() {
                       setIsDialogOpen(false);
                       setEditingRequest(null);
                       setFormData(getInitialFormData());
+                      setIsAddingDepartment(false);
+                      setNewDepartmentName("");
                     }}
                     variant="outline"
                     className="border-slate-600 text-gray-300 hover:bg-slate-800"
