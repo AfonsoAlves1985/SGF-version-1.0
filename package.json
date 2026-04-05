@@ -49,10 +49,10 @@
     "@radix-ui/react-toggle-group": "^1.1.11",
     "@radix-ui/react-tooltip": "^1.2.8",
     "@tanstack/react-query": "^5.90.2",
-    "@trpc/client": "^11.6.0",
-    "@trpc/react-query": "^11.6.0",
-    "@trpc/server": "^11.6.0",
-    "axios": "^1.12.0",
+    "@trpc/client": "^11.16.0",
+    "@trpc/react-query": "^11.16.0",
+    "@trpc/server": "^11.16.0",
+    "axios": "^1.14.0",
     "bcryptjs": "^3.0.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -127,7 +127,12 @@
       "puppeteer"
     ],
     "overrides": {
-      "tailwindcss>nanoid": "3.3.7"
+      "tailwindcss>nanoid": "3.3.7",
+      "fast-xml-parser": "^5.5.10",
+      "path-to-regexp": "0.1.13",
+      "qs": "^6.15.0",
+      "lodash": "^4.18.1",
+      "lodash-es": "^4.18.1"
     }
   }
 }

@@ -8,6 +8,9 @@ Horario recomendado: entre **10:00 e 16:00 (BRT)**.
 
 1. Abrir `https://sgf-online.onrender.com/healthz` e confirmar resposta HTTP 200.
 2. Na raiz do projeto, executar:
+   - exportar credenciais de smoke:
+     - `SMOKE_USER=<usuario>`
+     - `SMOKE_PASSWORD=<senha>`
    - `pnpm health:daily`
 3. Confirmar no resultado:
    - `failures=0`
@@ -25,3 +28,4 @@ Horario recomendado: entre **10:00 e 16:00 (BRT)**.
 
 - O workflow `Daily SGF Health Check` roda 1x por dia para lembrar e validar automaticamente.
 - Tambem pode ser executado manualmente em **Actions > Daily SGF Health Check > Run workflow**.
+- Para smoke autenticado no Actions, configurar secrets `SMOKE_USER` e `SMOKE_PASSWORD`.

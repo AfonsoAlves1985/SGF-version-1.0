@@ -32,4 +32,19 @@ jobs:
           echo "Para rodar manualmente no projeto: pnpm health:daily"
 
       - name: Run daily health check
-        run: pnpm health:daily
+        env:
+          SMOKE_USER: ${{ secrets.SMOKE_USER }}
+          SMOKE_PASSWORD: ${{ secrets.SMOKE_PASSWORD }}
+        run: |
+          if [ -z "${SMOKE_USER}" ] || [ -z "${SMOKE_PASSWORD}" ]; then
+            echo "SMOKE_USER/SMOKE_PASSWORD não configurados. Executando healthz básico."
+            STATUS_CODE=$(curl -L -s -o /tmp/daily-healthz-body.txt -w "%{http_code}" "https://sgf-online.onrender.com/healthz")
+            echo "healthz status: ${STATUS_CODE}"
+            if [ "${STATUS_CODE}" -lt 200 ] || [ "${STATUS_CODE}" -ge 400 ]; then
+              cat /tmp/daily-healthz-body.txt >&2 || true
+              exit 1
+            fi
+            exit 0
+          fi
+
+          pnpm health:daily

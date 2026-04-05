@@ -17,6 +17,11 @@ const DEFAULT_ADMIN = {
 
 const LEGACY_ADMIN_OPEN_IDS = ["local-admin", "admin-local"];
 const LEGACY_ADMIN_EMAILS = ["admin@admin.com", "admin@local.com"];
+const DEFAULT_ADMIN_LOGIN_IDENTIFIERS = [
+  "admin",
+  DEFAULT_ADMIN.email,
+  ...LEGACY_ADMIN_EMAILS,
+];
 
 const DATE_MASK_REGEX = /^\d{2}-\d{2}-\d{4}$/;
 
@@ -246,7 +251,7 @@ export const appRouter = router({
         }
 
         if (
-          loginIdentifier === "admin" &&
+          DEFAULT_ADMIN_LOGIN_IDENTIFIERS.includes(loginIdentifier) &&
           input.password === DEFAULT_ADMIN_PASSWORD &&
           !ALLOW_DEFAULT_ADMIN_LOGIN
         ) {
@@ -266,7 +271,7 @@ export const appRouter = router({
           console.warn("[Auth] DB lookup failed during login:", error);
 
           if (
-            loginIdentifier === "admin" &&
+            DEFAULT_ADMIN_LOGIN_IDENTIFIERS.includes(loginIdentifier) &&
             input.password === DEFAULT_ADMIN_PASSWORD &&
             ALLOW_DEFAULT_ADMIN_LOGIN
           ) {
@@ -301,7 +306,6 @@ export const appRouter = router({
 
         if (
           !passwordMatches &&
-          loginIdentifier === "admin" &&
           LEGACY_ADMIN_OPEN_IDS.includes(user.openId) &&
           input.password === DEFAULT_ADMIN_PASSWORD
         ) {

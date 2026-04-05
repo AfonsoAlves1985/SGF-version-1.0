@@ -7,8 +7,8 @@ type CheckResult = {
 };
 
 const baseUrl = process.env.APP_BASE_URL || "https://sgf-online.onrender.com";
-const username = process.env.SMOKE_USER || "admin";
-const password = process.env.SMOKE_PASSWORD || "admin123";
+const username = process.env.SMOKE_USER || process.env.SMOKE_EMAIL || "";
+const password = process.env.SMOKE_PASSWORD || "";
 
 type ProcedureKind = "query" | "mutation";
 
@@ -16,12 +16,12 @@ async function rawTrpcCall(
   path: string,
   kind: ProcedureKind,
   input: unknown,
-  token?: string,
+  token?: string
 ) {
   const encodedInput = encodeURIComponent(
     JSON.stringify({
       0: { json: input ?? null },
-    }),
+    })
   );
 
   const headers: Record<string, string> = {};
@@ -54,7 +54,9 @@ async function rawTrpcCall(
     parsed = null;
   }
 
-  const trpcErrorMessage = parsed?.[0]?.error?.json?.message as string | undefined;
+  const trpcErrorMessage = parsed?.[0]?.error?.json?.message as
+    | string
+    | undefined;
   const ok = response.ok && Boolean(parsed?.[0]?.result);
 
   return {
@@ -99,7 +101,9 @@ async function rawLogin() {
   const user = parsed?.[0]?.result?.data?.json?.user;
 
   if (!token) {
-    throw new Error(`Missing token in login response: ${bodyText.slice(0, 200)}`);
+    throw new Error(
+      `Missing token in login response: ${bodyText.slice(0, 200)}`
+    );
   }
 
   return { token, user };
@@ -142,15 +146,23 @@ function summarizeError(error: unknown) {
 async function run() {
   console.log(`[smoke] Base URL: ${baseUrl}`);
 
+  if (!username || !password) {
+    throw new Error(
+      "Missing smoke credentials. Configure SMOKE_USER (or SMOKE_EMAIL) and SMOKE_PASSWORD."
+    );
+  }
+
   const healthResponse = await fetch(`${baseUrl}/healthz`, { method: "GET" });
   console.log(
     `[smoke] healthz status=${healthResponse.status} contentType=${
       healthResponse.headers.get("content-type") || "unknown"
-    }`,
+    }`
   );
 
   if (!healthResponse.ok) {
-    throw new Error("Service health check failed. Deployment may still be starting.");
+    throw new Error(
+      "Service health check failed. Deployment may still be starting."
+    );
   }
 
   let login: { token: string; user?: { email?: string } };
@@ -159,7 +171,7 @@ async function run() {
     login = await rawLogin();
   } catch (error) {
     throw new Error(
-      `Login smoke failed: ${error instanceof Error ? error.message : String(error)}. If this is HTML/502, wait for deploy completion and retry.`,
+      `Login smoke failed: ${error instanceof Error ? error.message : String(error)}. Verify SMOKE_USER/SMOKE_PASSWORD and, if this is HTML/502, wait for deploy completion and retry.`
     );
   }
 
@@ -176,19 +188,79 @@ async function run() {
     input: unknown;
   }> = [
     { module: "auth.me", kind: "query", path: "auth.me", input: null },
-    { module: "dashboard.stockAlerts", kind: "query", path: "dashboard.getStockAlerts", input: {} },
-    { module: "rooms.list", kind: "query", path: "rooms.list", input: { status: "all" } },
-    { module: "roomReservations.list", kind: "query", path: "roomReservations.list", input: {} },
-    { module: "maintenance.list", kind: "query", path: "maintenance.list", input: {} },
-    { module: "maintenanceSpaces.list", kind: "query", path: "maintenanceSpaces.list", input: null },
+    {
+      module: "dashboard.stockAlerts",
+      kind: "query",
+      path: "dashboard.getStockAlerts",
+      input: {},
+    },
+    {
+      module: "rooms.list",
+      kind: "query",
+      path: "rooms.list",
+      input: { status: "all" },
+    },
+    {
+      module: "roomReservations.list",
+      kind: "query",
+      path: "roomReservations.list",
+      input: {},
+    },
+    {
+      module: "maintenance.list",
+      kind: "query",
+      path: "maintenance.list",
+      input: {},
+    },
+    {
+      module: "maintenanceSpaces.list",
+      kind: "query",
+      path: "maintenanceSpaces.list",
+      input: null,
+    },
     { module: "teams.list", kind: "query", path: "teams.list", input: {} },
-    { module: "inventory.list", kind: "query", path: "inventory.list", input: {} },
-    { module: "consumableSpaces.list", kind: "query", path: "consumableSpaces.list", input: null },
-    { module: "consumablesWithSpace.list", kind: "query", path: "consumablesWithSpace.list", input: {} },
-    { module: "supplierSpaces.list", kind: "query", path: "supplierSpaces.list", input: null },
-    { module: "suppliersWithSpace.list", kind: "query", path: "suppliersWithSpace.list", input: {} },
-    { module: "contractSpaces.list", kind: "query", path: "contractSpaces.list", input: null },
-    { module: "contractsWithSpace.list", kind: "query", path: "contractsWithSpace.list", input: {} },
+    {
+      module: "inventory.list",
+      kind: "query",
+      path: "inventory.list",
+      input: {},
+    },
+    {
+      module: "consumableSpaces.list",
+      kind: "query",
+      path: "consumableSpaces.list",
+      input: null,
+    },
+    {
+      module: "consumablesWithSpace.list",
+      kind: "query",
+      path: "consumablesWithSpace.list",
+      input: {},
+    },
+    {
+      module: "supplierSpaces.list",
+      kind: "query",
+      path: "supplierSpaces.list",
+      input: null,
+    },
+    {
+      module: "suppliersWithSpace.list",
+      kind: "query",
+      path: "suppliersWithSpace.list",
+      input: {},
+    },
+    {
+      module: "contractSpaces.list",
+      kind: "query",
+      path: "contractSpaces.list",
+      input: null,
+    },
+    {
+      module: "contractsWithSpace.list",
+      kind: "query",
+      path: "contractsWithSpace.list",
+      input: {},
+    },
   ];
 
   const results: CheckResult[] = [];
@@ -199,7 +271,7 @@ async function run() {
         check.path,
         check.kind,
         check.input,
-        login.token,
+        login.token
       );
 
       if (!call.ok) {
@@ -260,13 +332,17 @@ async function run() {
   console.log(`- schema_related_failures=${schemaFailures.length}`);
 
   if (schemaFailures.length > 0) {
-    console.log("- recommendation=Apply/extend DB schema bootstrap strategy for affected modules");
+    console.log(
+      "- recommendation=Apply/extend DB schema bootstrap strategy for affected modules"
+    );
     process.exitCode = 2;
     return;
   }
 
   if (failures.length > 0) {
-    console.log("- recommendation=Investigate non-schema runtime/network/auth errors");
+    console.log(
+      "- recommendation=Investigate non-schema runtime/network/auth errors"
+    );
     process.exitCode = 1;
     return;
   }
@@ -275,6 +351,9 @@ async function run() {
 }
 
 run().catch(error => {
-  console.error("[smoke] Fatal:", error instanceof Error ? error.message : error);
+  console.error(
+    "[smoke] Fatal:",
+    error instanceof Error ? error.message : error
+  );
   process.exit(1);
 });
