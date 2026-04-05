@@ -41,8 +41,13 @@ const LOGIN_WINDOW_MINUTES = Math.max(
   Number(process.env.LOGIN_WINDOW_MINUTES ?? "30") || 30
 );
 const DEFAULT_ADMIN_PASSWORD = "admin123";
+const IS_PRODUCTION_RUNTIME =
+  ENV.isProduction ||
+  process.env.NODE_ENV === "production" ||
+  process.env.RENDER === "true" ||
+  Boolean(process.env.RENDER_EXTERNAL_URL);
 const ALLOW_DEFAULT_ADMIN_LOGIN =
-  process.env.ALLOW_DEFAULT_ADMIN_LOGIN === "true" || !ENV.isProduction;
+  process.env.ALLOW_DEFAULT_ADMIN_LOGIN === "true" && !IS_PRODUCTION_RUNTIME;
 
 function getClientIp(req: { ip?: string; headers?: Record<string, unknown> }) {
   const forwardedFor = req.headers?.["x-forwarded-for"];
@@ -253,7 +258,7 @@ export const appRouter = router({
         try {
           user =
             loginIdentifier === "admin"
-              ? ENV.isProduction
+              ? IS_PRODUCTION_RUNTIME
                 ? await findDefaultAdminUser()
                 : await ensureDefaultAdminUser()
               : await db.getUserByEmail(loginIdentifier);
