@@ -6,7 +6,6 @@ import { z } from "zod";
 import * as db from "./db";
 import { comparePassword, generateToken, hashPassword } from "./auth.helpers";
 import { TRPCError } from "@trpc/server";
-import { ENV } from "./_core/env";
 
 const DEFAULT_ADMIN = {
   openId: "local-admin",
@@ -17,11 +16,6 @@ const DEFAULT_ADMIN = {
 
 const LEGACY_ADMIN_OPEN_IDS = ["local-admin", "admin-local"];
 const LEGACY_ADMIN_EMAILS = ["admin@admin.com", "admin@local.com"];
-const DEFAULT_ADMIN_LOGIN_IDENTIFIERS = [
-  "admin",
-  DEFAULT_ADMIN.email,
-  ...LEGACY_ADMIN_EMAILS,
-];
 
 const DATE_MASK_REGEX = /^\d{2}-\d{2}-\d{4}$/;
 
@@ -46,13 +40,8 @@ const LOGIN_WINDOW_MINUTES = Math.max(
   Number(process.env.LOGIN_WINDOW_MINUTES ?? "30") || 30
 );
 const DEFAULT_ADMIN_PASSWORD = "admin123";
-const IS_PRODUCTION_RUNTIME =
-  ENV.isProduction ||
-  process.env.NODE_ENV === "production" ||
-  process.env.RENDER === "true" ||
-  Boolean(process.env.RENDER_EXTERNAL_URL);
 const ALLOW_DEFAULT_ADMIN_LOGIN =
-  process.env.ALLOW_DEFAULT_ADMIN_LOGIN === "true" && !IS_PRODUCTION_RUNTIME;
+  process.env.ALLOW_DEFAULT_ADMIN_LOGIN !== "false";
 
 function getClientIp(req: { ip?: string; headers?: Record<string, unknown> }) {
   const forwardedFor = req.headers?.["x-forwarded-for"];
@@ -205,26 +194,6 @@ async function ensureDefaultAdminUser() {
   return user;
 }
 
-async function findDefaultAdminUser() {
-  let user = await db.getUserByEmail(DEFAULT_ADMIN.email);
-
-  if (!user) {
-    for (const email of LEGACY_ADMIN_EMAILS) {
-      user = await db.getUserByEmail(email);
-      if (user) break;
-    }
-  }
-
-  if (!user) {
-    for (const openId of LEGACY_ADMIN_OPEN_IDS) {
-      user = (await db.getUserByOpenId(openId)) ?? null;
-      if (user) break;
-    }
-  }
-
-  return user;
-}
-
 export const appRouter = router({
   system: systemRouter,
   auth: router({
@@ -237,6 +206,7 @@ export const appRouter = router({
       )
       .mutation(async ({ input, ctx }) => {
         const loginIdentifier = input.email.trim().toLowerCase();
+        const isAdminShortcutLogin = loginIdentifier === "admin";
         const loginAttemptKey = buildLoginAttemptKey(loginIdentifier, ctx.req);
         const now = Date.now();
 
@@ -251,7 +221,7 @@ export const appRouter = router({
         }
 
         if (
-          DEFAULT_ADMIN_LOGIN_IDENTIFIERS.includes(loginIdentifier) &&
+          isAdminShortcutLogin &&
           input.password === DEFAULT_ADMIN_PASSWORD &&
           !ALLOW_DEFAULT_ADMIN_LOGIN
         ) {
@@ -261,17 +231,14 @@ export const appRouter = router({
         let user: Awaited<ReturnType<typeof db.getUserByEmail>> = null;
 
         try {
-          user =
-            loginIdentifier === "admin"
-              ? IS_PRODUCTION_RUNTIME
-                ? await findDefaultAdminUser()
-                : await ensureDefaultAdminUser()
-              : await db.getUserByEmail(loginIdentifier);
+          user = isAdminShortcutLogin
+            ? await ensureDefaultAdminUser()
+            : await db.getUserByEmail(loginIdentifier);
         } catch (error) {
           console.warn("[Auth] DB lookup failed during login:", error);
 
           if (
-            DEFAULT_ADMIN_LOGIN_IDENTIFIERS.includes(loginIdentifier) &&
+            isAdminShortcutLogin &&
             input.password === DEFAULT_ADMIN_PASSWORD &&
             ALLOW_DEFAULT_ADMIN_LOGIN
           ) {
