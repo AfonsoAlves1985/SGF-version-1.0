@@ -7,8 +7,46 @@ import { registerOAuthRoutes } from "./oauth";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
-import { readFileSync } from "fs";
-import { resolve } from "path";
+import { existsSync, readFileSync } from "fs";
+import { extname, resolve } from "path";
+
+const TMP_DIR = resolve("/tmp");
+
+function resolveSafeTempFilePath(rawPath: string, allowedExtensions: string[]) {
+  const normalizedPath = resolve(rawPath);
+  const isInsideTmp =
+    normalizedPath === TMP_DIR || normalizedPath.startsWith(`${TMP_DIR}/`);
+
+  if (!isInsideTmp) {
+    return {
+      ok: false,
+      status: 403,
+      error: "Access denied",
+    } as const;
+  }
+
+  const extension = extname(normalizedPath).toLowerCase();
+  if (allowedExtensions.length > 0 && !allowedExtensions.includes(extension)) {
+    return {
+      ok: false,
+      status: 400,
+      error: `Invalid file type. Allowed: ${allowedExtensions.join(", ")}`,
+    } as const;
+  }
+
+  if (!existsSync(normalizedPath)) {
+    return {
+      ok: false,
+      status: 404,
+      error: "File not found",
+    } as const;
+  }
+
+  return {
+    ok: true,
+    path: normalizedPath,
+  } as const;
+}
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -32,6 +70,19 @@ async function findAvailablePort(startPort: number = 3000): Promise<number> {
 async function startServer() {
   const app = express();
   const server = createServer(app);
+  app.disable("x-powered-by");
+
+  app.use((_req, res, next) => {
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("X-Frame-Options", "DENY");
+    res.setHeader("Referrer-Policy", "no-referrer");
+    res.setHeader(
+      "Permissions-Policy",
+      "camera=(), microphone=(), geolocation=()"
+    );
+    next();
+  });
+
   // Configure body parser with larger size limit for file uploads
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
@@ -43,7 +94,7 @@ async function startServer() {
 
   // OAuth callback under /api/oauth/callback
   registerOAuthRoutes(app);
-  
+
   // Endpoint para download de PDF
   app.get("/api/download-pdf", (req, res) => {
     try {
@@ -51,22 +102,27 @@ async function startServer() {
       if (!pdfPath) {
         return res.status(400).json({ error: "Path parameter is required" });
       }
-      
-      // Validar que o caminho está em /tmp para segurança
-      if (!pdfPath.startsWith("/tmp/")) {
-        return res.status(403).json({ error: "Access denied" });
+
+      const safePath = resolveSafeTempFilePath(pdfPath, [".pdf"]);
+      if (!safePath.ok) {
+        return res.status(safePath.status).json({ error: safePath.error });
       }
-      
-      const fileContent = readFileSync(pdfPath);
+
+      const fileContent = readFileSync(safePath.path);
+      const filename = safePath.path.split("/").pop() || "download.pdf";
+
       res.setHeader("Content-Type", "application/pdf");
-      res.setHeader("Content-Disposition", `attachment; filename="${pdfPath.split('/').pop()}"`)
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="${filename}"`
+      );
       res.send(fileContent);
     } catch (error) {
       console.error("Erro ao fazer download do PDF:", error);
       res.status(500).json({ error: "Failed to download PDF" });
     }
   });
-  
+
   // Endpoint para download de Excel
   app.get("/api/download-excel", (req, res) => {
     try {
@@ -74,22 +130,30 @@ async function startServer() {
       if (!excelPath) {
         return res.status(400).json({ error: "Path parameter is required" });
       }
-      
-      // Validar que o caminho está em /tmp para segurança
-      if (!excelPath.startsWith("/tmp/")) {
-        return res.status(403).json({ error: "Access denied" });
+
+      const safePath = resolveSafeTempFilePath(excelPath, [".xlsx", ".xls"]);
+      if (!safePath.ok) {
+        return res.status(safePath.status).json({ error: safePath.error });
       }
-      
-      const fileContent = readFileSync(excelPath);
-      res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-      res.setHeader("Content-Disposition", `attachment; filename="${excelPath.split('/').pop()}"`);
+
+      const fileContent = readFileSync(safePath.path);
+      const filename = safePath.path.split("/").pop() || "download.xlsx";
+
+      res.setHeader(
+        "Content-Type",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      );
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="${filename}"`
+      );
       res.send(fileContent);
     } catch (error) {
       console.error("Erro ao fazer download do Excel:", error);
       res.status(500).json({ error: "Failed to download Excel" });
     }
   });
-  
+
   // tRPC API
   app.use(
     "/api/trpc",
