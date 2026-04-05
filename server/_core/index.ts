@@ -88,9 +88,15 @@ async function startServer() {
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
   // Health check endpoint for hosting platforms
-  app.get("/healthz", (_req, res) => {
-    res.status(200).json({ ok: true });
-  });
+  app
+    .route("/healthz")
+    .get((_req, res) => {
+      res.status(200).json({ ok: true });
+    })
+    .all((_req, res) => {
+      res.setHeader("Allow", "GET");
+      res.status(405).json({ error: "Method not allowed" });
+    });
 
   // OAuth callback under /api/oauth/callback
   registerOAuthRoutes(app);
