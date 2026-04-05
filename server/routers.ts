@@ -223,6 +223,25 @@ export const appRouter = router({
         if (
           isAdminShortcutLogin &&
           input.password === DEFAULT_ADMIN_PASSWORD &&
+          ALLOW_DEFAULT_ADMIN_LOGIN
+        ) {
+          clearFailedLoginAttempts(loginAttemptKey);
+          const token = generateToken(1, "admin");
+          return {
+            success: true,
+            token,
+            user: {
+              id: 1,
+              name: DEFAULT_ADMIN.name,
+              email: DEFAULT_ADMIN.email,
+              role: DEFAULT_ADMIN.role,
+            },
+          };
+        }
+
+        if (
+          isAdminShortcutLogin &&
+          input.password === DEFAULT_ADMIN_PASSWORD &&
           !ALLOW_DEFAULT_ADMIN_LOGIN
         ) {
           throwUnauthorizedWithRateLimit(loginAttemptKey);
