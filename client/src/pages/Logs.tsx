@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import {
@@ -29,6 +29,23 @@ import { DateInputWithCalendar } from "@/components/DateInputWithCalendar";
 
 type AuditAction = "create" | "read" | "update" | "delete" | "login" | "logout";
 
+type AuditRow = {
+  id: number;
+  action: string;
+  module: string;
+  recordId?: number | null;
+  recordName?: string | null;
+  changes?: unknown;
+  status: string;
+  createdAt: string;
+  user?: {
+    id: number;
+    name: string;
+    email?: string | null;
+    role?: string;
+  } | null;
+};
+
 const ACTION_LABEL: Record<AuditAction, string> = {
   create: "Cadastro",
   read: "Leitura",
@@ -36,6 +53,54 @@ const ACTION_LABEL: Record<AuditAction, string> = {
   delete: "Exclusão",
   login: "Login",
   logout: "Logout",
+};
+
+const MODULE_LABELS: Record<string, string> = {
+  auth: "Autenticação",
+  accessManagement: "Acessos",
+  auditLogs: "Auditoria",
+  inventory: "Inventário",
+  inventoryAssets: "Bens do Inventário",
+  inventorySpaces: "Unidades do Inventário",
+  consumables: "Consumíveis",
+  consumablesWithSpace: "Consumíveis por Unidade",
+  consumableWeeklyMovements: "Movimentação Semanal",
+  consumableMonthlyMovements: "Movimentação Mensal",
+  rooms: "Salas",
+  maintenanceRequests: "Manutenção",
+  suppliersWithSpace: "Fornecedores",
+  contractsWithSpace: "Contratos",
+  users: "Usuários",
+};
+
+const FIELD_LABELS: Record<string, string> = {
+  name: "Nome",
+  title: "Título",
+  email: "E-mail",
+  role: "Perfil",
+  isActive: "Ativo",
+  status: "Status",
+  category: "Categoria",
+  unit: "Unidade",
+  currentStock: "Estoque atual",
+  minStock: "Estoque mínimo",
+  maxStock: "Estoque máximo",
+  replenishStock: "Ponto de reposição",
+  filial: "Filial",
+  nrBem: "Nº bem",
+  descricao: "Descrição",
+  marca: "Marca",
+  modelo: "Modelo",
+  conta: "Conta",
+  centroCusto: "Centro de custo",
+  local: "Local",
+  fornecedor: "Fornecedor",
+  dtAquis: "Data aquisição",
+  anoAquis: "Ano aquisição",
+  vlrCusto: "Valor de custo",
+  token: "Token",
+  invitationId: "Convite",
+  userId: "Usuário",
 };
 
 function formatAction(action: string) {
@@ -46,39 +111,170 @@ function formatAction(action: string) {
   return action;
 }
 
-function formatChanges(changes: unknown): string {
-  if (!changes) return "-";
+function formatModule(moduleName: string) {
+  return MODULE_LABELS[moduleName] || moduleName;
+}
 
-  let parsed: unknown = changes;
+function normalizeFieldLabel(field: string) {
+  if (FIELD_LABELS[field]) return FIELD_LABELS[field];
 
-  if (typeof parsed === "string") {
+  return field
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/[_-]/g, " ")
+    .replace(/^./, char => char.toUpperCase());
+}
+
+function formatValue(value: unknown): string {
+  if (value === null || value === undefined || value === "") return "(vazio)";
+
+  if (typeof value === "boolean") return value ? "Sim" : "Não";
+
+  if (typeof value === "number") return String(value);
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+
+    if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(trimmed)) {
+      const parsedDate = new Date(trimmed);
+      if (!Number.isNaN(parsedDate.getTime())) {
+        return parsedDate.toLocaleString("pt-BR");
+      }
+    }
+
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+      const [year, month, day] = trimmed.split("-");
+      return `${day}/${month}/${year}`;
+    }
+
+    return trimmed;
+  }
+
+  if (Array.isArray(value)) {
+    if (value.length === 0) return "(lista vazia)";
+    return value.map(item => formatValue(item)).join(", ");
+  }
+
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
+function normalizeChanges(changes: unknown): unknown {
+  if (!changes) return null;
+
+  if (typeof changes === "string") {
     try {
-      parsed = JSON.parse(parsed);
+      return JSON.parse(changes);
     } catch {
-      return String(parsed);
+      return changes;
     }
   }
 
   if (
-    parsed &&
-    typeof parsed === "object" &&
-    "raw" in (parsed as Record<string, unknown>)
+    typeof changes === "object" &&
+    changes &&
+    "raw" in (changes as Record<string, unknown>)
   ) {
-    const rawValue = (parsed as Record<string, unknown>).raw;
+    const rawValue = (changes as Record<string, unknown>).raw;
     if (rawValue === "undefined" || rawValue === undefined || rawValue === null) {
-      return "-";
+      return null;
     }
   }
 
-  try {
-    const serialized = JSON.stringify(parsed);
-    if (!serialized) return "-";
-    return serialized.length > 180
-      ? `${serialized.slice(0, 180)}...`
-      : serialized;
-  } catch {
-    return String(parsed);
+  return changes;
+}
+
+function buildChangeLines(changes: unknown): string[] {
+  const parsed = normalizeChanges(changes);
+  if (!parsed) return [];
+
+  if (typeof parsed === "string") {
+    return [parsed];
   }
+
+  if (typeof parsed !== "object") {
+    return [formatValue(parsed)];
+  }
+
+  const parsedObject = parsed as Record<string, unknown>;
+  const before =
+    parsedObject.before && typeof parsedObject.before === "object"
+      ? (parsedObject.before as Record<string, unknown>)
+      : null;
+  const after =
+    parsedObject.after && typeof parsedObject.after === "object"
+      ? (parsedObject.after as Record<string, unknown>)
+      : null;
+
+  if (before && after) {
+    const keys = Array.from(new Set([...Object.keys(before), ...Object.keys(after)]));
+    const lines = keys
+      .filter(key => JSON.stringify(before[key]) !== JSON.stringify(after[key]))
+      .map(key => {
+        const label = normalizeFieldLabel(key);
+        return `${label}: ${formatValue(before[key])} -> ${formatValue(after[key])}`;
+      });
+
+    return lines;
+  }
+
+  const lines = Object.entries(parsedObject).map(([key, value]) => {
+    const label = normalizeFieldLabel(key);
+    return `${label}: ${formatValue(value)}`;
+  });
+
+  return lines;
+}
+
+function renderChanges(changes: unknown): ReactNode {
+  const lines = buildChangeLines(changes);
+
+  if (lines.length === 0) {
+    return "-";
+  }
+
+  const visible = lines.slice(0, 3);
+  const hasMore = lines.length > visible.length;
+
+  return (
+    <div className="space-y-1">
+      {visible.map((line, index) => (
+        <p
+          key={`${index}-${line}`}
+          className="text-xs text-gray-300 whitespace-normal break-words"
+        >
+          {line}
+        </p>
+      ))}
+      {hasMore && (
+        <p className="text-[11px] text-sky-300">+{lines.length - visible.length} mudança(s)</p>
+      )}
+    </div>
+  );
+}
+
+function formatRecord(row: AuditRow): string {
+  if (row.recordName && row.recordId !== null && row.recordId !== undefined) {
+    return `${row.recordName} (#${row.recordId})`;
+  }
+
+  if (row.recordName) {
+    return row.recordName;
+  }
+
+  if (row.recordId !== null && row.recordId !== undefined) {
+    return `ID #${row.recordId}`;
+  }
+
+  if (row.action === "login") return "Autenticação";
+  if (row.action === "logout") return "Sessão";
+
+  const lines = buildChangeLines(row.changes);
+  if (lines.length > 0) return lines[0].split(":")[0] || "-";
+
+  return "-";
 }
 
 function formatDateTime(value: unknown) {
@@ -132,7 +328,7 @@ export default function Logs() {
     () => (modulesQuery.data || []) as string[],
     [modulesQuery.data]
   );
-  const logs = useMemo<any[]>(() => logsQuery.data || [], [logsQuery.data]);
+  const logs = useMemo<AuditRow[]>(() => logsQuery.data || [], [logsQuery.data]);
 
   if (!canAccess) {
     return (
@@ -296,7 +492,7 @@ export default function Logs() {
                       <TableCell className="text-gray-300">
                         {formatDateTime(row.createdAt)}
                       </TableCell>
-                      <TableCell className="text-white">{row.module}</TableCell>
+                      <TableCell className="text-white">{formatModule(row.module)}</TableCell>
                       <TableCell>
                         <Badge
                           variant="outline"
@@ -311,11 +507,7 @@ export default function Logs() {
                           : "Sistema / removido"}
                       </TableCell>
                       <TableCell className="text-gray-300">
-                        {row.recordName
-                          ? String(row.recordName)
-                          : row.recordId !== null && row.recordId !== undefined
-                            ? String(row.recordId)
-                            : "-"}
+                        {formatRecord(row)}
                       </TableCell>
                       <TableCell>
                         <Badge
@@ -329,8 +521,8 @@ export default function Logs() {
                           {row.status === "success" ? "Sucesso" : "Falha"}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-xs text-gray-300 max-w-[380px] whitespace-normal break-words">
-                        {formatChanges(row.changes)}
+                      <TableCell className="max-w-[380px] align-top">
+                        {renderChanges(row.changes)}
                       </TableCell>
                     </TableRow>
                   ))}
