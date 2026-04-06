@@ -19,6 +19,7 @@ import {
   PenLine,
   Handshake,
   ShieldCheck,
+  ScrollText,
 } from "lucide-react";
 import { getLoginUrl } from "@/const";
 import { useLocation } from "wouter";
@@ -142,6 +143,14 @@ export default function Home() {
             label: "Administração de Acessos",
             description: "Convites por link e permissões de usuários",
             path: "/access-management",
+            color:
+              "bg-sky-900/20 hover:bg-sky-900/30 border-sky-700/30",
+          },
+          {
+            icon: ScrollText,
+            label: "Logs de Auditoria",
+            description: "Histórico de cadastros e alterações por filtros",
+            path: "/logs",
             color:
               "bg-sky-900/20 hover:bg-sky-900/30 border-sky-700/30",
           },

@@ -18,6 +18,7 @@ const Contracts = lazy(() => import("./pages/Contracts"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Consumables = lazy(() => import("./pages/Consumables"));
 const AccessManagement = lazy(() => import("./pages/AccessManagement"));
+const Logs = lazy(() => import("./pages/Logs"));
 const DashboardLayout = lazy(() => import("./components/DashboardLayout"));
 const Login = lazy(() => import("./pages/Login"));
 
@@ -121,6 +122,7 @@ function Router() {
           <Route path={"/consumables"} component={Consumables} />
           <Route path={"/dashboard"} component={Dashboard} />
           <Route path={"/access-management"} component={AccessManagement} />
+          <Route path={"/logs"} component={Logs} />
           <Route path={"/login"} component={Login} />
           <Route path={"/404"} component={NotFound} />
           <Route component={NotFound} />

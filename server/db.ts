@@ -3261,6 +3261,110 @@ export async function listAuditLogs(filters?: {
   return (await query) as any;
 }
 
+export async function listAuditLogsDetailed(filters?: {
+  userId?: number;
+  module?: string;
+  action?: string;
+  startDate?: Date;
+  endDate?: Date;
+  limit?: number;
+  offset?: number;
+}) {
+  await ensureUsersAuthSchema();
+  const db = await getDb();
+  if (!db) return [];
+
+  const conditions = [];
+
+  if (filters?.userId !== undefined) {
+    conditions.push(eq(auditLog.userId, filters.userId));
+  }
+
+  if (filters?.module) {
+    conditions.push(eq(auditLog.module, filters.module));
+  }
+
+  if (filters?.action) {
+    conditions.push(eq(auditLog.action, filters.action as any));
+  }
+
+  if (filters?.startDate) {
+    conditions.push(gte(auditLog.createdAt, filters.startDate));
+  }
+
+  if (filters?.endDate) {
+    conditions.push(lte(auditLog.createdAt, filters.endDate));
+  }
+
+  let query: any = db
+    .select({
+      id: auditLog.id,
+      action: auditLog.action,
+      module: auditLog.module,
+      recordId: auditLog.recordId,
+      recordName: auditLog.recordName,
+      changes: auditLog.changes,
+      ipAddress: auditLog.ipAddress,
+      userAgent: auditLog.userAgent,
+      status: auditLog.status,
+      errorMessage: auditLog.errorMessage,
+      createdAt: auditLog.createdAt,
+      userId: auditLog.userId,
+      userName: users.name,
+      userEmail: users.email,
+      userRole: users.role,
+    })
+    .from(auditLog)
+    .leftJoin(users, eq(auditLog.userId, users.id));
+
+  if (conditions.length > 0) {
+    query = query.where(and(...conditions));
+  }
+
+  query = query.orderBy(desc(auditLog.createdAt));
+
+  if (filters?.limit) query = query.limit(filters.limit);
+  if (filters?.offset) query = query.offset(filters.offset);
+
+  const rows = (await query) as any[];
+
+  return rows.map(row => ({
+    id: row.id,
+    action: row.action,
+    module: row.module,
+    recordId: row.recordId,
+    recordName: row.recordName,
+    changes: row.changes,
+    ipAddress: row.ipAddress,
+    userAgent: row.userAgent,
+    status: row.status,
+    errorMessage: row.errorMessage,
+    createdAt: row.createdAt,
+    user:
+      row.userId !== null && row.userId !== undefined
+        ? {
+            id: row.userId,
+            name: row.userName || "Usuário removido",
+            email: row.userEmail,
+            role: row.userRole,
+          }
+        : null,
+  }));
+}
+
+export async function listAuditModules() {
+  const db = await getDb();
+  if (!db) return [];
+
+  const rows = await db
+    .select({ module: auditLog.module })
+    .from(auditLog)
+    .groupBy(auditLog.module)
+    .orderBy(asc(auditLog.module));
+
+  return rows.map(row => row.module).filter(Boolean);
+}
+
 export async function getAuditLogsByUser(userId: number, limit = 50) {
   const db = await getDb();
   if (!db) return [];

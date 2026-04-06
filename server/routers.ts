@@ -2,6 +2,7 @@ import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import {
+  adminProcedure,
   editorProcedure,
   publicProcedure,
   protectedProcedure,
@@ -2132,6 +2133,80 @@ export const appRouter = router({
           weekStartDate: input.weekStartDate.toISOString().split("T")[0],
         });
       }),
+  }),
+
+  auditLogs: router({
+    list: adminProcedure
+      .input(
+        z
+          .object({
+            userId: z.number().optional(),
+            module: z.string().optional(),
+            action: z
+              .enum(["create", "read", "update", "delete", "login", "logout"])
+              .optional(),
+            startDate: z.string().optional(),
+            endDate: z.string().optional(),
+            limit: z.number().min(1).max(500).optional(),
+            offset: z.number().min(0).optional(),
+          })
+          .optional()
+      )
+      .query(async ({ input }) => {
+        let startDate: Date | undefined;
+        let endDate: Date | undefined;
+
+        if (input?.startDate) {
+          const parsedStart = parseMaskedDate(input.startDate);
+          if (!parsedStart) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: "Data inicial inválida. Use DD-MM-YYYY",
+            });
+          }
+
+          startDate = new Date(parsedStart);
+          startDate.setHours(0, 0, 0, 0);
+        }
+
+        if (input?.endDate) {
+          const parsedEnd = parseMaskedDate(input.endDate);
+          if (!parsedEnd) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: "Data final inválida. Use DD-MM-YYYY",
+            });
+          }
+
+          endDate = new Date(parsedEnd);
+          endDate.setHours(23, 59, 59, 999);
+        }
+
+        return db.listAuditLogsDetailed({
+          userId: input?.userId,
+          module: input?.module,
+          action: input?.action,
+          startDate,
+          endDate,
+          limit: input?.limit ?? 200,
+          offset: input?.offset ?? 0,
+        });
+      }),
+
+    listModules: adminProcedure.query(async () => {
+      return db.listAuditModules();
+    }),
+
+    listUsers: adminProcedure.query(async () => {
+      const users = await db.listUsers();
+      return users.map((user: any) => ({
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        isActive: user.isActive,
+      }));
+    }),
   }),
 
   dashboard: router({

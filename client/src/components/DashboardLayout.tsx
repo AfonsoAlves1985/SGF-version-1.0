@@ -36,6 +36,7 @@ import {
   PenLine,
   Handshake,
   ShieldCheck,
+  ScrollText,
 } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
@@ -57,6 +58,12 @@ const menuItems = [
     icon: ShieldCheck,
     label: "Administração de Acessos",
     path: "/access-management",
+    requiresOwner: true,
+  },
+  {
+    icon: ScrollText,
+    label: "Logs de Auditoria",
+    path: "/logs",
     requiresOwner: true,
   },
 ];
