@@ -57,6 +57,15 @@ function invitationStatusLabel(status: string) {
   return status;
 }
 
+function isUserOnline(lastSignedIn: unknown) {
+  if (!lastSignedIn) return false;
+
+  const timestamp = new Date(String(lastSignedIn)).getTime();
+  if (Number.isNaN(timestamp)) return false;
+
+  return Date.now() - timestamp <= 5 * 60 * 1000;
+}
+
 export default function AccessManagement() {
   const { user } = useAuth();
   const isOwner = user?.role === "superadmin";
@@ -69,6 +78,7 @@ export default function AccessManagement() {
 
   const usersQuery = trpc.accessManagement.listUsers.useQuery(undefined, {
     enabled: canAccess,
+    refetchInterval: 30 * 1000,
   });
   const invitationsQuery = trpc.accessManagement.listInvitations.useQuery(
     undefined,
@@ -288,6 +298,7 @@ export default function AccessManagement() {
                     updateActiveMutation.isPending ||
                     deleteUserMutation.isPending;
                   const isOwnerRow = row.role === "superadmin";
+                  const online = isUserOnline(row.lastSignedIn);
                   const canDeleteUser =
                     isOwner &&
                     !row.isActive &&
@@ -297,7 +308,15 @@ export default function AccessManagement() {
                   return (
                     <TableRow key={row.id}>
                       <TableCell className="text-white">
-                        {row.name || "-"}
+                        <span className="inline-flex items-center gap-2">
+                          <span
+                            className={`h-2.5 w-2.5 rounded-full ${
+                              online ? "bg-emerald-400" : "bg-red-500"
+                            }`}
+                            title={online ? "Online" : "Offline"}
+                          />
+                          <span>{row.name || "-"}</span>
+                        </span>
                       </TableCell>
                       <TableCell className="text-gray-300">
                         {row.email || "-"}

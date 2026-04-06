@@ -3016,8 +3016,16 @@ export async function updateUserLastLogin(userId: number) {
   if (!db) throw new Error("Database not available");
   return db
     .update(users)
-    .set({ lastLogin: new Date() })
+    .set({ lastLogin: new Date(), lastSignedIn: new Date() })
     .where(eq(users.id, userId));
+}
+
+export async function updateUserLastSeen(userId: number) {
+  await ensureUsersAuthSchema();
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  return db.update(users).set({ lastSignedIn: new Date() }).where(eq(users.id, userId));
 }
 
 export async function listUsers(filters?: {

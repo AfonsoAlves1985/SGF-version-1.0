@@ -4,6 +4,9 @@ import { extractToken, verifyToken } from "../auth.helpers";
 
 type User = NonNullable<Awaited<ReturnType<typeof db.getUserById>>>;
 
+const PRESENCE_UPDATE_WINDOW_MS = 60 * 1000;
+const lastPresenceUpdateByUser = new Map<number, number>();
+
 export type TrpcContext = {
   req: CreateExpressContextOptions["req"];
   res: CreateExpressContextOptions["res"];
@@ -26,6 +29,17 @@ async function getUserFromRequest(
   try {
     const user = await db.getUserById(decoded.userId);
     if (!user || !user.isActive) return null;
+
+    const now = Date.now();
+    const lastPresenceUpdate = lastPresenceUpdateByUser.get(user.id) || 0;
+
+    if (now - lastPresenceUpdate >= PRESENCE_UPDATE_WINDOW_MS) {
+      lastPresenceUpdateByUser.set(user.id, now);
+
+      db.updateUserLastSeen(user.id).catch(error => {
+        console.warn("[Auth] Failed to update user presence:", error);
+      });
+    }
 
     return user;
   } catch (error) {
