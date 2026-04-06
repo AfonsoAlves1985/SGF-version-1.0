@@ -165,10 +165,48 @@ async function writeAuditLog(params: {
   }
 }
 
+async function resolveAuditInput(opts: {
+  input?: unknown;
+  getRawInput?: () => Promise<unknown>;
+}) {
+  if (opts.input !== undefined) {
+    return opts.input;
+  }
+
+  if (!opts.getRawInput) {
+    return undefined;
+  }
+
+  try {
+    const rawInput = await opts.getRawInput();
+
+    if (Array.isArray(rawInput) && rawInput.length === 1) {
+      return rawInput[0];
+    }
+
+    if (
+      rawInput &&
+      typeof rawInput === "object" &&
+      "json" in (rawInput as Record<string, unknown>)
+    ) {
+      return (rawInput as Record<string, unknown>).json;
+    }
+
+    return rawInput;
+  } catch {
+    return undefined;
+  }
+}
+
 const auditMutations = t.middleware(async opts => {
   if (opts.type !== "mutation" || !opts.ctx.user) {
     return opts.next();
   }
+
+  const auditInput = await resolveAuditInput({
+    input: opts.input,
+    getRawInput: opts.getRawInput,
+  });
 
   try {
     const result = await opts.next();
@@ -176,7 +214,7 @@ const auditMutations = t.middleware(async opts => {
     await writeAuditLog({
       ctx: opts.ctx,
       path: opts.path,
-      input: opts.input,
+      input: auditInput,
       status: "success",
     });
 
@@ -185,7 +223,7 @@ const auditMutations = t.middleware(async opts => {
     await writeAuditLog({
       ctx: opts.ctx,
       path: opts.path,
-      input: opts.input,
+      input: auditInput,
       status: "failed",
       errorMessage: error?.message || "Erro desconhecido",
     });
