@@ -59,6 +59,7 @@ function invitationStatusLabel(status: string) {
 
 export default function AccessManagement() {
   const { user } = useAuth();
+  const isOwner = user?.role === "superadmin";
   const canAccess = user?.role === "superadmin" || user?.role === "admin";
   const utils = trpc.useUtils();
 
@@ -287,7 +288,11 @@ export default function AccessManagement() {
                     updateActiveMutation.isPending ||
                     deleteUserMutation.isPending;
                   const isOwnerRow = row.role === "superadmin";
-                  const canDeleteUser = !row.isActive && !isOwnerRow;
+                  const canDeleteUser =
+                    isOwner &&
+                    !row.isActive &&
+                    !isOwnerRow &&
+                    row.id !== user?.id;
 
                   return (
                     <TableRow key={row.id}>

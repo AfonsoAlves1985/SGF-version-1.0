@@ -14,6 +14,7 @@ import {
   generateToken,
   hashPassword,
   isAdmin,
+  isSuperadmin,
   validatePasswordStrength,
 } from "./auth.helpers";
 import { TRPCError } from "@trpc/server";
@@ -157,6 +158,15 @@ function ensureAccessManagementUser(user: { role: string } | null) {
     throw new TRPCError({
       code: "FORBIDDEN",
       message: "Acesso permitido apenas para owner e admin",
+    });
+  }
+}
+
+function ensureOwner(user: { role: string } | null) {
+  if (!user || !isSuperadmin(user.role as any)) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "Apenas owner pode excluir usuários",
     });
   }
 }
@@ -445,7 +455,7 @@ export const appRouter = router({
     deleteUser: protectedProcedure
       .input(z.object({ userId: z.number() }))
       .mutation(async ({ input, ctx }) => {
-        ensureAccessManagementUser(ctx.user);
+        ensureOwner(ctx.user);
 
         if (ctx.user.id === input.userId) {
           throw new TRPCError({
