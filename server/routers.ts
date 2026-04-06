@@ -18,6 +18,7 @@ import {
 } from "./auth.helpers";
 import { TRPCError } from "@trpc/server";
 import { randomBytes } from "node:crypto";
+import { ENV } from "./_core/env";
 
 const DEFAULT_ADMIN = {
   openId: "local-admin",
@@ -425,6 +426,13 @@ export const appRouter = router({
         }
 
         if (targetUser.role === "superadmin") {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "Não é permitido excluir owner",
+          });
+        }
+
+        if (ENV.ownerOpenId && targetUser.openId === ENV.ownerOpenId) {
           throw new TRPCError({
             code: "FORBIDDEN",
             message: "Não é permitido excluir owner",
