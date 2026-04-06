@@ -134,17 +134,28 @@ export default function Login() {
   const acceptInviteMutation =
     trpc.accessManagement.acceptInvitation.useMutation({
       onSuccess: (_data, variables) => {
-        setError("");
-        setSuccessMessage("Cadastro concluído. Faça login para acessar.");
-        setEmail(variables.login);
-        setInvitePassword("");
-        window.history.replaceState({}, "", "/login");
-        setLocation("/login");
+        const encodedLogin = encodeURIComponent(variables.login);
+        window.location.replace(`/login?registered=1&user=${encodedLogin}`);
       },
       onError: err => {
         setError(err.message);
       },
     });
+
+  useEffect(() => {
+    if (isInviteFlow) return;
+
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("registered") !== "1") return;
+
+    const registeredUser = params.get("user");
+    if (registeredUser) {
+      setEmail(registeredUser);
+    }
+
+    setSuccessMessage("Cadastro concluído. Faça login para acessar.");
+    window.history.replaceState({}, "", "/login");
+  }, [isInviteFlow]);
 
   useEffect(() => {
     if (isInviteFlow && invitationQuery.data?.name && !inviteName) {
