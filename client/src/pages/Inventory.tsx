@@ -11,6 +11,13 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Table,
   TableBody,
   TableCell,
@@ -48,6 +55,7 @@ type AssetFormData = {
 };
 
 type AssetEditableField = keyof AssetFormData;
+type DepartmentField = "conta" | "centroCusto" | "local";
 
 type InlineEditState = {
   assetId: number;
@@ -78,6 +86,8 @@ const ASSET_FIELD_LABEL: Record<AssetEditableField, string> = {
   anoAquis: "Ano Aquis.",
   vlrCusto: "Vlr. Custo",
 };
+
+const ADD_DEPARTMENT_OPTION = "__add_new_department__";
 
 const INITIAL_ASSET_FORM_DATA: AssetFormData = {
   filial: "",
@@ -132,6 +142,15 @@ export default function Inventory() {
 
   const [inlineEdit, setInlineEdit] = useState<InlineEditState | null>(null);
   const [inlineValue, setInlineValue] = useState("");
+  const [inlineDepartmentCustomMode, setInlineDepartmentCustomMode] =
+    useState(false);
+  const [formDepartmentCustomMode, setFormDepartmentCustomMode] = useState<
+    Record<DepartmentField, boolean>
+  >({
+    conta: false,
+    centroCusto: false,
+    local: false,
+  });
 
   const spacesQuery = trpc.inventorySpaces.list.useQuery();
   const spaces = (spacesQuery.data || []) as Space[];
@@ -175,6 +194,15 @@ export default function Inventory() {
     [assets]
   );
 
+  const getDepartmentOptions = (field: DepartmentField) => {
+    if (field === "conta") return contaOptions;
+    if (field === "centroCusto") return centroCustoOptions;
+    return localOptions;
+  };
+
+  const isDepartmentField = (field: AssetEditableField): field is DepartmentField =>
+    field === "conta" || field === "centroCusto" || field === "local";
+
   const createSpaceMutation = trpc.inventorySpaces.create.useMutation({
     onSuccess: async () => {
       toast.success("Unidade criada com sucesso");
@@ -206,6 +234,11 @@ export default function Inventory() {
       toast.success("Bem cadastrado com sucesso");
       setIsAssetDialogOpen(false);
       setAssetFormData(INITIAL_ASSET_FORM_DATA);
+      setFormDepartmentCustomMode({
+        conta: false,
+        centroCusto: false,
+        local: false,
+      });
       await assetsQuery.refetch();
     },
     onError: error => toast.error(error.message),
@@ -216,6 +249,7 @@ export default function Inventory() {
       toast.success("Campo atualizado com sucesso");
       setInlineEdit(null);
       setInlineValue("");
+      setInlineDepartmentCustomMode(false);
       await assetsQuery.refetch();
     },
     onError: error => toast.error(error.message),
@@ -248,6 +282,11 @@ export default function Inventory() {
     setAssetFormData({
       ...INITIAL_ASSET_FORM_DATA,
       filial: selectedSpaceData.name,
+    });
+    setFormDepartmentCustomMode({
+      conta: false,
+      centroCusto: false,
+      local: false,
     });
     setIsAssetDialogOpen(true);
   };
@@ -309,12 +348,23 @@ export default function Inventory() {
   const startInlineEdit = (asset: any, field: AssetEditableField) => {
     if (isAssetMutating) return;
     setInlineEdit({ assetId: asset.id, field });
-    setInlineValue(toInlineString(asset, field));
+    const value = toInlineString(asset, field);
+    setInlineValue(value);
+
+    if (isDepartmentField(field)) {
+      const options = getDepartmentOptions(field);
+      setInlineDepartmentCustomMode(
+        Boolean(value.trim()) && !options.includes(value)
+      );
+    } else {
+      setInlineDepartmentCustomMode(false);
+    }
   };
 
   const cancelInlineEdit = () => {
     setInlineEdit(null);
     setInlineValue("");
+    setInlineDepartmentCustomMode(false);
   };
 
   const saveInlineEdit = () => {
@@ -379,20 +429,81 @@ export default function Inventory() {
       );
     }
 
-    const listId =
-      field === "conta"
-        ? "inventory-conta-options"
-        : field === "centroCusto"
-          ? "inventory-centro-custo-options"
-          : field === "local"
-            ? "inventory-local-options"
-            : undefined;
+    if (isDepartmentField(field) && !inlineDepartmentCustomMode) {
+      const options = getDepartmentOptions(field);
+      const currentValue = options.includes(inlineValue) ? inlineValue : "";
+
+      return (
+        <Select
+          value={currentValue}
+          onValueChange={value => {
+            if (value === ADD_DEPARTMENT_OPTION) {
+              setInlineDepartmentCustomMode(true);
+              setInlineValue("");
+              return;
+            }
+            setInlineValue(value);
+          }}
+          disabled={isAssetMutating}
+        >
+          <SelectTrigger className="h-8 bg-slate-700 border-slate-600 text-white">
+            <SelectValue placeholder={`Selecionar ${ASSET_FIELD_LABEL[field]}`} />
+          </SelectTrigger>
+          <SelectContent>
+            {options.map(option => (
+              <SelectItem key={option} value={option}>
+                {option}
+              </SelectItem>
+            ))}
+            <SelectItem value={ADD_DEPARTMENT_OPTION}>
+              <span className="inline-flex items-center gap-2 text-sky-400">
+                <Plus className="h-4 w-4" />
+                Novo departamento
+              </span>
+            </SelectItem>
+          </SelectContent>
+        </Select>
+      );
+    }
+
+    if (isDepartmentField(field) && inlineDepartmentCustomMode) {
+      return (
+        <div className="flex items-center gap-1">
+          <Input
+            value={inlineValue}
+            onChange={event => setInlineValue(event.target.value)}
+            onKeyDown={event => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                saveInlineEdit();
+              }
+              if (event.key === "Escape") {
+                event.preventDefault();
+                cancelInlineEdit();
+              }
+            }}
+            className="h-8 bg-slate-700 border-slate-600 text-white"
+            placeholder="Novo departamento"
+            disabled={isAssetMutating}
+            autoFocus
+          />
+          <Button
+            type="button"
+            size="icon"
+            variant="outline"
+            className="h-8 w-8 border-slate-600 text-gray-300 hover:bg-slate-700"
+            onClick={() => setInlineDepartmentCustomMode(false)}
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+      );
+    }
 
     return (
       <Input
         type={field === "anoAquis" || field === "vlrCusto" ? "number" : "text"}
         step={field === "vlrCusto" ? "0.01" : undefined}
-        list={listId}
         value={inlineValue}
         onChange={event => setInlineValue(event.target.value)}
         onKeyDown={event => {
@@ -468,22 +579,6 @@ export default function Inventory() {
 
   return (
     <div className="space-y-6">
-      <datalist id="inventory-conta-options">
-        {contaOptions.map(option => (
-          <option key={option} value={option} />
-        ))}
-      </datalist>
-      <datalist id="inventory-centro-custo-options">
-        {centroCustoOptions.map(option => (
-          <option key={option} value={option} />
-        ))}
-      </datalist>
-      <datalist id="inventory-local-options">
-        {localOptions.map(option => (
-          <option key={option} value={option} />
-        ))}
-      </datalist>
-
       <div>
         <h1 className="text-3xl font-bold text-white">Inventário</h1>
         <p className="text-gray-400 mt-1">
@@ -782,47 +877,214 @@ export default function Inventory() {
 
             <div>
               <Label className="text-gray-300">Conta *</Label>
-              <Input
-                list="inventory-conta-options"
-                value={assetFormData.conta}
-                onChange={event =>
-                  setAssetFormData(current => ({
-                    ...current,
-                    conta: event.target.value,
-                  }))
-                }
-                className="mt-1 bg-slate-700 border-slate-600 text-white"
-              />
+              {formDepartmentCustomMode.conta ? (
+                <div className="mt-1 space-y-2">
+                  <Input
+                    value={assetFormData.conta}
+                    onChange={event =>
+                      setAssetFormData(current => ({
+                        ...current,
+                        conta: event.target.value,
+                      }))
+                    }
+                    placeholder="Digite novo departamento"
+                    className="bg-slate-700 border-slate-600 text-white"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="border-slate-600 text-gray-300 hover:bg-slate-700"
+                    onClick={() =>
+                      setFormDepartmentCustomMode(current => ({
+                        ...current,
+                        conta: false,
+                      }))
+                    }
+                  >
+                    Voltar para lista
+                  </Button>
+                </div>
+              ) : (
+                <Select
+                  value={contaOptions.includes(assetFormData.conta) ? assetFormData.conta : ""}
+                  onValueChange={value => {
+                    if (value === ADD_DEPARTMENT_OPTION) {
+                      setFormDepartmentCustomMode(current => ({
+                        ...current,
+                        conta: true,
+                      }));
+                      setAssetFormData(current => ({ ...current, conta: "" }));
+                      return;
+                    }
+
+                    setAssetFormData(current => ({ ...current, conta: value }));
+                  }}
+                >
+                  <SelectTrigger className="mt-1 bg-slate-700 border-slate-600 text-white">
+                    <SelectValue placeholder="Selecione a conta" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {contaOptions.map(option => (
+                      <SelectItem key={option} value={option}>
+                        {option}
+                      </SelectItem>
+                    ))}
+                    <SelectItem value={ADD_DEPARTMENT_OPTION}>
+                      <span className="inline-flex items-center gap-2 text-sky-400">
+                        <Plus className="h-4 w-4" />
+                        Novo departamento
+                      </span>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
             </div>
 
             <div>
               <Label className="text-gray-300">Centro de Custo *</Label>
-              <Input
-                list="inventory-centro-custo-options"
-                value={assetFormData.centroCusto}
-                onChange={event =>
-                  setAssetFormData(current => ({
-                    ...current,
-                    centroCusto: event.target.value,
-                  }))
-                }
-                className="mt-1 bg-slate-700 border-slate-600 text-white"
-              />
+              {formDepartmentCustomMode.centroCusto ? (
+                <div className="mt-1 space-y-2">
+                  <Input
+                    value={assetFormData.centroCusto}
+                    onChange={event =>
+                      setAssetFormData(current => ({
+                        ...current,
+                        centroCusto: event.target.value,
+                      }))
+                    }
+                    placeholder="Digite novo departamento"
+                    className="bg-slate-700 border-slate-600 text-white"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="border-slate-600 text-gray-300 hover:bg-slate-700"
+                    onClick={() =>
+                      setFormDepartmentCustomMode(current => ({
+                        ...current,
+                        centroCusto: false,
+                      }))
+                    }
+                  >
+                    Voltar para lista
+                  </Button>
+                </div>
+              ) : (
+                <Select
+                  value={
+                    centroCustoOptions.includes(assetFormData.centroCusto)
+                      ? assetFormData.centroCusto
+                      : ""
+                  }
+                  onValueChange={value => {
+                    if (value === ADD_DEPARTMENT_OPTION) {
+                      setFormDepartmentCustomMode(current => ({
+                        ...current,
+                        centroCusto: true,
+                      }));
+                      setAssetFormData(current => ({
+                        ...current,
+                        centroCusto: "",
+                      }));
+                      return;
+                    }
+
+                    setAssetFormData(current => ({
+                      ...current,
+                      centroCusto: value,
+                    }));
+                  }}
+                >
+                  <SelectTrigger className="mt-1 bg-slate-700 border-slate-600 text-white">
+                    <SelectValue placeholder="Selecione o centro de custo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {centroCustoOptions.map(option => (
+                      <SelectItem key={option} value={option}>
+                        {option}
+                      </SelectItem>
+                    ))}
+                    <SelectItem value={ADD_DEPARTMENT_OPTION}>
+                      <span className="inline-flex items-center gap-2 text-sky-400">
+                        <Plus className="h-4 w-4" />
+                        Novo departamento
+                      </span>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
             </div>
 
             <div>
               <Label className="text-gray-300">Local</Label>
-              <Input
-                list="inventory-local-options"
-                value={assetFormData.local}
-                onChange={event =>
-                  setAssetFormData(current => ({
-                    ...current,
-                    local: event.target.value,
-                  }))
-                }
-                className="mt-1 bg-slate-700 border-slate-600 text-white"
-              />
+              {formDepartmentCustomMode.local ? (
+                <div className="mt-1 space-y-2">
+                  <Input
+                    value={assetFormData.local}
+                    onChange={event =>
+                      setAssetFormData(current => ({
+                        ...current,
+                        local: event.target.value,
+                      }))
+                    }
+                    placeholder="Digite novo local"
+                    className="bg-slate-700 border-slate-600 text-white"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="border-slate-600 text-gray-300 hover:bg-slate-700"
+                    onClick={() =>
+                      setFormDepartmentCustomMode(current => ({
+                        ...current,
+                        local: false,
+                      }))
+                    }
+                  >
+                    Voltar para lista
+                  </Button>
+                </div>
+              ) : (
+                <Select
+                  value={
+                    localOptions.includes(assetFormData.local)
+                      ? assetFormData.local
+                      : ""
+                  }
+                  onValueChange={value => {
+                    if (value === ADD_DEPARTMENT_OPTION) {
+                      setFormDepartmentCustomMode(current => ({
+                        ...current,
+                        local: true,
+                      }));
+                      setAssetFormData(current => ({ ...current, local: "" }));
+                      return;
+                    }
+
+                    setAssetFormData(current => ({ ...current, local: value }));
+                  }}
+                >
+                  <SelectTrigger className="mt-1 bg-slate-700 border-slate-600 text-white">
+                    <SelectValue placeholder="Selecione o local" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {localOptions.map(option => (
+                      <SelectItem key={option} value={option}>
+                        {option}
+                      </SelectItem>
+                    ))}
+                    <SelectItem value={ADD_DEPARTMENT_OPTION}>
+                      <span className="inline-flex items-center gap-2 text-sky-400">
+                        <Plus className="h-4 w-4" />
+                        Novo departamento
+                      </span>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
             </div>
 
             <div>
