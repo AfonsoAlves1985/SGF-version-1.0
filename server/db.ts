@@ -2916,6 +2916,20 @@ export async function getUserInvitationByToken(token: string) {
   return result[0] || null;
 }
 
+export async function getUserInvitationById(invitationId: number) {
+  await ensureUsersAuthSchema();
+  const db = await getDb();
+  if (!db) return null;
+
+  const result = await db
+    .select()
+    .from(userInvitations)
+    .where(eq(userInvitations.id, invitationId))
+    .limit(1);
+
+  return result[0] || null;
+}
+
 export async function createUserInvitation(data: InsertUserInvitation) {
   await ensureUsersAuthSchema();
   const db = await getDb();
@@ -2966,6 +2980,14 @@ export async function markUserInvitationAccepted(invitationId: number) {
     .where(eq(userInvitations.id, invitationId));
 }
 
+export async function deleteUserInvitation(invitationId: number) {
+  await ensureUsersAuthSchema();
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  return db.delete(userInvitations).where(eq(userInvitations.id, invitationId));
+}
+
 export async function expireOverdueInvitations() {
   await ensureUsersAuthSchema();
   const db = await getDb();
@@ -3010,6 +3032,21 @@ export async function updateUserByEmail(
   if (data.isActive !== undefined) updateData.isActive = data.isActive;
 
   return db.update(users).set(updateData).where(eq(users.email, email));
+}
+
+export async function deleteUserById(userId: number) {
+  await ensureUsersAuthSchema();
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db.update(auditLog).set({ userId: null }).where(eq(auditLog.userId, userId));
+
+  await db
+    .update(userInvitations)
+    .set({ invitedByUserId: null, updatedAt: new Date() })
+    .where(eq(userInvitations.invitedByUserId, userId));
+
+  return db.delete(users).where(eq(users.id, userId));
 }
 
 // ============ AUDITORIA ============

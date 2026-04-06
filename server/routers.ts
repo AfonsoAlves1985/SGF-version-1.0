@@ -404,6 +404,44 @@ export const appRouter = router({
         return { success: true };
       }),
 
+    deleteUser: protectedProcedure
+      .input(z.object({ userId: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        ensureOwner(ctx.user);
+
+        if (ctx.user.id === input.userId) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Owner não pode excluir o próprio usuário",
+          });
+        }
+
+        const targetUser = await db.getUserById(input.userId);
+        if (!targetUser) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Usuário não encontrado",
+          });
+        }
+
+        if (targetUser.role === "superadmin") {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "Não é permitido excluir owner",
+          });
+        }
+
+        if (targetUser.isActive) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Só é permitido excluir usuários desativados",
+          });
+        }
+
+        await db.deleteUserById(targetUser.id);
+        return { success: true };
+      }),
+
     listInvitations: protectedProcedure.query(async ({ ctx }) => {
       ensureOwner(ctx.user);
       await db.expireOverdueInvitations();
@@ -413,7 +451,7 @@ export const appRouter = router({
     inviteUser: protectedProcedure
       .input(
         z.object({
-          email: z.string().email(),
+          email: z.string().email().optional(),
           name: z.string().optional(),
           role: z.enum(["admin", "editor", "viewer"]),
           baseUrl: z.string().url().optional(),
@@ -422,21 +460,25 @@ export const appRouter = router({
       .mutation(async ({ input, ctx }) => {
         ensureOwner(ctx.user);
 
-        const normalizedEmail = input.email.trim().toLowerCase();
-        const existingUser = await db.getUserByEmail(normalizedEmail);
-
-        if (existingUser?.role === "superadmin") {
-          throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: "Não é permitido convidar outro owner por este fluxo",
-          });
-        }
-
         const token = randomBytes(24).toString("hex");
         const expiresAt = new Date(Date.now() + 72 * 60 * 60 * 1000);
+        const normalizedEmail = input.email?.trim().toLowerCase();
+        const inviteEmail =
+          normalizedEmail || `pending-${token.slice(0, 12)}@invite.local`;
+
+        if (normalizedEmail) {
+          const existingUser = await db.getUserByEmail(normalizedEmail);
+
+          if (existingUser?.role === "superadmin") {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: "Não é permitido convidar outro owner por este fluxo",
+            });
+          }
+        }
 
         await db.createUserInvitation({
-          email: normalizedEmail,
+          email: inviteEmail,
           name: input.name?.trim() || null,
           role: input.role,
           token,
@@ -455,7 +497,7 @@ export const appRouter = router({
           success: true,
           invitationLink,
           expiresAt,
-          email: normalizedEmail,
+          email: normalizedEmail ?? null,
         };
       }),
 
@@ -464,6 +506,23 @@ export const appRouter = router({
       .mutation(async ({ input, ctx }) => {
         ensureOwner(ctx.user);
         await db.revokeUserInvitation(input.invitationId);
+        return { success: true };
+      }),
+
+    deleteInvitation: protectedProcedure
+      .input(z.object({ invitationId: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        ensureOwner(ctx.user);
+
+        const invitation = await db.getUserInvitationById(input.invitationId);
+        if (!invitation) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Convite não encontrado",
+          });
+        }
+
+        await db.deleteUserInvitation(input.invitationId);
         return { success: true };
       }),
 
@@ -487,11 +546,14 @@ export const appRouter = router({
           });
         }
 
+        const isPlaceholderEmail = invitation.email.endsWith("@invite.local");
+
         return {
-          email: invitation.email,
+          email: isPlaceholderEmail ? null : invitation.email,
           name: invitation.name,
           role: invitation.role,
           expiresAt: invitation.expiresAt,
+          requiresLogin: isPlaceholderEmail,
         };
       }),
 
@@ -499,6 +561,7 @@ export const appRouter = router({
       .input(
         z.object({
           token: z.string().min(20),
+          login: z.string().min(3),
           name: z.string().min(2),
           password: z.string().min(8),
         })
@@ -529,8 +592,17 @@ export const appRouter = router({
           });
         }
 
+        const normalizedLogin = input.login.trim().toLowerCase();
+
+        if (normalizedLogin === "admin") {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Login reservado. Escolha outro login",
+          });
+        }
+
         const passwordHash = await hashPassword(input.password);
-        const existingUser = await db.getUserByEmail(invitation.email);
+        const existingUser = await db.getUserByEmail(normalizedLogin);
 
         if (existingUser) {
           if (existingUser.role === "superadmin") {
@@ -540,7 +612,7 @@ export const appRouter = router({
             });
           }
 
-          await db.updateUserByEmail(invitation.email, {
+          await db.updateUserByEmail(normalizedLogin, {
             name: input.name,
             password: passwordHash,
             role: invitation.role,
@@ -549,9 +621,9 @@ export const appRouter = router({
           });
         } else {
           await db.createUser({
-            openId: `invite-${invitation.email}`,
+            openId: `invite-${normalizedLogin}`,
             name: input.name,
-            email: invitation.email,
+            email: normalizedLogin,
             loginMethod: "password",
             password: passwordHash,
             role: invitation.role,

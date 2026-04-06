@@ -25,8 +25,15 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { trpc } from "@/lib/trpc";
-import { Copy, Loader2, ShieldCheck, UserCog, UserPlus } from "lucide-react";
-import { useMemo, useState } from "react";
+import {
+  Copy,
+  Loader2,
+  ShieldCheck,
+  Trash2,
+  UserCog,
+  UserPlus,
+} from "lucide-react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 type RoleValue = "admin" | "editor" | "viewer";
@@ -55,7 +62,6 @@ export default function AccessManagement() {
   const isOwner = user?.role === "superadmin";
   const utils = trpc.useUtils();
 
-  const [inviteEmail, setInviteEmail] = useState("");
   const [inviteName, setInviteName] = useState("");
   const [inviteRole, setInviteRole] = useState<RoleValue>("viewer");
   const [latestInvitationLink, setLatestInvitationLink] = useState("");
@@ -73,7 +79,6 @@ export default function AccessManagement() {
   const inviteMutation = trpc.accessManagement.inviteUser.useMutation({
     onSuccess: data => {
       setLatestInvitationLink(data.invitationLink);
-      setInviteEmail("");
       setInviteName("");
       setInviteRole("viewer");
 
@@ -119,11 +124,28 @@ export default function AccessManagement() {
       },
     });
 
-  const pendingInvitations = useMemo(() => {
-    return (invitationsQuery.data || []).filter(
-      (invitation: any) => invitation.status === "pending"
-    );
-  }, [invitationsQuery.data]);
+  const deleteUserMutation = trpc.accessManagement.deleteUser.useMutation({
+    onSuccess: async () => {
+      toast.success("Usuário excluído");
+      await usersQuery.refetch();
+    },
+    onError: error => {
+      toast.error(error.message);
+    },
+  });
+
+  const deleteInvitationMutation =
+    trpc.accessManagement.deleteInvitation.useMutation({
+      onSuccess: async () => {
+        toast.success("Convite excluído");
+        await invitationsQuery.refetch();
+      },
+      onError: error => {
+        toast.error(error.message);
+      },
+    });
+
+  const invitations = invitationsQuery.data || [];
 
   if (!isOwner) {
     return (
@@ -164,23 +186,13 @@ export default function AccessManagement() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="sm:col-span-1">
               <Label className="text-gray-300">Nome</Label>
               <Input
                 value={inviteName}
                 onChange={event => setInviteName(event.target.value)}
                 placeholder="Nome do usuário"
-                className="bg-slate-700 border-slate-600 text-white mt-1"
-              />
-            </div>
-            <div className="sm:col-span-1">
-              <Label className="text-gray-300">E-mail</Label>
-              <Input
-                type="email"
-                value={inviteEmail}
-                onChange={event => setInviteEmail(event.target.value)}
-                placeholder="usuario@empresa.com"
                 className="bg-slate-700 border-slate-600 text-white mt-1"
               />
             </div>
@@ -206,13 +218,7 @@ export default function AccessManagement() {
 
           <Button
             onClick={() => {
-              if (!inviteEmail.trim()) {
-                toast.error("Informe o e-mail do convite");
-                return;
-              }
-
               inviteMutation.mutate({
-                email: inviteEmail.trim().toLowerCase(),
                 name: inviteName.trim() || undefined,
                 role: inviteRole,
                 baseUrl: window.location.origin,
@@ -271,14 +277,17 @@ export default function AccessManagement() {
                   <TableHead className="text-gray-300">E-mail</TableHead>
                   <TableHead className="text-gray-300">Papel</TableHead>
                   <TableHead className="text-gray-300">Acesso</TableHead>
+                  <TableHead className="text-gray-300">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {(usersQuery.data || []).map((row: any) => {
                   const disabled =
                     updateRoleMutation.isPending ||
-                    updateActiveMutation.isPending;
+                    updateActiveMutation.isPending ||
+                    deleteUserMutation.isPending;
                   const isOwnerRow = row.role === "superadmin";
+                  const canDeleteUser = !row.isActive && !isOwnerRow;
 
                   return (
                     <TableRow key={row.id}>
@@ -333,6 +342,26 @@ export default function AccessManagement() {
                           {row.isActive ? "Desativar" : "Ativar"}
                         </Button>
                       </TableCell>
+                      <TableCell>
+                        {canDeleteUser ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="border-red-500/40 text-red-300 hover:bg-red-900/20"
+                            disabled={disabled}
+                            onClick={() =>
+                              deleteUserMutation.mutate({
+                                userId: row.id,
+                              })
+                            }
+                          >
+                            <Trash2 className="h-4 w-4 mr-1" />
+                            Excluir
+                          </Button>
+                        ) : (
+                          <span className="text-gray-500 text-sm">-</span>
+                        )}
+                      </TableCell>
                     </TableRow>
                   );
                 })}
@@ -346,7 +375,8 @@ export default function AccessManagement() {
         <CardHeader>
           <CardTitle className="text-white">Convites enviados</CardTitle>
           <CardDescription className="text-gray-300">
-            Convites pendentes podem ser revogados.
+            Convites pendentes podem ser revogados. Qualquer convite pode ser
+            excluído.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -354,18 +384,27 @@ export default function AccessManagement() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="text-gray-300">E-mail</TableHead>
+                  <TableHead className="text-gray-300">Login</TableHead>
+                  <TableHead className="text-gray-300">Nome</TableHead>
                   <TableHead className="text-gray-300">Papel</TableHead>
                   <TableHead className="text-gray-300">Status</TableHead>
                   <TableHead className="text-gray-300">Expira em</TableHead>
-                  <TableHead className="text-gray-300">Ação</TableHead>
+                  <TableHead className="text-gray-300">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {pendingInvitations.map((invitation: any) => (
+                {invitations.map((invitation: any) => {
+                  const displayLogin = invitation.email?.endsWith("@invite.local")
+                    ? "Definido no cadastro"
+                    : invitation.email;
+
+                  return (
                   <TableRow key={invitation.id}>
                     <TableCell className="text-white">
-                      {invitation.email}
+                      {displayLogin || "-"}
+                    </TableCell>
+                    <TableCell className="text-gray-300">
+                      {invitation.name || "-"}
                     </TableCell>
                     <TableCell className="text-gray-300">
                       {roleLabel(invitation.role)}
@@ -379,22 +418,48 @@ export default function AccessManagement() {
                       )}
                     </TableCell>
                     <TableCell>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="border-slate-600 text-gray-300 hover:bg-slate-700"
-                        disabled={revokeInviteMutation.isPending}
-                        onClick={() =>
-                          revokeInviteMutation.mutate({
-                            invitationId: invitation.id,
-                          })
-                        }
-                      >
-                        Revogar
-                      </Button>
+                      <div className="flex flex-wrap gap-2">
+                        {invitation.status === "pending" && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="border-slate-600 text-gray-300 hover:bg-slate-700"
+                            disabled={
+                              revokeInviteMutation.isPending ||
+                              deleteInvitationMutation.isPending
+                            }
+                            onClick={() =>
+                              revokeInviteMutation.mutate({
+                                invitationId: invitation.id,
+                              })
+                            }
+                          >
+                            Revogar
+                          </Button>
+                        )}
+
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="border-red-500/40 text-red-300 hover:bg-red-900/20"
+                          disabled={
+                            revokeInviteMutation.isPending ||
+                            deleteInvitationMutation.isPending
+                          }
+                          onClick={() =>
+                            deleteInvitationMutation.mutate({
+                              invitationId: invitation.id,
+                            })
+                          }
+                        >
+                          <Trash2 className="h-4 w-4 mr-1" />
+                          Excluir
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
-                ))}
+                  );
+                })}
               </TableBody>
             </Table>
           </div>

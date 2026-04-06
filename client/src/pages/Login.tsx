@@ -80,6 +80,7 @@ const neuralLinks = [
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [inviteLogin, setInviteLogin] = useState("");
   const [inviteName, setInviteName] = useState("");
   const [invitePassword, setInvitePassword] = useState("");
   const [showUser, setShowUser] = useState(false);
@@ -137,6 +138,12 @@ export default function Login() {
     }
   }, [invitationQuery.data, inviteName, isInviteFlow]);
 
+  useEffect(() => {
+    if (isInviteFlow && invitationQuery.data?.email && !inviteLogin) {
+      setInviteLogin(invitationQuery.data.email.toLowerCase());
+    }
+  }, [invitationQuery.data, inviteLogin, isInviteFlow]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -157,8 +164,14 @@ export default function Login() {
       return;
     }
 
+    if (!inviteLogin.trim()) {
+      setError("Informe um login para continuar");
+      return;
+    }
+
     acceptInviteMutation.mutate({
       token: inviteToken,
+      login: inviteLogin.trim().toLowerCase(),
       name: inviteName.trim(),
       password: invitePassword,
     });
@@ -325,13 +338,26 @@ export default function Login() {
               <>
                 <div className="rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-300">
                   <p>
-                    <strong className="text-white">E-mail:</strong>{" "}
-                    {invitationQuery.data?.email}
+                    <strong className="text-white">Login sugerido:</strong>{" "}
+                    {invitationQuery.data?.email || "Definido no cadastro"}
                   </p>
                   <p>
                     <strong className="text-white">Permissão:</strong>{" "}
                     {invitationQuery.data?.role}
                   </p>
+                </div>
+
+                <div>
+                  <label className="block text-zinc-400 text-sm mb-1">
+                    Login
+                  </label>
+                  <input
+                    type="text"
+                    value={inviteLogin}
+                    onChange={e => setInviteLogin(e.target.value)}
+                    className="w-full rounded bg-zinc-800 px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                    placeholder="Seu login"
+                  />
                 </div>
 
                 <div>
