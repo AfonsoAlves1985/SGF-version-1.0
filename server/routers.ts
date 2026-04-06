@@ -18,6 +18,7 @@ import {
 } from "./auth.helpers";
 import { TRPCError } from "@trpc/server";
 import { randomBytes } from "node:crypto";
+import { sendInvitationEmail } from "./_core/mailer";
 
 const DEFAULT_ADMIN = {
   openId: "local-admin",
@@ -450,12 +451,22 @@ export const appRouter = router({
 
         const safeBaseUrl = input.baseUrl?.replace(/\/$/, "") ?? "";
         const invitationLink = `${safeBaseUrl}/accept-invite?token=${token}`;
+        const emailResult = await sendInvitationEmail({
+          to: normalizedEmail,
+          name: input.name,
+          role: input.role,
+          invitationLink,
+          expiresAt,
+          invitedByName: ctx.user.name || DEFAULT_ADMIN.name,
+        });
 
         return {
           success: true,
           invitationLink,
           expiresAt,
           email: normalizedEmail,
+          emailSent: emailResult.sent,
+          emailError: emailResult.error ?? null,
         };
       }),
 

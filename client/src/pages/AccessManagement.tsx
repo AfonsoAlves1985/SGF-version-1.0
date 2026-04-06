@@ -78,7 +78,17 @@ export default function AccessManagement() {
       setInviteEmail("");
       setInviteName("");
       setInviteRole("viewer");
-      toast.success("Convite criado com sucesso");
+
+      if (data.emailSent) {
+        toast.success("Convite enviado por e-mail com sucesso");
+      } else {
+        toast.warning(
+          data.emailError
+            ? `Convite criado, mas o e-mail não foi enviado (${data.emailError}). Use o link manual.`
+            : "Convite criado, mas o e-mail não foi enviado. Use o link manual."
+        );
+      }
+
       invitationsQuery.refetch();
     },
     onError: error => {

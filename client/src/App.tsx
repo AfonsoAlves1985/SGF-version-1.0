@@ -61,6 +61,14 @@ function Router() {
     localStorage.getItem("auth-token")
   );
 
+  if (location.startsWith("/accept-invite")) {
+    return (
+      <Suspense fallback={<PageFallback />}>
+        <AcceptInvite />
+      </Suspense>
+    );
+  }
+
   useEffect(() => {
     const syncToken = () => {
       setToken(localStorage.getItem("auth-token"));
@@ -90,14 +98,6 @@ function Router() {
   }, [location, setLocation, token]);
 
   if (!token) {
-    if (location.startsWith("/accept-invite")) {
-      return (
-        <Suspense fallback={<PageFallback />}>
-          <AcceptInvite />
-        </Suspense>
-      );
-    }
-
     return (
       <Suspense fallback={<PageFallback />}>
         <Login />
