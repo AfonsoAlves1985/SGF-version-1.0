@@ -103,6 +103,17 @@ const FIELD_LABELS: Record<string, string> = {
   userId: "Usuário",
 };
 
+const IGNORED_CHANGE_KEYS = new Set([
+  "id",
+  "userId",
+  "invitationId",
+  "token",
+  "spaceId",
+  "consumableId",
+  "contractId",
+  "supplierId",
+]);
+
 function formatAction(action: string) {
   if (action in ACTION_LABEL) {
     return ACTION_LABEL[action as AuditAction];
@@ -186,7 +197,37 @@ function normalizeChanges(changes: unknown): unknown {
   return changes;
 }
 
-function buildChangeLines(changes: unknown): string[] {
+function buildChangedColumns(changes: unknown): string[] {
+  const parsed = normalizeChanges(changes);
+  if (!parsed) return [];
+
+  if (typeof parsed === "string") return [];
+  if (typeof parsed !== "object") return [];
+
+  const parsedObject = parsed as Record<string, unknown>;
+  const before =
+    parsedObject.before && typeof parsedObject.before === "object"
+      ? (parsedObject.before as Record<string, unknown>)
+      : null;
+  const after =
+    parsedObject.after && typeof parsedObject.after === "object"
+      ? (parsedObject.after as Record<string, unknown>)
+      : null;
+
+  if (before && after) {
+    const keys = Array.from(new Set([...Object.keys(before), ...Object.keys(after)]))
+      .filter(key => JSON.stringify(before[key]) !== JSON.stringify(after[key]))
+      .filter(key => !IGNORED_CHANGE_KEYS.has(key));
+
+    return keys.map(normalizeFieldLabel);
+  }
+
+  return Object.keys(parsedObject)
+    .filter(key => !IGNORED_CHANGE_KEYS.has(key))
+    .map(normalizeFieldLabel);
+}
+
+function buildChangedInfo(changes: unknown): string[] {
   const parsed = normalizeChanges(changes);
   if (!parsed) return [];
 
@@ -209,33 +250,29 @@ function buildChangeLines(changes: unknown): string[] {
       : null;
 
   if (before && after) {
-    const keys = Array.from(new Set([...Object.keys(before), ...Object.keys(after)]));
-    const lines = keys
+    const lines = Array.from(new Set([...Object.keys(before), ...Object.keys(after)]))
       .filter(key => JSON.stringify(before[key]) !== JSON.stringify(after[key]))
-      .map(key => {
-        const label = normalizeFieldLabel(key);
-        return `${label}: ${formatValue(before[key])} -> ${formatValue(after[key])}`;
-      });
+      .filter(key => !IGNORED_CHANGE_KEYS.has(key))
+      .map(key => `De ${formatValue(before[key])} para ${formatValue(after[key])}`);
 
     return lines;
   }
 
-  const lines = Object.entries(parsedObject).map(([key, value]) => {
-    const label = normalizeFieldLabel(key);
-    return `${label}: ${formatValue(value)}`;
-  });
+  const lines = Object.entries(parsedObject)
+    .filter(([key]) => !IGNORED_CHANGE_KEYS.has(key))
+    .map(([_key, value]) => formatValue(value));
 
   return lines;
 }
 
-function renderChanges(changes: unknown): ReactNode {
-  const lines = buildChangeLines(changes);
+function renderRecordInfo(row: AuditRow): ReactNode {
+  const lines = buildChangedInfo(row.changes);
 
   if (lines.length === 0) {
-    return "-";
+    return formatRecordFallback(row);
   }
 
-  const visible = lines.slice(0, 3);
+  const visible = lines.slice(0, 2);
   const hasMore = lines.length > visible.length;
 
   return (
@@ -249,13 +286,43 @@ function renderChanges(changes: unknown): ReactNode {
         </p>
       ))}
       {hasMore && (
-        <p className="text-[11px] text-sky-300">+{lines.length - visible.length} mudança(s)</p>
+        <p className="text-[11px] text-sky-300">+{lines.length - visible.length} valor(es)</p>
       )}
     </div>
   );
 }
 
-function formatRecord(row: AuditRow): string {
+function renderChangedColumns(changes: unknown): ReactNode {
+  const columns = buildChangedColumns(changes);
+
+  if (columns.length === 0) {
+    return "-";
+  }
+
+  const visible = columns.slice(0, 3);
+  const hasMore = columns.length > visible.length;
+
+  return (
+    <div className="flex flex-wrap gap-1">
+      {visible.map(columnName => (
+        <Badge
+          key={columnName}
+          variant="outline"
+          className="border-sky-600/40 text-sky-200"
+        >
+          {columnName}
+        </Badge>
+      ))}
+      {hasMore && (
+        <Badge variant="outline" className="border-slate-600 text-gray-300">
+          +{columns.length - visible.length}
+        </Badge>
+      )}
+    </div>
+  );
+}
+
+function formatRecordFallback(row: AuditRow): string {
   if (row.recordName && row.recordId !== null && row.recordId !== undefined) {
     return `${row.recordName} (#${row.recordId})`;
   }
@@ -270,9 +337,6 @@ function formatRecord(row: AuditRow): string {
 
   if (row.action === "login") return "Autenticação";
   if (row.action === "logout") return "Sessão";
-
-  const lines = buildChangeLines(row.changes);
-  if (lines.length > 0) return lines[0].split(":")[0] || "-";
 
   return "-";
 }
@@ -478,13 +542,13 @@ export default function Logs() {
                     <TableHead className="text-gray-300">Módulo</TableHead>
                     <TableHead className="text-gray-300">Ação</TableHead>
                     <TableHead className="text-gray-300">Usuário</TableHead>
-                    <TableHead className="text-gray-300">Registro</TableHead>
+                    <TableHead className="text-gray-300">Registro (informação)</TableHead>
                     <TableHead className="text-gray-300">Status</TableHead>
-                    <TableHead className="text-gray-300">Alterações</TableHead>
+                    <TableHead className="text-gray-300">Alterações (coluna)</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {logs.map((row: any) => (
+                  {logs.map(row => (
                     <TableRow
                       key={row.id}
                       className="border-sky-700/20 hover:bg-slate-700/30"
@@ -506,8 +570,8 @@ export default function Logs() {
                           ? `${row.user.name} (${row.user.email || "sem e-mail"})`
                           : "Sistema / removido"}
                       </TableCell>
-                      <TableCell className="text-gray-300">
-                        {formatRecord(row)}
+                      <TableCell className="max-w-[360px] align-top">
+                        {renderRecordInfo(row)}
                       </TableCell>
                       <TableCell>
                         <Badge
@@ -522,7 +586,7 @@ export default function Logs() {
                         </Badge>
                       </TableCell>
                       <TableCell className="max-w-[380px] align-top">
-                        {renderChanges(row.changes)}
+                        {renderChangedColumns(row.changes)}
                       </TableCell>
                     </TableRow>
                   ))}
