@@ -59,6 +59,17 @@ function formatChanges(changes: unknown): string {
     }
   }
 
+  if (
+    parsed &&
+    typeof parsed === "object" &&
+    "raw" in (parsed as Record<string, unknown>)
+  ) {
+    const rawValue = (parsed as Record<string, unknown>).raw;
+    if (rawValue === "undefined" || rawValue === undefined || rawValue === null) {
+      return "-";
+    }
+  }
+
   try {
     const serialized = JSON.stringify(parsed);
     if (!serialized) return "-";

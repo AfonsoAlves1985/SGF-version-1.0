@@ -45,16 +45,24 @@ function resolveAuditAction(procedureName: string) {
 }
 
 function toJsonSafe(value: unknown): unknown {
+  if (value === undefined || value === null) {
+    return null;
+  }
+
   try {
-    return JSON.parse(
-      JSON.stringify(value, (_key, item) => {
-        if (item instanceof Date) return item.toISOString();
-        if (typeof item === "bigint") return Number(item);
-        return item;
-      })
-    );
+    const serialized = JSON.stringify(value, (_key, item) => {
+      if (item instanceof Date) return item.toISOString();
+      if (typeof item === "bigint") return Number(item);
+      return item;
+    });
+
+    if (!serialized) {
+      return null;
+    }
+
+    return JSON.parse(serialized);
   } catch {
-    return { raw: String(value) };
+    return null;
   }
 }
 
