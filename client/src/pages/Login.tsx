@@ -90,10 +90,21 @@ export default function Login() {
   const [location, setLocation] = useLocation();
   const [successMessage, setSuccessMessage] = useState("");
   const utils = trpc.useUtils();
-  const inviteToken = useMemo(
-    () => new URLSearchParams(location.split("?")[1] || "").get("inviteToken") || "",
-    [location]
-  );
+  const inviteToken = useMemo(() => {
+    const tokenFromSearch = new URLSearchParams(window.location.search).get(
+      "inviteToken"
+    );
+
+    if (tokenFromSearch) {
+      return tokenFromSearch;
+    }
+
+    const queryString = location.includes("?")
+      ? location.split("?")[1] || ""
+      : "";
+
+    return new URLSearchParams(queryString).get("inviteToken") || "";
+  }, [location]);
   const isInviteFlow = Boolean(inviteToken);
 
   const loginMutation = trpc.auth.login.useMutation({
