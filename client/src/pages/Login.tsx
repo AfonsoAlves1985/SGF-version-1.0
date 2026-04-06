@@ -87,11 +87,12 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [showInvitePassword, setShowInvitePassword] = useState(false);
   const [error, setError] = useState("");
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
+  const [successMessage, setSuccessMessage] = useState("");
   const utils = trpc.useUtils();
   const inviteToken = useMemo(
-    () => new URLSearchParams(window.location.search).get("inviteToken") || "",
-    []
+    () => new URLSearchParams(location.split("?")[1] || "").get("inviteToken") || "",
+    [location]
   );
   const isInviteFlow = Boolean(inviteToken);
 
@@ -121,8 +122,10 @@ export default function Login() {
 
   const acceptInviteMutation =
     trpc.accessManagement.acceptInvitation.useMutation({
-      onSuccess: () => {
+      onSuccess: (_data, variables) => {
         setError("");
+        setSuccessMessage("Cadastro concluído. Faça login para acessar.");
+        setEmail(variables.login);
         setInvitePassword("");
         window.history.replaceState({}, "", "/login");
         setLocation("/login");
@@ -147,12 +150,14 @@ export default function Login() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setSuccessMessage("");
     loginMutation.mutate({ email, password });
   };
 
   const handleAcceptInvite = (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setSuccessMessage("");
 
     if (!inviteName.trim()) {
       setError("Informe seu nome para continuar");
@@ -407,6 +412,9 @@ export default function Login() {
                 </div>
 
                 {error && <p className="text-red-500 text-sm">{error}</p>}
+                {successMessage && (
+                  <p className="text-emerald-400 text-sm">{successMessage}</p>
+                )}
 
                 <button
                   type="submit"
@@ -480,6 +488,9 @@ export default function Login() {
             </div>
 
             {error && <p className="text-red-500 text-sm">{error}</p>}
+            {successMessage && (
+              <p className="text-emerald-400 text-sm">{successMessage}</p>
+            )}
 
             <button
               type="submit"
