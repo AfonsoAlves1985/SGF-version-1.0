@@ -17,6 +17,8 @@ const SuppliersAndPurchases = lazy(
 const Contracts = lazy(() => import("./pages/Contracts"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Consumables = lazy(() => import("./pages/Consumables"));
+const AccessManagement = lazy(() => import("./pages/AccessManagement"));
+const AcceptInvite = lazy(() => import("./pages/AcceptInvite"));
 const DashboardLayout = lazy(() => import("./components/DashboardLayout"));
 const Login = lazy(() => import("./pages/Login"));
 
@@ -88,6 +90,14 @@ function Router() {
   }, [location, setLocation, token]);
 
   if (!token) {
+    if (location.startsWith("/accept-invite")) {
+      return (
+        <Suspense fallback={<PageFallback />}>
+          <AcceptInvite />
+        </Suspense>
+      );
+    }
+
     return (
       <Suspense fallback={<PageFallback />}>
         <Login />
@@ -116,7 +126,9 @@ function Router() {
           <Route path={"/contracts"} component={Contracts} />
           <Route path={"/consumables"} component={Consumables} />
           <Route path={"/dashboard"} component={Dashboard} />
+          <Route path={"/access-management"} component={AccessManagement} />
           <Route path={"/login"} component={Login} />
+          <Route path={"/accept-invite"} component={AcceptInvite} />
           <Route path={"/404"} component={NotFound} />
           <Route component={NotFound} />
         </Switch>

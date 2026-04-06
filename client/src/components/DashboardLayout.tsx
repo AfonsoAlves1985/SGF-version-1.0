@@ -35,6 +35,7 @@ import {
   BarChart3,
   PenLine,
   Handshake,
+  ShieldCheck,
 } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
@@ -52,6 +53,12 @@ const menuItems = [
   { icon: Wrench, label: "Manutenção", path: "/maintenance" },
   { icon: FileText, label: "Fornecedores e Compras", path: "/suppliers" },
   { icon: Handshake, label: "Contratos", path: "/contracts" },
+  {
+    icon: ShieldCheck,
+    label: "Administração de Acessos",
+    path: "/access-management",
+    requiresOwner: true,
+  },
 ];
 
 const SIDEBAR_WIDTH_KEY = "sidebar-width";
@@ -137,6 +144,10 @@ function DashboardLayoutContent({
   const [isResizing, setIsResizing] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
   const activeMenuItem = menuItems.find(item => item.path === location);
+  const visibleMenuItems = menuItems.filter(item => {
+    if (!item.requiresOwner) return true;
+    return user?.role === "superadmin";
+  });
   const isMobile = useIsMobile();
 
   useEffect(() => {
@@ -197,7 +208,7 @@ function DashboardLayoutContent({
 
           <SidebarContent className="gap-0">
             <SidebarMenu className="px-2 py-1">
-              {menuItems.map(item => {
+              {visibleMenuItems.map(item => {
                 const isActive = location === item.path;
                 return (
                   <SidebarMenuItem key={item.path}>

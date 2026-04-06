@@ -9,8 +9,15 @@ import {
 } from "./_core/trpc";
 import { z } from "zod";
 import * as db from "./db";
-import { comparePassword, generateToken, hashPassword } from "./auth.helpers";
+import {
+  comparePassword,
+  generateToken,
+  hashPassword,
+  isSuperadmin,
+  validatePasswordStrength,
+} from "./auth.helpers";
 import { TRPCError } from "@trpc/server";
+import { randomBytes } from "node:crypto";
 
 const DEFAULT_ADMIN = {
   openId: "local-admin",
@@ -144,6 +151,15 @@ function parseMaskedDate(value: string) {
   return date;
 }
 
+function ensureOwner(user: { role: string } | null) {
+  if (!user || !isSuperadmin(user.role as any)) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "Acesso permitido apenas para owner",
+    });
+  }
+}
+
 async function ensureDefaultAdminUser() {
   let user = await db.getUserByEmail(DEFAULT_ADMIN.email);
 
@@ -233,25 +249,6 @@ export const appRouter = router({
         if (
           isAdminShortcutLogin &&
           input.password === DEFAULT_ADMIN_PASSWORD &&
-          ALLOW_DEFAULT_ADMIN_LOGIN
-        ) {
-          clearFailedLoginAttempts(loginAttemptKey);
-          const token = generateToken(1, "admin");
-          return {
-            success: true,
-            token,
-            user: {
-              id: 1,
-              name: DEFAULT_ADMIN.name,
-              email: DEFAULT_ADMIN.email,
-              role: DEFAULT_ADMIN.role,
-            },
-          };
-        }
-
-        if (
-          isAdminShortcutLogin &&
-          input.password === DEFAULT_ADMIN_PASSWORD &&
           !ALLOW_DEFAULT_ADMIN_LOGIN
         ) {
           throwUnauthorizedWithRateLimit(loginAttemptKey);
@@ -272,7 +269,7 @@ export const appRouter = router({
             ALLOW_DEFAULT_ADMIN_LOGIN
           ) {
             clearFailedLoginAttempts(loginAttemptKey);
-            const token = generateToken(1, "admin");
+            const token = generateToken(1, DEFAULT_ADMIN.role);
             return {
               success: true,
               token,
@@ -357,6 +354,215 @@ export const appRouter = router({
         success: true,
       } as const;
     }),
+  }),
+
+  accessManagement: router({
+    listUsers: protectedProcedure.query(async ({ ctx }) => {
+      ensureOwner(ctx.user);
+      return db.listUsers();
+    }),
+
+    updateUserRole: protectedProcedure
+      .input(
+        z.object({
+          userId: z.number(),
+          role: z.enum(["admin", "editor", "viewer"]),
+        })
+      )
+      .mutation(async ({ input, ctx }) => {
+        ensureOwner(ctx.user);
+
+        if (ctx.user.id === input.userId) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Owner não pode alterar o próprio papel",
+          });
+        }
+
+        await db.updateUserRole(input.userId, input.role);
+        return { success: true };
+      }),
+
+    updateUserActive: protectedProcedure
+      .input(
+        z.object({
+          userId: z.number(),
+          isActive: z.boolean(),
+        })
+      )
+      .mutation(async ({ input, ctx }) => {
+        ensureOwner(ctx.user);
+
+        if (ctx.user.id === input.userId) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Owner não pode desativar o próprio acesso",
+          });
+        }
+
+        await db.updateUserActive(input.userId, input.isActive);
+        return { success: true };
+      }),
+
+    listInvitations: protectedProcedure.query(async ({ ctx }) => {
+      ensureOwner(ctx.user);
+      await db.expireOverdueInvitations();
+      return db.listUserInvitations();
+    }),
+
+    inviteUser: protectedProcedure
+      .input(
+        z.object({
+          email: z.string().email(),
+          name: z.string().optional(),
+          role: z.enum(["admin", "editor", "viewer"]),
+          baseUrl: z.string().url().optional(),
+        })
+      )
+      .mutation(async ({ input, ctx }) => {
+        ensureOwner(ctx.user);
+
+        const normalizedEmail = input.email.trim().toLowerCase();
+        const existingUser = await db.getUserByEmail(normalizedEmail);
+
+        if (existingUser?.role === "superadmin") {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Não é permitido convidar outro owner por este fluxo",
+          });
+        }
+
+        const token = randomBytes(24).toString("hex");
+        const expiresAt = new Date(Date.now() + 72 * 60 * 60 * 1000);
+
+        await db.createUserInvitation({
+          email: normalizedEmail,
+          name: input.name?.trim() || null,
+          role: input.role,
+          token,
+          status: "pending",
+          invitedByUserId: ctx.user.id,
+          expiresAt,
+          acceptedAt: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        } as any);
+
+        const safeBaseUrl = input.baseUrl?.replace(/\/$/, "") ?? "";
+        const invitationLink = `${safeBaseUrl}/accept-invite?token=${token}`;
+
+        return {
+          success: true,
+          invitationLink,
+          expiresAt,
+          email: normalizedEmail,
+        };
+      }),
+
+    revokeInvitation: protectedProcedure
+      .input(z.object({ invitationId: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        ensureOwner(ctx.user);
+        await db.revokeUserInvitation(input.invitationId);
+        return { success: true };
+      }),
+
+    getInvitationByToken: publicProcedure
+      .input(z.object({ token: z.string().min(20) }))
+      .query(async ({ input }) => {
+        await db.expireOverdueInvitations();
+
+        const invitation = await db.getUserInvitationByToken(input.token);
+        if (!invitation || invitation.status !== "pending") {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Convite inválido ou expirado",
+          });
+        }
+
+        if (invitation.expiresAt < new Date()) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Convite expirado",
+          });
+        }
+
+        return {
+          email: invitation.email,
+          name: invitation.name,
+          role: invitation.role,
+          expiresAt: invitation.expiresAt,
+        };
+      }),
+
+    acceptInvitation: publicProcedure
+      .input(
+        z.object({
+          token: z.string().min(20),
+          name: z.string().min(2),
+          password: z.string().min(8),
+        })
+      )
+      .mutation(async ({ input }) => {
+        await db.expireOverdueInvitations();
+
+        const invitation = await db.getUserInvitationByToken(input.token);
+        if (!invitation || invitation.status !== "pending") {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Convite inválido ou expirado",
+          });
+        }
+
+        if (invitation.expiresAt < new Date()) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Convite expirado",
+          });
+        }
+
+        const passwordValidation = validatePasswordStrength(input.password);
+        if (!passwordValidation.valid) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: passwordValidation.errors.join("; "),
+          });
+        }
+
+        const passwordHash = await hashPassword(input.password);
+        const existingUser = await db.getUserByEmail(invitation.email);
+
+        if (existingUser) {
+          if (existingUser.role === "superadmin") {
+            throw new TRPCError({
+              code: "FORBIDDEN",
+              message: "Não é permitido alterar owner por convite",
+            });
+          }
+
+          await db.updateUserByEmail(invitation.email, {
+            name: input.name,
+            password: passwordHash,
+            role: invitation.role,
+            loginMethod: "password",
+            isActive: true,
+          });
+        } else {
+          await db.createUser({
+            openId: `invite-${invitation.email}`,
+            name: input.name,
+            email: invitation.email,
+            loginMethod: "password",
+            password: passwordHash,
+            role: invitation.role,
+            isActive: true,
+          } as any);
+        }
+
+        await db.markUserInvitationAccepted(invitation.id);
+
+        return { success: true };
+      }),
   }),
 
   // ============ INVENTÁRIO ============
