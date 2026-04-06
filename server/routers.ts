@@ -1,7 +1,12 @@
 import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
-import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
+import {
+  editorProcedure,
+  publicProcedure,
+  protectedProcedure,
+  router,
+} from "./_core/trpc";
 import { z } from "zod";
 import * as db from "./db";
 import { comparePassword, generateToken, hashPassword } from "./auth.helpers";
@@ -11,7 +16,7 @@ const DEFAULT_ADMIN = {
   openId: "local-admin",
   name: "Administrador",
   email: "admin@admin.com",
-  role: "admin" as const,
+  role: "superadmin" as const,
 };
 
 const LEGACY_ADMIN_OPEN_IDS = ["local-admin", "admin-local"];
@@ -181,6 +186,11 @@ async function ensureDefaultAdminUser() {
   if (!user.password) {
     const passwordHash = await hashPassword("admin123");
     await db.updateUserPassword(user.id, passwordHash);
+    user = await db.getUserById(user.id);
+  }
+
+  if (user && user.role !== DEFAULT_ADMIN.role) {
+    await db.updateUserRole(user.id, DEFAULT_ADMIN.role);
     user = await db.getUserById(user.id);
   }
 
@@ -369,7 +379,7 @@ export const appRouter = router({
       return db.getInventoryById(input);
     }),
 
-    create: protectedProcedure
+    create: editorProcedure
       .input(
         z.object({
           name: z.string(),
@@ -384,7 +394,7 @@ export const appRouter = router({
         return db.createInventory(input);
       }),
 
-    update: protectedProcedure
+    update: editorProcedure
       .input(
         z.object({
           id: z.number(),
@@ -402,11 +412,11 @@ export const appRouter = router({
         return db.updateInventory(id, data);
       }),
 
-    delete: protectedProcedure.input(z.number()).mutation(async ({ input }) => {
+    delete: editorProcedure.input(z.number()).mutation(async ({ input }) => {
       return db.deleteInventory(input);
     }),
 
-    addMovement: protectedProcedure
+    addMovement: editorProcedure
       .input(
         z.object({
           inventoryId: z.number(),
@@ -452,7 +462,7 @@ export const appRouter = router({
       return db.getTeamById(input);
     }),
 
-    create: protectedProcedure
+    create: editorProcedure
       .input(
         z.object({
           name: z.string(),
@@ -466,7 +476,7 @@ export const appRouter = router({
         return db.createTeam(input);
       }),
 
-    update: protectedProcedure
+    update: editorProcedure
       .input(
         z.object({
           id: z.number(),
@@ -483,7 +493,7 @@ export const appRouter = router({
         return db.updateTeam(id, data);
       }),
 
-    delete: protectedProcedure.input(z.number()).mutation(async ({ input }) => {
+    delete: editorProcedure.input(z.number()).mutation(async ({ input }) => {
       return db.deleteTeam(input);
     }),
   }),
@@ -506,7 +516,7 @@ export const appRouter = router({
       return db.getRoomById(input);
     }),
 
-    create: protectedProcedure
+    create: editorProcedure
       .input(
         z
           .object({
@@ -543,7 +553,7 @@ export const appRouter = router({
         return db.createRoom(input);
       }),
 
-    update: protectedProcedure
+    update: editorProcedure
       .input(
         z
           .object({
@@ -584,7 +594,7 @@ export const appRouter = router({
         return db.updateRoom(id, data);
       }),
 
-    delete: protectedProcedure.input(z.number()).mutation(async ({ input }) => {
+    delete: editorProcedure.input(z.number()).mutation(async ({ input }) => {
       return db.deleteRoom(input);
     }),
 
@@ -615,7 +625,7 @@ export const appRouter = router({
         return db.listRoomReservations(input);
       }),
 
-    create: protectedProcedure
+    create: editorProcedure
       .input(
         z.object({
           roomId: z.number(),
@@ -633,7 +643,7 @@ export const appRouter = router({
         });
       }),
 
-    update: protectedProcedure
+    update: editorProcedure
       .input(
         z.object({
           id: z.number(),
@@ -653,7 +663,7 @@ export const appRouter = router({
         });
       }),
 
-    delete: protectedProcedure.input(z.number()).mutation(async ({ input }) => {
+    delete: editorProcedure.input(z.number()).mutation(async ({ input }) => {
       return db.deleteRoomReservation(input);
     }),
   }),
@@ -679,7 +689,7 @@ export const appRouter = router({
       return db.getMaintenanceRequestById(input);
     }),
 
-    create: protectedProcedure
+    create: editorProcedure
       .input(
         z.object({
           title: z.string(),
@@ -703,7 +713,7 @@ export const appRouter = router({
         });
       }),
 
-    update: protectedProcedure
+    update: editorProcedure
       .input(
         z.object({
           id: z.number(),
@@ -732,7 +742,7 @@ export const appRouter = router({
         });
       }),
 
-    delete: protectedProcedure.input(z.number()).mutation(async ({ input }) => {
+    delete: editorProcedure.input(z.number()).mutation(async ({ input }) => {
       return db.deleteMaintenanceRequest(input);
     }),
   }),
@@ -756,7 +766,7 @@ export const appRouter = router({
       return db.getSupplierById(input);
     }),
 
-    create: protectedProcedure
+    create: editorProcedure
       .input(
         z.object({
           companyName: z.string(),
@@ -771,7 +781,7 @@ export const appRouter = router({
         return db.createSupplier(input);
       }),
 
-    update: protectedProcedure
+    update: editorProcedure
       .input(
         z.object({
           id: z.number(),
@@ -788,7 +798,7 @@ export const appRouter = router({
         return db.updateSupplier(id, data);
       }),
 
-    delete: protectedProcedure.input(z.number()).mutation(async ({ input }) => {
+    delete: editorProcedure.input(z.number()).mutation(async ({ input }) => {
       return db.deleteSupplier(input);
     }),
   }),
@@ -811,7 +821,7 @@ export const appRouter = router({
       return db.getSupplierWithSpaceById(input);
     }),
 
-    create: protectedProcedure
+    create: editorProcedure
       .input(
         z.object({
           spaceId: z.number(),
@@ -827,7 +837,7 @@ export const appRouter = router({
         return db.createSupplierWithSpace(input);
       }),
 
-    update: protectedProcedure
+    update: editorProcedure
       .input(
         z.object({
           id: z.number(),
@@ -844,7 +854,7 @@ export const appRouter = router({
         return db.updateSupplierWithSpace(id, data);
       }),
 
-    delete: protectedProcedure.input(z.number()).mutation(async ({ input }) => {
+    delete: editorProcedure.input(z.number()).mutation(async ({ input }) => {
       return db.deleteSupplierWithSpace(input);
     }),
   }),
@@ -869,7 +879,7 @@ export const appRouter = router({
       return db.getConsumableById(input);
     }),
 
-    create: protectedProcedure
+    create: editorProcedure
       .input(
         z.object({
           name: z.string(),
@@ -885,7 +895,7 @@ export const appRouter = router({
         return db.createConsumable(input);
       }),
 
-    update: protectedProcedure
+    update: editorProcedure
       .input(
         z.object({
           id: z.number(),
@@ -906,7 +916,7 @@ export const appRouter = router({
         return db.updateConsumable(id, data);
       }),
 
-    delete: protectedProcedure.input(z.number()).mutation(async ({ input }) => {
+    delete: editorProcedure.input(z.number()).mutation(async ({ input }) => {
       return db.deleteConsumable(input);
     }),
 
@@ -922,7 +932,7 @@ export const appRouter = router({
         return db.listConsumablesWeekly(input);
       }),
 
-    createWeekly: protectedProcedure
+    createWeekly: editorProcedure
       .input(
         z.object({
           consumableId: z.number(),
@@ -943,7 +953,7 @@ export const appRouter = router({
         });
       }),
 
-    updateWeekly: protectedProcedure
+    updateWeekly: editorProcedure
       .input(
         z.object({
           id: z.number(),
@@ -973,7 +983,7 @@ export const appRouter = router({
         return db.listConsumablesMonthly(input);
       }),
 
-    createMonthly: protectedProcedure
+    createMonthly: editorProcedure
       .input(
         z.object({
           consumableId: z.number(),
@@ -994,7 +1004,7 @@ export const appRouter = router({
         });
       }),
 
-    updateMonthly: protectedProcedure
+    updateMonthly: editorProcedure
       .input(
         z.object({
           id: z.number(),
@@ -1019,7 +1029,7 @@ export const appRouter = router({
       return db.listConsumableSpaces();
     }),
 
-    create: protectedProcedure
+    create: editorProcedure
       .input(
         z.object({
           name: z.string(),
@@ -1031,7 +1041,7 @@ export const appRouter = router({
         return db.createConsumableSpace(input);
       }),
 
-    update: protectedProcedure
+    update: editorProcedure
       .input(
         z.object({
           id: z.number(),
@@ -1045,7 +1055,7 @@ export const appRouter = router({
         return db.updateConsumableSpace(id, data);
       }),
 
-    delete: protectedProcedure.input(z.number()).mutation(async ({ input }) => {
+    delete: editorProcedure.input(z.number()).mutation(async ({ input }) => {
       return db.deleteConsumableSpace(input);
     }),
   }),
@@ -1056,7 +1066,7 @@ export const appRouter = router({
       return db.listSupplierSpaces();
     }),
 
-    create: protectedProcedure
+    create: editorProcedure
       .input(
         z.object({
           name: z.string(),
@@ -1068,7 +1078,7 @@ export const appRouter = router({
         return db.createSupplierSpace(input);
       }),
 
-    update: protectedProcedure
+    update: editorProcedure
       .input(
         z.object({
           id: z.number(),
@@ -1082,7 +1092,7 @@ export const appRouter = router({
         return db.updateSupplierSpace(id, data);
       }),
 
-    delete: protectedProcedure.input(z.number()).mutation(async ({ input }) => {
+    delete: editorProcedure.input(z.number()).mutation(async ({ input }) => {
       return db.deleteSupplierSpace(input);
     }),
   }),
@@ -1093,7 +1103,7 @@ export const appRouter = router({
       return db.listContractSpaces();
     }),
 
-    create: protectedProcedure
+    create: editorProcedure
       .input(
         z.object({
           name: z.string(),
@@ -1105,7 +1115,7 @@ export const appRouter = router({
         return db.createContractSpace(input);
       }),
 
-    update: protectedProcedure
+    update: editorProcedure
       .input(
         z.object({
           id: z.number(),
@@ -1119,7 +1129,7 @@ export const appRouter = router({
         return db.updateContractSpace(id, data);
       }),
 
-    delete: protectedProcedure.input(z.number()).mutation(async ({ input }) => {
+    delete: editorProcedure.input(z.number()).mutation(async ({ input }) => {
       return db.deleteContractSpace(input);
     }),
   }),
@@ -1143,7 +1153,7 @@ export const appRouter = router({
       return db.getContractWithSpaceById(input);
     }),
 
-    create: protectedProcedure
+    create: editorProcedure
       .input(
         z
           .object({
@@ -1190,7 +1200,7 @@ export const appRouter = router({
         } as any);
       }),
 
-    update: protectedProcedure
+    update: editorProcedure
       .input(
         z
           .object({
@@ -1247,7 +1257,7 @@ export const appRouter = router({
         );
       }),
 
-    delete: protectedProcedure.input(z.number()).mutation(async ({ input }) => {
+    delete: editorProcedure.input(z.number()).mutation(async ({ input }) => {
       return db.deleteContractWithSpace(input);
     }),
   }),
@@ -1258,7 +1268,7 @@ export const appRouter = router({
       return db.listMaintenanceSpaces();
     }),
 
-    create: protectedProcedure
+    create: editorProcedure
       .input(
         z.object({
           name: z.string(),
@@ -1269,7 +1279,7 @@ export const appRouter = router({
         return db.createMaintenanceSpace(input);
       }),
 
-    update: protectedProcedure
+    update: editorProcedure
       .input(
         z.object({
           id: z.number(),
@@ -1282,7 +1292,7 @@ export const appRouter = router({
         return db.updateMaintenanceSpace(id, data);
       }),
 
-    delete: protectedProcedure.input(z.number()).mutation(async ({ input }) => {
+    delete: editorProcedure.input(z.number()).mutation(async ({ input }) => {
       return db.deleteMaintenanceSpace(input);
     }),
   }),
@@ -1318,7 +1328,7 @@ export const appRouter = router({
         return db.listConsumablesWithWeeklyData(input);
       }),
 
-    updateWeeklyStock: protectedProcedure
+    updateWeeklyStock: editorProcedure
       .input(
         z.object({
           consumableId: z.number(),
@@ -1331,7 +1341,7 @@ export const appRouter = router({
         return db.upsertConsumableWeeklyStock(input);
       }),
 
-    create: protectedProcedure
+    create: editorProcedure
       .input(
         z.object({
           spaceId: z.number(),
@@ -1348,7 +1358,7 @@ export const appRouter = router({
         return db.createConsumableWithSpace(input);
       }),
 
-    update: protectedProcedure
+    update: editorProcedure
       .input(
         z.object({
           id: z.number(),
@@ -1369,7 +1379,7 @@ export const appRouter = router({
         return db.updateConsumableWithSpace(id, data);
       }),
 
-    delete: protectedProcedure.input(z.number()).mutation(async ({ input }) => {
+    delete: editorProcedure.input(z.number()).mutation(async ({ input }) => {
       return db.deleteConsumableWithSpace(input);
     }),
 
@@ -1403,7 +1413,7 @@ export const appRouter = router({
         );
       }),
 
-    create: protectedProcedure
+    create: editorProcedure
       .input(
         z.object({
           consumableId: z.number(),
@@ -1431,7 +1441,7 @@ export const appRouter = router({
         });
       }),
 
-    update: protectedProcedure
+    update: editorProcedure
       .input(
         z.object({
           id: z.number(),
@@ -1453,7 +1463,7 @@ export const appRouter = router({
         return db.updateConsumableWeeklyMovement(id, data);
       }),
 
-    delete: protectedProcedure.input(z.number()).mutation(async ({ input }) => {
+    delete: editorProcedure.input(z.number()).mutation(async ({ input }) => {
       return db.deleteConsumableWeeklyMovement(input);
     }),
 
@@ -1537,7 +1547,7 @@ export const appRouter = router({
         );
       }),
 
-    create: protectedProcedure
+    create: editorProcedure
       .input(
         z.object({
           consumableId: z.number(),
@@ -1564,7 +1574,7 @@ export const appRouter = router({
         });
       }),
 
-    update: protectedProcedure
+    update: editorProcedure
       .input(
         z.object({
           id: z.number(),
@@ -1585,7 +1595,7 @@ export const appRouter = router({
         return db.updateConsumableMonthlyMovement(id, data);
       }),
 
-    delete: protectedProcedure.input(z.number()).mutation(async ({ input }) => {
+    delete: editorProcedure.input(z.number()).mutation(async ({ input }) => {
       return db.deleteConsumableMonthlyMovement(input);
     }),
   }),
@@ -1612,7 +1622,7 @@ export const appRouter = router({
         return db.getStockAuditLogByWeeklyMovement(input);
       }),
 
-    create: protectedProcedure
+    create: editorProcedure
       .input(
         z.object({
           consumableWeeklyMovementId: z.number(),
