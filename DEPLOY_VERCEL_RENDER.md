@@ -71,18 +71,11 @@ Exemplo:
 - Não exponha `DATABASE_URL` no Vercel.
 - Se for usar domínio próprio, habilite HTTPS e forçar redirect.
 
-### Convites por e-mail (administração de acessos)
+### Convites manuais (administração de acessos)
 
-Para envio automático de convite por e-mail, configure no Render:
-
-- `SMTP_HOST`
-- `SMTP_PORT`
-- `SMTP_USER`
-- `SMTP_PASS`
-- `SMTP_FROM` (opcional, ex: `SGF <no-reply@dominio.com>`)
-- `SMTP_SECURE` (opcional: `true` para porta 465)
-
-Sem essas variáveis, o sistema cria o convite e o link normalmente, mas não envia e-mail automático.
+- O owner gera um link de convite em **Administração de Acessos**.
+- O link pode ser copiado e enviado manualmente (WhatsApp, e-mail corporativo etc).
+- O convidado abre `/login?inviteToken=...` e conclui cadastro de nome e senha no próprio login.
 
 ## 5) Problemas comuns
 

@@ -59,7 +59,6 @@ export default function AccessManagement() {
   const [inviteName, setInviteName] = useState("");
   const [inviteRole, setInviteRole] = useState<RoleValue>("viewer");
   const [latestInvitationLink, setLatestInvitationLink] = useState("");
-  const [latestInvitationEmail, setLatestInvitationEmail] = useState("");
 
   const usersQuery = trpc.accessManagement.listUsers.useQuery(undefined, {
     enabled: isOwner,
@@ -74,20 +73,11 @@ export default function AccessManagement() {
   const inviteMutation = trpc.accessManagement.inviteUser.useMutation({
     onSuccess: data => {
       setLatestInvitationLink(data.invitationLink);
-      setLatestInvitationEmail(data.email);
       setInviteEmail("");
       setInviteName("");
       setInviteRole("viewer");
 
-      if (data.emailSent) {
-        toast.success("Convite enviado por e-mail com sucesso");
-      } else {
-        toast.warning(
-          data.emailError
-            ? `Convite criado, mas o e-mail não foi enviado (${data.emailError}). Use o link manual.`
-            : "Convite criado, mas o e-mail não foi enviado. Use o link manual."
-        );
-      }
+      toast.success("Convite criado. Copie e envie o link manualmente.");
 
       invitationsQuery.refetch();
     },
@@ -159,7 +149,7 @@ export default function AccessManagement() {
           Administração de Acessos
         </h1>
         <p className="text-gray-300">
-          Convide usuários por e-mail e gerencie permissões do workspace.
+          Convide usuários por link e gerencie permissões do workspace.
         </p>
       </div>
 
@@ -170,7 +160,7 @@ export default function AccessManagement() {
             Convidar novo usuário
           </CardTitle>
           <CardDescription className="text-gray-300">
-            O usuário recebe um link para definir a própria senha.
+            Gere um link de convite para o usuário definir login e senha.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -234,7 +224,7 @@ export default function AccessManagement() {
             {inviteMutation.isPending && (
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
             )}
-            Enviar convite
+            Gerar convite
           </Button>
 
           {latestInvitationLink && (
@@ -258,21 +248,6 @@ export default function AccessManagement() {
                 >
                   <Copy className="h-4 w-4 mr-2" />
                   Copiar
-                </Button>
-                <Button
-                  type="button"
-                  onClick={() => {
-                    const subject = encodeURIComponent(
-                      "Convite de acesso ao SGF"
-                    );
-                    const body = encodeURIComponent(
-                      `Olá!\n\nVocê recebeu um convite para acessar o SGF.\nUse este link para ativar sua conta:\n${latestInvitationLink}\n\nEste link expira em 72 horas.`
-                    );
-                    window.location.href = `mailto:${latestInvitationEmail}?subject=${subject}&body=${body}`;
-                  }}
-                  className="bg-orange-600 hover:bg-orange-700"
-                >
-                  Enviar por e-mail
                 </Button>
               </div>
             </div>

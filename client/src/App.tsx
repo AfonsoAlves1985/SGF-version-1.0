@@ -18,7 +18,6 @@ const Contracts = lazy(() => import("./pages/Contracts"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Consumables = lazy(() => import("./pages/Consumables"));
 const AccessManagement = lazy(() => import("./pages/AccessManagement"));
-const AcceptInvite = lazy(() => import("./pages/AcceptInvite"));
 const DashboardLayout = lazy(() => import("./components/DashboardLayout"));
 const Login = lazy(() => import("./pages/Login"));
 
@@ -60,14 +59,9 @@ function Router() {
   const [token, setToken] = useState<string | null>(() =>
     localStorage.getItem("auth-token")
   );
-
-  if (location.startsWith("/accept-invite")) {
-    return (
-      <Suspense fallback={<PageFallback />}>
-        <AcceptInvite />
-      </Suspense>
-    );
-  }
+  const hasInviteToken =
+    location === "/login" &&
+    new URLSearchParams(window.location.search).has("inviteToken");
 
   useEffect(() => {
     const syncToken = () => {
@@ -92,10 +86,10 @@ function Router() {
   }, [location, setLocation, token]);
 
   useEffect(() => {
-    if (token && location === "/login") {
+    if (token && location === "/login" && !hasInviteToken) {
       setLocation("/");
     }
-  }, [location, setLocation, token]);
+  }, [hasInviteToken, location, setLocation, token]);
 
   if (!token) {
     return (
@@ -128,7 +122,6 @@ function Router() {
           <Route path={"/dashboard"} component={Dashboard} />
           <Route path={"/access-management"} component={AccessManagement} />
           <Route path={"/login"} component={Login} />
-          <Route path={"/accept-invite"} component={AcceptInvite} />
           <Route path={"/404"} component={NotFound} />
           <Route component={NotFound} />
         </Switch>
