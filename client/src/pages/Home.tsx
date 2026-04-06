@@ -135,12 +135,12 @@ export default function Home() {
       path: "/dashboard",
       color: "bg-orange-900/20 hover:bg-orange-900/30 border-orange-700/30",
     },
-    ...(user?.role === "superadmin"
+    ...(user?.role === "superadmin" || user?.role === "admin"
       ? [
           {
             icon: ShieldCheck,
             label: "Administração de Acessos",
-            description: "Convites por e-mail e permissões de usuários",
+            description: "Convites por link e permissões de usuários",
             path: "/access-management",
             color:
               "bg-orange-900/20 hover:bg-orange-900/30 border-orange-700/30",

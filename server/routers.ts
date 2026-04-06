@@ -13,7 +13,7 @@ import {
   comparePassword,
   generateToken,
   hashPassword,
-  isSuperadmin,
+  isAdmin,
   validatePasswordStrength,
 } from "./auth.helpers";
 import { TRPCError } from "@trpc/server";
@@ -152,13 +152,20 @@ function parseMaskedDate(value: string) {
   return date;
 }
 
-function ensureOwner(user: { role: string } | null) {
-  if (!user || !isSuperadmin(user.role as any)) {
+function ensureAccessManagementUser(user: { role: string } | null) {
+  if (!user || !isAdmin(user.role as any)) {
     throw new TRPCError({
       code: "FORBIDDEN",
-      message: "Acesso permitido apenas para owner",
+      message: "Acesso permitido apenas para owner e admin",
     });
   }
+}
+
+function isOwnerTarget(targetUser: { role: string; openId: string | null }) {
+  return (
+    targetUser.role === "superadmin" ||
+    (Boolean(ENV.ownerOpenId) && targetUser.openId === ENV.ownerOpenId)
+  );
 }
 
 async function ensureDefaultAdminUser() {
@@ -359,7 +366,7 @@ export const appRouter = router({
 
   accessManagement: router({
     listUsers: protectedProcedure.query(async ({ ctx }) => {
-      ensureOwner(ctx.user);
+      ensureAccessManagementUser(ctx.user);
       return db.listUsers();
     }),
 
@@ -371,12 +378,27 @@ export const appRouter = router({
         })
       )
       .mutation(async ({ input, ctx }) => {
-        ensureOwner(ctx.user);
+        ensureAccessManagementUser(ctx.user);
 
         if (ctx.user.id === input.userId) {
           throw new TRPCError({
             code: "BAD_REQUEST",
-            message: "Owner não pode alterar o próprio papel",
+            message: "Você não pode alterar o próprio papel",
+          });
+        }
+
+        const targetUser = await db.getUserById(input.userId);
+        if (!targetUser) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Usuário não encontrado",
+          });
+        }
+
+        if (isOwnerTarget(targetUser)) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "Não é permitido alterar owner",
           });
         }
 
@@ -392,28 +414,12 @@ export const appRouter = router({
         })
       )
       .mutation(async ({ input, ctx }) => {
-        ensureOwner(ctx.user);
+        ensureAccessManagementUser(ctx.user);
 
         if (ctx.user.id === input.userId) {
           throw new TRPCError({
             code: "BAD_REQUEST",
-            message: "Owner não pode desativar o próprio acesso",
-          });
-        }
-
-        await db.updateUserActive(input.userId, input.isActive);
-        return { success: true };
-      }),
-
-    deleteUser: protectedProcedure
-      .input(z.object({ userId: z.number() }))
-      .mutation(async ({ input, ctx }) => {
-        ensureOwner(ctx.user);
-
-        if (ctx.user.id === input.userId) {
-          throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: "Owner não pode excluir o próprio usuário",
+            message: "Você não pode desativar o próprio acesso",
           });
         }
 
@@ -425,14 +431,38 @@ export const appRouter = router({
           });
         }
 
-        if (targetUser.role === "superadmin") {
+        if (isOwnerTarget(targetUser)) {
           throw new TRPCError({
             code: "FORBIDDEN",
-            message: "Não é permitido excluir owner",
+            message: "Não é permitido desativar owner",
           });
         }
 
-        if (ENV.ownerOpenId && targetUser.openId === ENV.ownerOpenId) {
+        await db.updateUserActive(input.userId, input.isActive);
+        return { success: true };
+      }),
+
+    deleteUser: protectedProcedure
+      .input(z.object({ userId: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        ensureAccessManagementUser(ctx.user);
+
+        if (ctx.user.id === input.userId) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Você não pode excluir o próprio usuário",
+          });
+        }
+
+        const targetUser = await db.getUserById(input.userId);
+        if (!targetUser) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Usuário não encontrado",
+          });
+        }
+
+        if (isOwnerTarget(targetUser)) {
           throw new TRPCError({
             code: "FORBIDDEN",
             message: "Não é permitido excluir owner",
@@ -451,7 +481,7 @@ export const appRouter = router({
       }),
 
     listInvitations: protectedProcedure.query(async ({ ctx }) => {
-      ensureOwner(ctx.user);
+      ensureAccessManagementUser(ctx.user);
       await db.expireOverdueInvitations();
       return db.listUserInvitations();
     }),
@@ -466,7 +496,7 @@ export const appRouter = router({
         })
       )
       .mutation(async ({ input, ctx }) => {
-        ensureOwner(ctx.user);
+        ensureAccessManagementUser(ctx.user);
 
         const token = randomBytes(24).toString("hex");
         const expiresAt = new Date(Date.now() + 72 * 60 * 60 * 1000);
@@ -512,7 +542,7 @@ export const appRouter = router({
     revokeInvitation: protectedProcedure
       .input(z.object({ invitationId: z.number() }))
       .mutation(async ({ input, ctx }) => {
-        ensureOwner(ctx.user);
+        ensureAccessManagementUser(ctx.user);
         await db.revokeUserInvitation(input.invitationId);
         return { success: true };
       }),
@@ -520,7 +550,7 @@ export const appRouter = router({
     deleteInvitation: protectedProcedure
       .input(z.object({ invitationId: z.number() }))
       .mutation(async ({ input, ctx }) => {
-        ensureOwner(ctx.user);
+        ensureAccessManagementUser(ctx.user);
 
         const invitation = await db.getUserInvitationById(input.invitationId);
         if (!invitation) {

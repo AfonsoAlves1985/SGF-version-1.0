@@ -146,7 +146,7 @@ function DashboardLayoutContent({
   const activeMenuItem = menuItems.find(item => item.path === location);
   const visibleMenuItems = menuItems.filter(item => {
     if (!item.requiresOwner) return true;
-    return user?.role === "superadmin";
+    return user?.role === "superadmin" || user?.role === "admin";
   });
   const isMobile = useIsMobile();
 

@@ -59,7 +59,7 @@ function invitationStatusLabel(status: string) {
 
 export default function AccessManagement() {
   const { user } = useAuth();
-  const isOwner = user?.role === "superadmin";
+  const canAccess = user?.role === "superadmin" || user?.role === "admin";
   const utils = trpc.useUtils();
 
   const [inviteName, setInviteName] = useState("");
@@ -67,12 +67,12 @@ export default function AccessManagement() {
   const [latestInvitationLink, setLatestInvitationLink] = useState("");
 
   const usersQuery = trpc.accessManagement.listUsers.useQuery(undefined, {
-    enabled: isOwner,
+    enabled: canAccess,
   });
   const invitationsQuery = trpc.accessManagement.listInvitations.useQuery(
     undefined,
     {
-      enabled: isOwner,
+      enabled: canAccess,
     }
   );
 
@@ -147,7 +147,7 @@ export default function AccessManagement() {
 
   const invitations = invitationsQuery.data || [];
 
-  if (!isOwner) {
+  if (!canAccess) {
     return (
       <div className="space-y-6">
         <h1 className="text-2xl font-bold text-white">
@@ -156,7 +156,7 @@ export default function AccessManagement() {
         <Card className="bg-slate-800 border-slate-700">
           <CardContent className="py-8">
             <p className="text-gray-300">
-              Apenas usuários owner podem acessar esta tela.
+              Apenas usuários owner e administrador podem acessar esta tela.
             </p>
           </CardContent>
         </Card>
