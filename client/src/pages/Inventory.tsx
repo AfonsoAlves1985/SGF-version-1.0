@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import {
@@ -10,13 +10,6 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -32,697 +25,901 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Plus, Edit2, Trash2 } from "lucide-react";
+import { Building2, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { SpaceManager, type Space } from "@/components/SpaceManager";
+
+const DATE_MASK_REGEX = /^\d{2}-\d{2}-\d{4}$/;
+
+type AssetFormData = {
+  filial: string;
+  nrBem: string;
+  descricao: string;
+  marca: string;
+  modelo: string;
+  conta: string;
+  centroCusto: string;
+  local: string;
+  fornecedor: string;
+  dtAquis: string;
+  anoAquis: string;
+  vlrCusto: string;
+};
+
+type AssetEditableField = keyof AssetFormData;
+
+const ASSET_FIELD_LABEL: Record<AssetEditableField, string> = {
+  filial: "Filial",
+  nrBem: "Nr. bem",
+  descricao: "Descrição",
+  marca: "Marca",
+  modelo: "Modelo",
+  conta: "Conta",
+  centroCusto: "Centro de Custo",
+  local: "Local",
+  fornecedor: "Fornecedor",
+  dtAquis: "Dt. Aquis.",
+  anoAquis: "Ano Aquis.",
+  vlrCusto: "Vlr. Custo",
+};
+
+const INITIAL_ASSET_FORM_DATA: AssetFormData = {
+  filial: "",
+  nrBem: "",
+  descricao: "",
+  marca: "",
+  modelo: "",
+  conta: "",
+  centroCusto: "",
+  local: "",
+  fornecedor: "",
+  dtAquis: "",
+  anoAquis: "",
+  vlrCusto: "",
+};
+
+function formatCurrencyBRL(value: unknown) {
+  const amount =
+    typeof value === "number" ? value : Number(String(value || "0"));
+
+  if (Number.isNaN(amount)) {
+    return "R$ 0,00";
+  }
+
+  return amount.toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  });
+}
+
+function parseCurrencyInput(value: string) {
+  const normalized = value.trim();
+  if (!normalized) return Number.NaN;
+
+  if (normalized.includes(",")) {
+    return Number(normalized.replace(/\./g, "").replace(",", "."));
+  }
+
+  return Number(normalized);
+}
 
 export default function Inventory() {
+  const [selectedSpace, setSelectedSpace] = useState<number | null>(null);
   const [search, setSearch] = useState("");
-  const [category, setCategory] = useState<string | undefined>();
-  const [status, setStatus] = useState<string | undefined>();
-  const [editingItem, setEditingItem] = useState<any>(null);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [inlineEditingId, setInlineEditingId] = useState<number | null>(null);
-  const [inlineEditField, setInlineEditField] = useState<string | null>(null);
-  const [inlineEditValue, setInlineEditValue] = useState<string>("");
-  const [customCategories, setCustomCategories] = useState<string[]>([
-    "Consumíveis",
-    "Equipamentos",
-    "Ferramentas",
-    "Limpeza",
-  ]);
-  const [isAddingCategory, setIsAddingCategory] = useState(false);
-  const [newCategoryName, setNewCategoryName] = useState("");
+  const [isAssetDialogOpen, setIsAssetDialogOpen] = useState(false);
+  const [assetFormData, setAssetFormData] =
+    useState<AssetFormData>(INITIAL_ASSET_FORM_DATA);
+  const [isFieldEditDialogOpen, setIsFieldEditDialogOpen] = useState(false);
+  const [editingAssetId, setEditingAssetId] = useState<number | null>(null);
+  const [editingField, setEditingField] = useState<AssetEditableField | null>(
+    null
+  );
+  const [editingFieldValue, setEditingFieldValue] = useState("");
 
-  const handleAddCategory = () => {
-    if (newCategoryName.trim() && !customCategories.includes(newCategoryName)) {
-      setCustomCategories([...customCategories, newCategoryName]);
-      setFormData({ ...formData, category: newCategoryName });
-      setNewCategoryName("");
-      setIsAddingCategory(false);
-      toast.success(`Categoria "${newCategoryName}" adicionada com sucesso!`);
-    } else if (customCategories.includes(newCategoryName)) {
-      toast.error("Esta categoria já existe");
-    } else {
-      toast.error("Digite um nome para a categoria");
+  const spacesQuery = trpc.inventorySpaces.list.useQuery();
+  const spaces = (spacesQuery.data || []) as Space[];
+
+  const selectedSpaceData = useMemo(
+    () => spaces.find(space => space.id === selectedSpace) || null,
+    [selectedSpace, spaces]
+  );
+
+  const assetsQuery = trpc.inventoryAssets.list.useQuery(
+    {
+      spaceId: selectedSpace ?? undefined,
+      search: search.trim() || undefined,
+    },
+    {
+      enabled: Boolean(selectedSpace),
     }
-  };
+  );
 
-  const [formData, setFormData] = useState({
-    name: "",
-    category: "Consumíveis",
-    quantity: 0,
-    minQuantity: 0,
-    unit: "unidade",
-    location: "",
-    status: "ativo" as "ativo" | "inativo" | "descontinuado",
-  });
+  useEffect(() => {
+    if (!selectedSpace && spaces.length > 0) {
+      setSelectedSpace(spaces[0].id);
+    }
+  }, [selectedSpace, spaces]);
 
-  const {
-    data: items = [],
-    isLoading,
-    refetch,
-  } = trpc.inventory.list.useQuery({
-    search,
-    category,
-    status,
-  });
-
-  const createMutation = trpc.inventory.create.useMutation({
-    onSuccess: () => {
-      toast.success("Item criado com sucesso!");
-      setFormData({
-        name: "",
-        category: "Consumíveis",
-        quantity: 0,
-        minQuantity: 0,
-        unit: "unidade",
-        location: "",
-        status: "ativo",
-      });
-      setIsDialogOpen(false);
-      refetch();
+  const createSpaceMutation = trpc.inventorySpaces.create.useMutation({
+    onSuccess: async () => {
+      toast.success("Unidade criada com sucesso");
+      await spacesQuery.refetch();
     },
     onError: error => {
-      toast.error(`Erro: ${error.message}`);
+      toast.error(error.message);
     },
   });
 
-  const updateMutation = trpc.inventory.update.useMutation({
-    onSuccess: () => {
-      toast.success("Item actualizado com sucesso!");
-      setEditingItem(null);
-      setFormData({
-        name: "",
-        category: "Consumíveis",
-        quantity: 0,
-        minQuantity: 0,
-        unit: "unidade",
-        location: "",
-        status: "ativo",
-      });
-      setIsDialogOpen(false);
-      setInlineEditingId(null);
-      setInlineEditField(null);
-      refetch();
+  const updateSpaceMutation = trpc.inventorySpaces.update.useMutation({
+    onSuccess: async () => {
+      toast.success("Unidade atualizada com sucesso");
+      await spacesQuery.refetch();
     },
     onError: error => {
-      toast.error(`Erro: ${error.message}`);
+      toast.error(error.message);
     },
   });
 
-  const deleteMutation = trpc.inventory.delete.useMutation({
-    onSuccess: () => {
-      toast.success("Item eliminado com sucesso!");
-      refetch();
-    },
-    onError: error => {
-      toast.error(`Erro: ${error.message}`);
-    },
-  });
-
-  const handleCreateSample = () => {
-    setEditingItem(null);
-    setFormData({
-      name: "",
-      category: "Consumíveis",
-      quantity: 0,
-      minQuantity: 0,
-      unit: "unidade",
-      location: "",
-      status: "ativo",
-    });
-    setIsDialogOpen(true);
-  };
-
-  const handleEditItem = (item: any) => {
-    setEditingItem(item);
-    setFormData({
-      name: item.name,
-      category: item.category,
-      quantity: item.quantity,
-      minQuantity: item.minQuantity,
-      unit: item.unit,
-      location: item.location,
-      status: item.status,
-    });
-    setIsDialogOpen(true);
-  };
-
-  const handleInlineEdit = (item: any, field: string) => {
-    setInlineEditingId(item.id);
-    setInlineEditField(field);
-    setInlineEditValue(String(item[field]));
-  };
-
-  const handleInlineSubmit = () => {
-    if (inlineEditingId && inlineEditField) {
-      const updateData: any = {
-        id: inlineEditingId,
-      };
-      if (inlineEditField === "quantity" || inlineEditField === "minQuantity") {
-        updateData[inlineEditField] = parseInt(inlineEditValue) || 0;
-      } else {
-        updateData[inlineEditField] = inlineEditValue;
+  const deleteSpaceMutation = trpc.inventorySpaces.delete.useMutation({
+    onSuccess: async (_data, deletedId) => {
+      toast.success("Unidade removida com sucesso");
+      if (selectedSpace === deletedId) {
+        setSelectedSpace(null);
       }
-      updateMutation.mutate(updateData);
-    }
-  };
+      await spacesQuery.refetch();
+      await assetsQuery.refetch();
+    },
+    onError: error => {
+      toast.error(error.message);
+    },
+  });
 
-  const handleSubmit = () => {
-    if (
-      !formData.name ||
-      !formData.location ||
-      formData.quantity < 0 ||
-      formData.minQuantity < 0
-    ) {
-      toast.error("Preencha todos os campos corretamente");
+  const createAssetMutation = trpc.inventoryAssets.create.useMutation({
+    onSuccess: async () => {
+      toast.success("Bem cadastrado com sucesso");
+      setIsAssetDialogOpen(false);
+      setAssetFormData(INITIAL_ASSET_FORM_DATA);
+      await assetsQuery.refetch();
+    },
+    onError: error => {
+      toast.error(error.message);
+    },
+  });
+
+  const updateAssetMutation = trpc.inventoryAssets.update.useMutation({
+    onSuccess: async () => {
+      toast.success("Campo atualizado com sucesso");
+      setIsFieldEditDialogOpen(false);
+      setEditingAssetId(null);
+      setEditingField(null);
+      setEditingFieldValue("");
+      await assetsQuery.refetch();
+    },
+    onError: error => {
+      toast.error(error.message);
+    },
+  });
+
+  const deleteAssetMutation = trpc.inventoryAssets.delete.useMutation({
+    onSuccess: async () => {
+      toast.success("Bem removido com sucesso");
+      await assetsQuery.refetch();
+    },
+    onError: error => {
+      toast.error(error.message);
+    },
+  });
+
+  const isSpaceMutating =
+    createSpaceMutation.isPending ||
+    updateSpaceMutation.isPending ||
+    deleteSpaceMutation.isPending;
+  const isAssetMutating =
+    createAssetMutation.isPending ||
+    updateAssetMutation.isPending ||
+    deleteAssetMutation.isPending;
+
+  const handleOpenAssetDialog = () => {
+    if (!selectedSpaceData) {
+      toast.error("Selecione uma unidade para cadastrar o bem");
       return;
     }
 
-    if (editingItem) {
-      const updateData: any = {
-        id: editingItem.id,
-        ...formData,
-      };
-      updateMutation.mutate(updateData);
-    } else {
-      const createData: any = {
-        name: formData.name,
-        category: formData.category,
-        quantity: formData.quantity,
-        minQuantity: formData.minQuantity,
-        unit: formData.unit,
-        location: formData.location,
-      };
-      createMutation.mutate(createData);
-    }
+    setAssetFormData({
+      ...INITIAL_ASSET_FORM_DATA,
+      filial: selectedSpaceData.name,
+    });
+    setIsAssetDialogOpen(true);
   };
 
-  const handleDelete = (id: number) => {
-    if (confirm("Tem certeza que deseja eliminar este item?")) {
-      deleteMutation.mutate(id);
+  const handleCreateAsset = () => {
+    if (!selectedSpaceData) {
+      toast.error("Selecione uma unidade para cadastrar o bem");
+      return;
+    }
+
+    if (
+      !assetFormData.filial.trim() ||
+      !assetFormData.nrBem.trim() ||
+      !assetFormData.descricao.trim() ||
+      !assetFormData.conta.trim() ||
+      !assetFormData.centroCusto.trim() ||
+      !assetFormData.dtAquis.trim() ||
+      !assetFormData.vlrCusto.trim()
+    ) {
+      toast.error("Preencha todos os campos obrigatórios");
+      return;
+    }
+
+    if (!DATE_MASK_REGEX.test(assetFormData.dtAquis.trim())) {
+      toast.error("Data de aquisição deve estar no formato DD-MM-YYYY");
+      return;
+    }
+
+    const normalizedCost = parseCurrencyInput(assetFormData.vlrCusto);
+
+    if (Number.isNaN(normalizedCost) || normalizedCost < 0) {
+      toast.error("Valor de custo inválido");
+      return;
+    }
+
+    const normalizedYear = assetFormData.anoAquis.trim()
+      ? Number(assetFormData.anoAquis)
+      : Number(assetFormData.dtAquis.split("-")[2]);
+
+    createAssetMutation.mutate({
+      spaceId: selectedSpaceData.id,
+      filial: assetFormData.filial.trim(),
+      nrBem: assetFormData.nrBem.trim(),
+      descricao: assetFormData.descricao.trim(),
+      marca: assetFormData.marca.trim() || undefined,
+      modelo: assetFormData.modelo.trim() || undefined,
+      conta: assetFormData.conta.trim(),
+      centroCusto: assetFormData.centroCusto.trim(),
+      local: assetFormData.local.trim() || undefined,
+      fornecedor: assetFormData.fornecedor.trim() || undefined,
+      dtAquis: assetFormData.dtAquis.trim(),
+      anoAquis:
+        !Number.isNaN(normalizedYear) && normalizedYear > 0
+          ? normalizedYear
+          : undefined,
+      vlrCusto: normalizedCost,
+    });
+  };
+
+  const handleOpenFieldEdit = (asset: any, field: AssetEditableField) => {
+    setEditingAssetId(asset.id);
+    setEditingField(field);
+
+    if (field === "vlrCusto") {
+      setEditingFieldValue(String(asset.vlrCusto ?? ""));
+    } else if (field === "anoAquis") {
+      setEditingFieldValue(asset.anoAquis ? String(asset.anoAquis) : "");
+    } else {
+      setEditingFieldValue(String(asset[field] ?? ""));
+    }
+
+    setIsFieldEditDialogOpen(true);
+  };
+
+  const handleSaveFieldEdit = () => {
+    if (!editingAssetId || !editingField) {
+      return;
+    }
+
+    const rawValue = editingFieldValue;
+    const trimmedValue = rawValue.trim();
+    const requiredFields: AssetEditableField[] = [
+      "filial",
+      "nrBem",
+      "descricao",
+      "conta",
+      "centroCusto",
+      "dtAquis",
+      "vlrCusto",
+    ];
+
+    if (requiredFields.includes(editingField) && !trimmedValue) {
+      toast.error(`${ASSET_FIELD_LABEL[editingField]} é obrigatório`);
+      return;
+    }
+
+    const payload: Record<string, unknown> = { id: editingAssetId };
+
+    if (editingField === "vlrCusto") {
+      const normalizedCost = parseCurrencyInput(rawValue);
+
+      if (Number.isNaN(normalizedCost) || normalizedCost < 0) {
+        toast.error("Valor de custo inválido");
+        return;
+      }
+
+      payload.vlrCusto = normalizedCost;
+      updateAssetMutation.mutate(payload as any);
+      return;
+    }
+
+    if (editingField === "dtAquis") {
+      if (!DATE_MASK_REGEX.test(trimmedValue)) {
+        toast.error("Data de aquisição deve estar no formato DD-MM-YYYY");
+        return;
+      }
+
+      payload.dtAquis = trimmedValue;
+      updateAssetMutation.mutate(payload as any);
+      return;
+    }
+
+    if (editingField === "anoAquis") {
+      if (!trimmedValue) {
+        toast.error("Ano de aquisição é obrigatório para esta edição");
+        return;
+      }
+
+      const year = Number(trimmedValue);
+      if (!Number.isInteger(year) || year <= 0) {
+        toast.error("Ano de aquisição inválido");
+        return;
+      }
+
+      payload.anoAquis = year;
+      updateAssetMutation.mutate(payload as any);
+      return;
+    }
+
+    payload[editingField] = rawValue;
+    updateAssetMutation.mutate(payload as any);
+  };
+
+  const handleDeleteAsset = (id: number) => {
+    if (window.confirm("Tem certeza que deseja remover este bem?")) {
+      deleteAssetMutation.mutate(id);
     }
   };
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-white">Inventário</h1>
-          <p className="text-gray-400 mt-1">
-            Gestão centralizada de materiais e equipamentos
-          </p>
-        </div>
-        <Button
-          onClick={handleCreateSample}
-          className="w-full bg-sky-600 hover:bg-sky-700 sm:w-auto"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Novo Item
-        </Button>
+      <div>
+        <h1 className="text-3xl font-bold text-white">Inventário</h1>
+        <p className="text-gray-400 mt-1">
+          Gerencie unidades e cadastre bens por tabela separada.
+        </p>
       </div>
 
-      <Card className="bg-slate-800/50 border-sky-700/30">
-        <CardHeader>
-          <CardTitle className="text-white">Filtros</CardTitle>
-          <CardDescription className="text-gray-400">
-            Pesquise e filtre itens do inventário
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <SpaceManager
+        spaces={spaces}
+        selectedSpace={selectedSpace}
+        onSelectSpace={setSelectedSpace}
+        onCreateSpace={data => createSpaceMutation.mutate(data)}
+        onUpdateSpace={(id, data) => updateSpaceMutation.mutate({ id, ...data })}
+        onDeleteSpace={id => deleteSpaceMutation.mutate(id)}
+        isLoading={isSpaceMutating}
+        headerTitle="Unidades do Inventário"
+        headerDescription="Crie e selecione a unidade para visualizar a tabela de bens"
+        buttonLabel="Nova Unidade"
+      />
+
+      {!selectedSpaceData ? (
+        <Card className="bg-slate-800/50 border-sky-700/30">
+          <CardContent className="py-10 text-center">
+            <Building2 className="h-8 w-8 text-sky-500 mx-auto mb-3" />
+            <p className="text-gray-300">
+              Selecione uma unidade para visualizar e cadastrar os bens.
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <label className="text-sm font-medium text-gray-300">
-                Pesquisa
-              </label>
+              <h2 className="text-2xl font-semibold text-white">
+                Tabela da unidade: {selectedSpaceData.name}
+              </h2>
+              <p className="text-gray-400 text-sm mt-1">
+                Campos: Filial, Nr. bem, Descrição, Marca, Modelo, Conta,
+                Centro de Custo, Local, Fornecedor, Dt. Aquis., Ano Aquis. e
+                Vlr. Custo.
+              </p>
+            </div>
+            <Button
+              onClick={handleOpenAssetDialog}
+              className="w-full sm:w-auto bg-sky-600 hover:bg-sky-700"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Novo Bem
+            </Button>
+          </div>
+
+          <Card className="bg-slate-800/50 border-sky-700/30">
+            <CardHeader>
+              <CardTitle className="text-white">Filtros</CardTitle>
+              <CardDescription className="text-gray-400">
+                Pesquise por número do bem, descrição, fornecedor ou local.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
               <Input
-                placeholder="Pesquisar por nome..."
                 value={search}
-                onChange={e => setSearch(e.target.value)}
-                className="mt-1 bg-slate-700 border-slate-600 text-white placeholder-gray-500"
+                onChange={event => setSearch(event.target.value)}
+                placeholder="Pesquisar..."
+                className="bg-slate-700 border-slate-600 text-white"
+              />
+            </CardContent>
+          </Card>
+
+          <Card className="bg-slate-800/50 border-sky-700/30">
+            <CardHeader>
+              <CardTitle className="text-white">Bens cadastrados</CardTitle>
+              <CardDescription className="text-gray-400">
+                {(assetsQuery.data || []).length} registro(s) nesta unidade.
+                Clique em qualquer coluna para editar.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {assetsQuery.isLoading ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-sky-600 mx-auto" />
+                  <p className="text-gray-400 mt-2">Carregando dados...</p>
+                </div>
+              ) : (assetsQuery.data || []).length === 0 ? (
+                <div className="text-center py-8 text-gray-400">
+                  Nenhum bem cadastrado nesta unidade.
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="border-sky-700/30 hover:bg-slate-700/50">
+                        <TableHead className="text-gray-300">Filial</TableHead>
+                        <TableHead className="text-gray-300">Nr. bem</TableHead>
+                        <TableHead className="text-gray-300">Descrição</TableHead>
+                        <TableHead className="text-gray-300">Marca</TableHead>
+                        <TableHead className="text-gray-300">Modelo</TableHead>
+                        <TableHead className="text-gray-300">Conta</TableHead>
+                        <TableHead className="text-gray-300">
+                          Centro de Custo
+                        </TableHead>
+                        <TableHead className="text-gray-300">Local</TableHead>
+                        <TableHead className="text-gray-300">
+                          Fornecedor
+                        </TableHead>
+                        <TableHead className="text-gray-300">
+                          Dt. Aquis.
+                        </TableHead>
+                        <TableHead className="text-gray-300">
+                          Ano Aquis.
+                        </TableHead>
+                        <TableHead className="text-gray-300">
+                          Vlr. Custo
+                        </TableHead>
+                        <TableHead className="text-gray-300">Ações</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {(assetsQuery.data || []).map((asset: any) => (
+                        <TableRow
+                          key={asset.id}
+                          className="border-sky-700/20 hover:bg-slate-700/30"
+                        >
+                          <TableCell className="text-white">
+                            <button
+                              type="button"
+                              disabled={isAssetMutating}
+                              onClick={() => handleOpenFieldEdit(asset, "filial")}
+                              className="text-left hover:text-sky-300 transition"
+                            >
+                              {asset.filial}
+                            </button>
+                          </TableCell>
+                          <TableCell className="text-gray-300">
+                            <button
+                              type="button"
+                              disabled={isAssetMutating}
+                              onClick={() => handleOpenFieldEdit(asset, "nrBem")}
+                              className="text-left hover:text-sky-300 transition"
+                            >
+                              {asset.nrBem}
+                            </button>
+                          </TableCell>
+                          <TableCell className="text-gray-300">
+                            <button
+                              type="button"
+                              disabled={isAssetMutating}
+                              onClick={() =>
+                                handleOpenFieldEdit(asset, "descricao")
+                              }
+                              className="text-left hover:text-sky-300 transition"
+                            >
+                              {asset.descricao}
+                            </button>
+                          </TableCell>
+                          <TableCell className="text-gray-300">
+                            <button
+                              type="button"
+                              disabled={isAssetMutating}
+                              onClick={() => handleOpenFieldEdit(asset, "marca")}
+                              className="text-left hover:text-sky-300 transition"
+                            >
+                              {asset.marca || "-"}
+                            </button>
+                          </TableCell>
+                          <TableCell className="text-gray-300">
+                            <button
+                              type="button"
+                              disabled={isAssetMutating}
+                              onClick={() => handleOpenFieldEdit(asset, "modelo")}
+                              className="text-left hover:text-sky-300 transition"
+                            >
+                              {asset.modelo || "-"}
+                            </button>
+                          </TableCell>
+                          <TableCell className="text-gray-300">
+                            <button
+                              type="button"
+                              disabled={isAssetMutating}
+                              onClick={() => handleOpenFieldEdit(asset, "conta")}
+                              className="text-left hover:text-sky-300 transition"
+                            >
+                              {asset.conta}
+                            </button>
+                          </TableCell>
+                          <TableCell className="text-gray-300">
+                            <button
+                              type="button"
+                              disabled={isAssetMutating}
+                              onClick={() =>
+                                handleOpenFieldEdit(asset, "centroCusto")
+                              }
+                              className="text-left hover:text-sky-300 transition"
+                            >
+                              {asset.centroCusto}
+                            </button>
+                          </TableCell>
+                          <TableCell className="text-gray-300">
+                            <button
+                              type="button"
+                              disabled={isAssetMutating}
+                              onClick={() => handleOpenFieldEdit(asset, "local")}
+                              className="text-left hover:text-sky-300 transition"
+                            >
+                              {asset.local || "-"}
+                            </button>
+                          </TableCell>
+                          <TableCell className="text-gray-300">
+                            <button
+                              type="button"
+                              disabled={isAssetMutating}
+                              onClick={() =>
+                                handleOpenFieldEdit(asset, "fornecedor")
+                              }
+                              className="text-left hover:text-sky-300 transition"
+                            >
+                              {asset.fornecedor || "-"}
+                            </button>
+                          </TableCell>
+                          <TableCell className="text-gray-300">
+                            <button
+                              type="button"
+                              disabled={isAssetMutating}
+                              onClick={() => handleOpenFieldEdit(asset, "dtAquis")}
+                              className="text-left hover:text-sky-300 transition"
+                            >
+                              {asset.dtAquis}
+                            </button>
+                          </TableCell>
+                          <TableCell className="text-gray-300">
+                            <button
+                              type="button"
+                              disabled={isAssetMutating}
+                              onClick={() => handleOpenFieldEdit(asset, "anoAquis")}
+                              className="text-left hover:text-sky-300 transition"
+                            >
+                              {asset.anoAquis || "-"}
+                            </button>
+                          </TableCell>
+                          <TableCell className="text-sky-400 font-semibold">
+                            <button
+                              type="button"
+                              disabled={isAssetMutating}
+                              onClick={() => handleOpenFieldEdit(asset, "vlrCusto")}
+                              className="text-left hover:text-sky-300 transition"
+                            >
+                              {formatCurrencyBRL(asset.vlrCusto)}
+                            </button>
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="border-red-600 text-red-400 hover:bg-red-600/10"
+                              disabled={isAssetMutating}
+                              onClick={() => handleDeleteAsset(asset.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </>
+      )}
+
+      <Dialog open={isAssetDialogOpen} onOpenChange={setIsAssetDialogOpen}>
+        <DialogContent className="w-[calc(100vw-2rem)] max-w-4xl max-h-[90vh] overflow-y-auto bg-slate-800 border-sky-700/30">
+          <DialogHeader>
+            <DialogTitle className="text-white">Novo bem</DialogTitle>
+            <DialogDescription className="text-gray-400">
+              Cadastre as colunas da tabela para a unidade selecionada.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div>
+              <Label className="text-gray-300">Filial *</Label>
+              <Input
+                value={assetFormData.filial}
+                onChange={event =>
+                  setAssetFormData(current => ({
+                    ...current,
+                    filial: event.target.value,
+                  }))
+                }
+                className="mt-1 bg-slate-700 border-slate-600 text-white"
               />
             </div>
 
             <div>
-              <label className="text-sm font-medium text-gray-300">
-                Categoria
-              </label>
-              <div className="mt-1 flex flex-col gap-2 sm:flex-row">
-                <Select value={category} onValueChange={setCategory}>
-                  <SelectTrigger className="bg-slate-700 border-slate-600 text-white flex-1">
-                    <SelectValue placeholder="Selecione uma categoria" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {customCategories.map(cat => (
-                      <SelectItem key={cat} value={cat}>
-                        {cat}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button
-                  onClick={() => setIsAddingCategory(true)}
-                  size="sm"
-                  className="bg-sky-600 hover:bg-sky-700"
-                  title="Adicionar nova categoria"
-                >
-                  <Plus className="w-4 h-4" />
-                </Button>
-              </div>
+              <Label className="text-gray-300">Nr. bem *</Label>
+              <Input
+                value={assetFormData.nrBem}
+                onChange={event =>
+                  setAssetFormData(current => ({
+                    ...current,
+                    nrBem: event.target.value,
+                  }))
+                }
+                className="mt-1 bg-slate-700 border-slate-600 text-white"
+              />
+            </div>
+
+            <div className="sm:col-span-2 lg:col-span-1">
+              <Label className="text-gray-300">Descrição *</Label>
+              <Input
+                value={assetFormData.descricao}
+                onChange={event =>
+                  setAssetFormData(current => ({
+                    ...current,
+                    descricao: event.target.value,
+                  }))
+                }
+                className="mt-1 bg-slate-700 border-slate-600 text-white"
+              />
             </div>
 
             <div>
-              <label className="text-sm font-medium text-gray-300">
-                Status
-              </label>
-              <Select value={status} onValueChange={setStatus}>
-                <SelectTrigger className="mt-1 bg-slate-700 border-slate-600 text-white">
-                  <SelectValue placeholder="Selecione um status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ativo">Ativo</SelectItem>
-                  <SelectItem value="inativo">Inativo</SelectItem>
-                  <SelectItem value="descontinuado">Descontinuado</SelectItem>
-                </SelectContent>
-              </Select>
+              <Label className="text-gray-300">Marca</Label>
+              <Input
+                value={assetFormData.marca}
+                onChange={event =>
+                  setAssetFormData(current => ({
+                    ...current,
+                    marca: event.target.value,
+                  }))
+                }
+                className="mt-1 bg-slate-700 border-slate-600 text-white"
+              />
+            </div>
+
+            <div>
+              <Label className="text-gray-300">Modelo</Label>
+              <Input
+                value={assetFormData.modelo}
+                onChange={event =>
+                  setAssetFormData(current => ({
+                    ...current,
+                    modelo: event.target.value,
+                  }))
+                }
+                className="mt-1 bg-slate-700 border-slate-600 text-white"
+              />
+            </div>
+
+            <div>
+              <Label className="text-gray-300">Conta *</Label>
+              <Input
+                value={assetFormData.conta}
+                onChange={event =>
+                  setAssetFormData(current => ({
+                    ...current,
+                    conta: event.target.value,
+                  }))
+                }
+                className="mt-1 bg-slate-700 border-slate-600 text-white"
+              />
+            </div>
+
+            <div>
+              <Label className="text-gray-300">Centro de Custo *</Label>
+              <Input
+                value={assetFormData.centroCusto}
+                onChange={event =>
+                  setAssetFormData(current => ({
+                    ...current,
+                    centroCusto: event.target.value,
+                  }))
+                }
+                className="mt-1 bg-slate-700 border-slate-600 text-white"
+              />
+            </div>
+
+            <div>
+              <Label className="text-gray-300">Local</Label>
+              <Input
+                value={assetFormData.local}
+                onChange={event =>
+                  setAssetFormData(current => ({
+                    ...current,
+                    local: event.target.value,
+                  }))
+                }
+                className="mt-1 bg-slate-700 border-slate-600 text-white"
+              />
+            </div>
+
+            <div>
+              <Label className="text-gray-300">Fornecedor</Label>
+              <Input
+                value={assetFormData.fornecedor}
+                onChange={event =>
+                  setAssetFormData(current => ({
+                    ...current,
+                    fornecedor: event.target.value,
+                  }))
+                }
+                className="mt-1 bg-slate-700 border-slate-600 text-white"
+              />
+            </div>
+
+            <div>
+              <Label className="text-gray-300">Dt. Aquis. * (DD-MM-YYYY)</Label>
+              <Input
+                value={assetFormData.dtAquis}
+                onChange={event =>
+                  setAssetFormData(current => ({
+                    ...current,
+                    dtAquis: event.target.value,
+                  }))
+                }
+                placeholder="DD-MM-YYYY"
+                className="mt-1 bg-slate-700 border-slate-600 text-white"
+              />
+            </div>
+
+            <div>
+              <Label className="text-gray-300">Ano Aquis.</Label>
+              <Input
+                type="number"
+                value={assetFormData.anoAquis}
+                onChange={event =>
+                  setAssetFormData(current => ({
+                    ...current,
+                    anoAquis: event.target.value,
+                  }))
+                }
+                className="mt-1 bg-slate-700 border-slate-600 text-white"
+              />
+            </div>
+
+            <div>
+              <Label className="text-gray-300">Vlr. Custo *</Label>
+              <Input
+                value={assetFormData.vlrCusto}
+                onChange={event =>
+                  setAssetFormData(current => ({
+                    ...current,
+                    vlrCusto: event.target.value,
+                  }))
+                }
+                placeholder="Ex: 1500,00"
+                className="mt-1 bg-slate-700 border-slate-600 text-white"
+              />
             </div>
           </div>
-        </CardContent>
-      </Card>
 
-      <Card className="bg-slate-800/50 border-sky-700/30">
-        <CardHeader>
-          <CardTitle className="text-white">Itens do Inventário</CardTitle>
-          <CardDescription className="text-gray-400">
-            {items.length} itens encontrados
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-sky-600 mx-auto"></div>
-              <p className="text-gray-400 mt-2">Carregando...</p>
-            </div>
-          ) : items.length === 0 ? (
-            <div className="text-center py-8">
-              <p className="text-gray-400">Nenhum item encontrado</p>
-              <Button
-                onClick={handleCreateSample}
-                variant="outline"
-                className="mt-4 border-sky-600 text-sky-500 hover:bg-sky-600/10"
-              >
-                Criar primeiro item
-              </Button>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow className="border-sky-700/30 hover:bg-slate-700/50">
-                    <TableHead className="text-gray-300">Nome</TableHead>
-                    <TableHead className="text-gray-300 cursor-pointer hover:text-sky-400">
-                      Categoria
-                    </TableHead>
-                    <TableHead className="text-gray-300 cursor-pointer hover:text-sky-400">
-                      Quantidade
-                    </TableHead>
-                    <TableHead className="text-gray-300 cursor-pointer hover:text-sky-400">
-                      Mínimo
-                    </TableHead>
-                    <TableHead className="text-gray-300 cursor-pointer hover:text-sky-400">
-                      Localização
-                    </TableHead>
-                    <TableHead className="text-gray-300 cursor-pointer hover:text-sky-400">
-                      Status
-                    </TableHead>
-                    <TableHead className="text-gray-300">Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {items.map((item: any) => (
-                    <TableRow
-                      key={item.id}
-                      className="border-sky-700/20 hover:bg-slate-700/30"
-                    >
-                      <TableCell className="font-medium text-white">
-                        {item.name}
-                      </TableCell>
-                      <TableCell
-                        className="text-gray-300 cursor-pointer hover:text-sky-400 transition"
-                        onClick={() => handleInlineEdit(item, "category")}
-                      >
-                        {item.category}
-                      </TableCell>
-                      <TableCell
-                        className={`cursor-pointer hover:text-sky-400 transition ${item.quantity < item.minQuantity ? "text-red-400 font-semibold" : "text-gray-300"}`}
-                        onClick={() => handleInlineEdit(item, "quantity")}
-                      >
-                        {item.quantity} {item.unit}
-                      </TableCell>
-                      <TableCell
-                        className="text-gray-300 cursor-pointer hover:text-sky-400 transition"
-                        onClick={() => handleInlineEdit(item, "minQuantity")}
-                      >
-                        {item.minQuantity}
-                      </TableCell>
-                      <TableCell
-                        className="text-gray-300 cursor-pointer hover:text-sky-400 transition"
-                        onClick={() => handleInlineEdit(item, "location")}
-                      >
-                        {item.location}
-                      </TableCell>
-                      <TableCell>
-                        <span
-                          className={`px-2 py-1 rounded text-xs font-medium cursor-pointer hover:opacity-80 transition ${
-                            item.status === "ativo"
-                              ? "bg-green-900/30 text-green-400 border border-green-700/30"
-                              : item.status === "inativo"
-                                ? "bg-yellow-900/30 text-yellow-400 border border-yellow-700/30"
-                                : "bg-red-900/30 text-red-400 border border-red-700/30"
-                          }`}
-                          onClick={() => handleInlineEdit(item, "status")}
-                        >
-                          {item.status}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="border-sky-600 text-sky-500 hover:bg-sky-600/10"
-                            onClick={() => handleEditItem(item)}
-                          >
-                            <Edit2 className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="border-red-600 text-red-500 hover:bg-red-600/10"
-                            onClick={() => handleDelete(item.id)}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+          <div className="flex flex-col sm:flex-row gap-3 pt-2">
+            <Button
+              onClick={handleCreateAsset}
+              className="flex-1 bg-sky-600 hover:bg-sky-700"
+              disabled={isAssetMutating}
+            >
+              {createAssetMutation.isPending ? "Salvando..." : "Salvar bem"}
+            </Button>
+            <Button
+              variant="outline"
+              className="border-slate-600 text-gray-300 hover:bg-slate-700"
+              onClick={() => setIsAssetDialogOpen(false)}
+            >
+              Cancelar
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
-      {/* Dialog de Edição Completa */}
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+      <Dialog
+        open={isFieldEditDialogOpen}
+        onOpenChange={open => {
+          setIsFieldEditDialogOpen(open);
+          if (!open) {
+            setEditingAssetId(null);
+            setEditingField(null);
+            setEditingFieldValue("");
+          }
+        }}
+      >
         <DialogContent className="w-[calc(100vw-2rem)] max-w-lg max-h-[90vh] overflow-y-auto bg-slate-800 border-sky-700/30">
           <DialogHeader>
             <DialogTitle className="text-white">
-              {editingItem ? "Editar Item" : "Novo Item"}
+              Editar {editingField ? ASSET_FIELD_LABEL[editingField] : "campo"}
             </DialogTitle>
             <DialogDescription className="text-gray-400">
-              {editingItem
-                ? "Actualizar informações do item"
-                : "Criar um novo item no inventário"}
+              Atualize o valor da coluna selecionada.
             </DialogDescription>
           </DialogHeader>
+
           <div className="space-y-4">
             <div>
-              <Label htmlFor="name" className="text-gray-300">
-                Nome do Item
+              <Label className="text-gray-300">
+                {editingField ? ASSET_FIELD_LABEL[editingField] : "Campo"}
+                {editingField &&
+                [
+                  "filial",
+                  "nrBem",
+                  "descricao",
+                  "conta",
+                  "centroCusto",
+                  "dtAquis",
+                  "vlrCusto",
+                ].includes(editingField)
+                  ? " *"
+                  : ""}
               </Label>
               <Input
-                id="name"
-                value={formData.name}
-                onChange={e =>
-                  setFormData({ ...formData, name: e.target.value })
+                type={
+                  editingField === "anoAquis" || editingField === "vlrCusto"
+                    ? "number"
+                    : "text"
                 }
-                placeholder="Ex: Papel A4"
-                className="mt-1 bg-slate-700 border-slate-600 text-white placeholder-gray-500"
-              />
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="category" className="text-gray-300">
-                  Categoria
-                </Label>
-                <Select
-                  value={formData.category}
-                  onValueChange={value =>
-                    setFormData({ ...formData, category: value })
-                  }
-                >
-                  <SelectTrigger className="mt-1 bg-slate-700 border-slate-600 text-white">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Consumíveis">Consumíveis</SelectItem>
-                    <SelectItem value="Equipamentos">Equipamentos</SelectItem>
-                    <SelectItem value="Ferramentas">Ferramentas</SelectItem>
-                    <SelectItem value="Limpeza">Limpeza</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label htmlFor="unit" className="text-gray-300">
-                  Unidade
-                </Label>
-                <Input
-                  id="unit"
-                  value={formData.unit}
-                  onChange={e =>
-                    setFormData({ ...formData, unit: e.target.value })
-                  }
-                  placeholder="Ex: unidade"
-                  className="mt-1 bg-slate-700 border-slate-600 text-white placeholder-gray-500"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="quantity" className="text-gray-300">
-                  Quantidade
-                </Label>
-                <Input
-                  id="quantity"
-                  type="number"
-                  value={formData.quantity}
-                  onChange={e =>
-                    setFormData({
-                      ...formData,
-                      quantity: parseInt(e.target.value) || 0,
-                    })
-                  }
-                  placeholder="0"
-                  className="mt-1 bg-slate-700 border-slate-600 text-white placeholder-gray-500"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="minQuantity" className="text-gray-300">
-                  Quantidade Mínima
-                </Label>
-                <Input
-                  id="minQuantity"
-                  type="number"
-                  value={formData.minQuantity}
-                  onChange={e =>
-                    setFormData({
-                      ...formData,
-                      minQuantity: parseInt(e.target.value) || 0,
-                    })
-                  }
-                  placeholder="0"
-                  className="mt-1 bg-slate-700 border-slate-600 text-white placeholder-gray-500"
-                />
-              </div>
-            </div>
-
-            <div>
-              <Label htmlFor="location" className="text-gray-300">
-                Localização
-              </Label>
-              <Input
-                id="location"
-                value={formData.location}
-                onChange={e =>
-                  setFormData({ ...formData, location: e.target.value })
+                step={editingField === "vlrCusto" ? "0.01" : undefined}
+                placeholder={
+                  editingField === "dtAquis"
+                    ? "DD-MM-YYYY"
+                    : editingField === "vlrCusto"
+                      ? "Ex: 1500,00"
+                      : undefined
                 }
-                placeholder="Ex: Armazém A"
-                className="mt-1 bg-slate-700 border-slate-600 text-white placeholder-gray-500"
+                value={editingFieldValue}
+                onChange={event => setEditingFieldValue(event.target.value)}
+                className="mt-1 bg-slate-700 border-slate-600 text-white"
               />
             </div>
 
-            {editingItem && (
-              <div>
-                <Label htmlFor="status" className="text-gray-300">
-                  Status
-                </Label>
-                <Select
-                  value={formData.status}
-                  onValueChange={(value: any) =>
-                    setFormData({ ...formData, status: value })
-                  }
-                >
-                  <SelectTrigger className="mt-1 bg-slate-700 border-slate-600 text-white">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="ativo">Ativo</SelectItem>
-                    <SelectItem value="inativo">Inativo</SelectItem>
-                    <SelectItem value="descontinuado">Descontinuado</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-
-            <div className="flex flex-col sm:flex-row gap-3 pt-4">
+            <div className="flex flex-col sm:flex-row gap-3 pt-1">
               <Button
-                onClick={handleSubmit}
-                className="bg-sky-600 hover:bg-sky-700 text-white flex-1"
-                disabled={createMutation.isPending || updateMutation.isPending}
+                onClick={handleSaveFieldEdit}
+                className="flex-1 bg-sky-600 hover:bg-sky-700"
+                disabled={isAssetMutating || !editingField || !editingAssetId}
               >
-                {createMutation.isPending || updateMutation.isPending
-                  ? "Guardando..."
-                  : editingItem
-                    ? "Actualizar"
-                    : "Criar"}
+                {updateAssetMutation.isPending ? "Salvando..." : "Salvar"}
               </Button>
               <Button
-                onClick={() => setIsDialogOpen(false)}
                 variant="outline"
                 className="border-slate-600 text-gray-300 hover:bg-slate-700"
-              >
-                Cancelar
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Dialog de Nova Categoria */}
-      <Dialog open={isAddingCategory} onOpenChange={setIsAddingCategory}>
-        <DialogContent className="w-[calc(100vw-2rem)] max-w-sm max-h-[90vh] overflow-y-auto bg-slate-800 border-sky-700/30">
-          <DialogHeader>
-            <DialogTitle className="text-white">
-              Adicionar Nova Categoria
-            </DialogTitle>
-            <DialogDescription className="text-gray-400">
-              Digite o nome da nova categoria de consumível
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <Input
-              value={newCategoryName}
-              onChange={e => setNewCategoryName(e.target.value)}
-              placeholder="Ex: Papel, Tinta, etc."
-              className="bg-slate-700 border-slate-600 text-white"
-              onKeyPress={e => e.key === "Enter" && handleAddCategory()}
-            />
-            <div className="flex flex-col sm:flex-row gap-3 pt-4">
-              <Button
-                onClick={handleAddCategory}
-                className="bg-sky-600 hover:bg-sky-700 text-white flex-1"
-              >
-                Adicionar
-              </Button>
-              <Button
-                onClick={() => setIsAddingCategory(false)}
-                variant="outline"
-                className="border-slate-600 text-gray-300 hover:bg-slate-700"
-              >
-                Cancelar
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Dialog de Edição Inline */}
-      <Dialog
-        open={inlineEditingId !== null}
-        onOpenChange={open => !open && setInlineEditingId(null)}
-      >
-        <DialogContent className="w-[calc(100vw-2rem)] max-w-sm max-h-[90vh] overflow-y-auto bg-slate-800 border-sky-700/30">
-          <DialogHeader>
-            <DialogTitle className="text-white">
-              Editar {inlineEditField?.charAt(0).toUpperCase()}
-              {inlineEditField?.slice(1)}
-            </DialogTitle>
-            <DialogDescription className="text-gray-400">
-              Selecione o novo valor para este campo
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            {inlineEditField === "category" && (
-              <Select
-                value={inlineEditValue}
-                onValueChange={setInlineEditValue}
-              >
-                <SelectTrigger className="bg-slate-700 border-slate-600 text-white">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {customCategories.map(cat => (
-                    <SelectItem key={cat} value={cat}>
-                      {cat}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-
-            {(inlineEditField === "quantity" ||
-              inlineEditField === "minQuantity") && (
-              <Input
-                type="number"
-                value={inlineEditValue}
-                onChange={e => setInlineEditValue(e.target.value)}
-                className="bg-slate-700 border-slate-600 text-white"
-              />
-            )}
-
-            {inlineEditField === "location" && (
-              <Input
-                value={inlineEditValue}
-                onChange={e => setInlineEditValue(e.target.value)}
-                placeholder="Ex: Armazém A"
-                className="bg-slate-700 border-slate-600 text-white"
-              />
-            )}
-
-            {inlineEditField === "status" && (
-              <Select
-                value={inlineEditValue}
-                onValueChange={setInlineEditValue}
-              >
-                <SelectTrigger className="bg-slate-700 border-slate-600 text-white">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ativo">Ativo</SelectItem>
-                  <SelectItem value="inativo">Inativo</SelectItem>
-                  <SelectItem value="descontinuado">Descontinuado</SelectItem>
-                </SelectContent>
-              </Select>
-            )}
-
-            <div className="flex flex-col sm:flex-row gap-3 pt-4">
-              <Button
-                onClick={handleInlineSubmit}
-                className="bg-sky-600 hover:bg-sky-700 text-white flex-1"
-                disabled={updateMutation.isPending}
-              >
-                {updateMutation.isPending ? "Guardando..." : "Guardar"}
-              </Button>
-              <Button
-                onClick={() => setInlineEditingId(null)}
-                variant="outline"
-                className="border-slate-600 text-gray-300 hover:bg-slate-700"
+                onClick={() => setIsFieldEditDialogOpen(false)}
               >
                 Cancelar
               </Button>

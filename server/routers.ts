@@ -769,6 +769,170 @@ export const appRouter = router({
     }),
   }),
 
+  // ============ UNIDADES DE INVENTÁRIO ============
+  inventorySpaces: router({
+    list: protectedProcedure.query(async () => {
+      return db.listInventorySpaces();
+    }),
+
+    create: editorProcedure
+      .input(
+        z.object({
+          name: z.string().min(1),
+          description: z.string().optional(),
+          location: z.string().optional(),
+        })
+      )
+      .mutation(async ({ input }) => {
+        return db.createInventorySpace({
+          name: input.name.trim(),
+          description: input.description?.trim() || null,
+          location: input.location?.trim() || null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        } as any);
+      }),
+
+    update: editorProcedure
+      .input(
+        z.object({
+          id: z.number(),
+          name: z.string().optional(),
+          description: z.string().optional(),
+          location: z.string().optional(),
+        })
+      )
+      .mutation(async ({ input }) => {
+        const { id, ...data } = input;
+
+        const payload = {
+          ...(data.name !== undefined ? { name: data.name.trim() } : {}),
+          ...(data.description !== undefined
+            ? { description: data.description.trim() || null }
+            : {}),
+          ...(data.location !== undefined
+            ? { location: data.location.trim() || null }
+            : {}),
+        };
+
+        return db.updateInventorySpace(id, payload as any);
+      }),
+
+    delete: editorProcedure.input(z.number()).mutation(async ({ input }) => {
+      return db.deleteInventorySpace(input);
+    }),
+  }),
+
+  // ============ BENS DO INVENTÁRIO POR UNIDADE ============
+  inventoryAssets: router({
+    list: protectedProcedure
+      .input(
+        z
+          .object({
+            spaceId: z.number().optional(),
+            search: z.string().optional(),
+          })
+          .optional()
+      )
+      .query(async ({ input }) => {
+        return db.listInventoryAssets(input);
+      }),
+
+    create: editorProcedure
+      .input(
+        z.object({
+          spaceId: z.number(),
+          filial: z.string().min(1),
+          nrBem: z.string().min(1),
+          descricao: z.string().min(1),
+          marca: z.string().optional(),
+          modelo: z.string().optional(),
+          conta: z.string().min(1),
+          centroCusto: z.string().min(1),
+          local: z.string().optional(),
+          fornecedor: z.string().optional(),
+          dtAquis: z.string().regex(DATE_MASK_REGEX, "Use formato DD-MM-YYYY"),
+          anoAquis: z.number().int().optional(),
+          vlrCusto: z.number().nonnegative(),
+        })
+      )
+      .mutation(async ({ input }) => {
+        return db.createInventoryAsset({
+          spaceId: input.spaceId,
+          filial: input.filial.trim(),
+          nrBem: input.nrBem.trim(),
+          descricao: input.descricao.trim(),
+          marca: input.marca?.trim() || null,
+          modelo: input.modelo?.trim() || null,
+          conta: input.conta.trim(),
+          centroCusto: input.centroCusto.trim(),
+          local: input.local?.trim() || null,
+          fornecedor: input.fornecedor?.trim() || null,
+          dtAquis: input.dtAquis,
+          anoAquis: input.anoAquis ?? null,
+          vlrCusto: input.vlrCusto.toFixed(2),
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        } as any);
+      }),
+
+    update: editorProcedure
+      .input(
+        z.object({
+          id: z.number(),
+          filial: z.string().min(1).optional(),
+          nrBem: z.string().min(1).optional(),
+          descricao: z.string().min(1).optional(),
+          marca: z.string().optional(),
+          modelo: z.string().optional(),
+          conta: z.string().min(1).optional(),
+          centroCusto: z.string().min(1).optional(),
+          local: z.string().optional(),
+          fornecedor: z.string().optional(),
+          dtAquis: z
+            .string()
+            .regex(DATE_MASK_REGEX, "Use formato DD-MM-YYYY")
+            .optional(),
+          anoAquis: z.number().int().optional(),
+          vlrCusto: z.number().nonnegative().optional(),
+        })
+      )
+      .mutation(async ({ input }) => {
+        const { id, ...data } = input;
+
+        const payload = {
+          ...(data.filial !== undefined ? { filial: data.filial.trim() } : {}),
+          ...(data.nrBem !== undefined ? { nrBem: data.nrBem.trim() } : {}),
+          ...(data.descricao !== undefined
+            ? { descricao: data.descricao.trim() }
+            : {}),
+          ...(data.marca !== undefined ? { marca: data.marca.trim() || null } : {}),
+          ...(data.modelo !== undefined
+            ? { modelo: data.modelo.trim() || null }
+            : {}),
+          ...(data.conta !== undefined ? { conta: data.conta.trim() } : {}),
+          ...(data.centroCusto !== undefined
+            ? { centroCusto: data.centroCusto.trim() }
+            : {}),
+          ...(data.local !== undefined ? { local: data.local.trim() || null } : {}),
+          ...(data.fornecedor !== undefined
+            ? { fornecedor: data.fornecedor.trim() || null }
+            : {}),
+          ...(data.dtAquis !== undefined ? { dtAquis: data.dtAquis } : {}),
+          ...(data.anoAquis !== undefined ? { anoAquis: data.anoAquis } : {}),
+          ...(data.vlrCusto !== undefined
+            ? { vlrCusto: data.vlrCusto.toFixed(2) }
+            : {}),
+        };
+
+        return db.updateInventoryAsset(id, payload as any);
+      }),
+
+    delete: editorProcedure.input(z.number()).mutation(async ({ input }) => {
+      return db.deleteInventoryAsset(input);
+    }),
+  }),
+
   // ============ EQUIPA ============
   teams: router({
     list: protectedProcedure

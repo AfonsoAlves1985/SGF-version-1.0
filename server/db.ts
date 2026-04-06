@@ -10,6 +10,10 @@ import {
   inventory,
   inventoryMovements,
   InsertInventory,
+  inventorySpaces,
+  inventoryAssets,
+  InsertInventorySpace,
+  InsertInventoryAsset,
   InsertInventoryMovement,
   teams,
   InsertTeam,
@@ -65,6 +69,7 @@ const MIGRATION_FILES = [
   "0002_contract_fields.sql",
   "0003_maintenance_request_fields.sql",
   "0004_user_invitations.sql",
+  "0005_inventory_units_assets.sql",
 ] as const;
 
 const NON_FATAL_MIGRATION_ERROR_CODES = new Set([
@@ -280,6 +285,54 @@ async function ensureEssentialModuleTables(db: ReturnType<typeof drizzle>) {
       "createdAt" timestamp DEFAULT now() NOT NULL,
       "updatedAt" timestamp DEFAULT now() NOT NULL
     );
+  `);
+
+  await run(`
+    CREATE TABLE IF NOT EXISTS "inventory_spaces" (
+      "id" serial PRIMARY KEY,
+      "name" varchar(255) NOT NULL,
+      "description" text,
+      "location" varchar(255),
+      "createdAt" timestamp DEFAULT now() NOT NULL,
+      "updatedAt" timestamp DEFAULT now() NOT NULL
+    );
+  `);
+
+  await run(`
+    CREATE TABLE IF NOT EXISTS "inventory_assets" (
+      "id" serial PRIMARY KEY,
+      "spaceId" integer NOT NULL,
+      "filial" varchar(255) NOT NULL,
+      "nrBem" varchar(120) NOT NULL,
+      "descricao" text NOT NULL,
+      "marca" varchar(120),
+      "modelo" varchar(120),
+      "conta" varchar(120) NOT NULL,
+      "centroCusto" varchar(120) NOT NULL,
+      "local" varchar(255),
+      "fornecedor" varchar(255),
+      "dtAquis" varchar(10) NOT NULL,
+      "anoAquis" integer,
+      "vlrCusto" numeric(12,2) NOT NULL,
+      "createdAt" timestamp DEFAULT now() NOT NULL,
+      "updatedAt" timestamp DEFAULT now() NOT NULL
+    );
+  `);
+
+  await run(`
+    CREATE INDEX IF NOT EXISTS "inventory_assets_space_idx"
+    ON "inventory_assets" ("spaceId");
+  `);
+
+  await run(`
+    DO $$ BEGIN
+      ALTER TABLE "inventory_assets"
+      ADD CONSTRAINT "inventory_assets_spaceId_inventory_spaces_id_fk"
+      FOREIGN KEY ("spaceId") REFERENCES "inventory_spaces"("id")
+      ON DELETE CASCADE ON UPDATE NO ACTION;
+    EXCEPTION
+      WHEN duplicate_object THEN null;
+    END $$;
   `);
 
   await run(`
@@ -598,6 +651,112 @@ export async function deleteInventory(id: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   return db.delete(inventory).where(eq(inventory.id, id));
+}
+
+export async function listInventorySpaces() {
+  const db = await getDb();
+  if (!db) return [];
+
+  return (await db
+    .select()
+    .from(inventorySpaces)
+    .orderBy(asc(inventorySpaces.name))) as any;
+}
+
+export async function createInventorySpace(data: InsertInventorySpace) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  return db.insert(inventorySpaces).values(data);
+}
+
+export async function updateInventorySpace(
+  id: number,
+  data: Partial<InsertInventorySpace>
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const updateData: Partial<InsertInventorySpace> = {
+    ...data,
+    updatedAt: new Date(),
+  };
+
+  return db
+    .update(inventorySpaces)
+    .set(updateData)
+    .where(eq(inventorySpaces.id, id));
+}
+
+export async function deleteInventorySpace(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db.delete(inventoryAssets).where(eq(inventoryAssets.spaceId, id));
+  return db.delete(inventorySpaces).where(eq(inventorySpaces.id, id));
+}
+
+export async function listInventoryAssets(filters?: {
+  spaceId?: number;
+  search?: string;
+}) {
+  const db = await getDb();
+  if (!db) return [];
+
+  const conditions = [];
+
+  if (filters?.spaceId) {
+    conditions.push(eq(inventoryAssets.spaceId, filters.spaceId));
+  }
+
+  if (filters?.search) {
+    const searchTerm = `%${filters.search}%`;
+    conditions.push(
+      or(
+        like(inventoryAssets.nrBem, searchTerm),
+        like(inventoryAssets.descricao, searchTerm),
+        like(inventoryAssets.fornecedor, searchTerm),
+        like(inventoryAssets.local, searchTerm)
+      )
+    );
+  }
+
+  let query = db.select().from(inventoryAssets);
+
+  if (conditions.length > 0) {
+    query = query.where(and(...conditions)) as any;
+  }
+
+  return (await query.orderBy(desc(inventoryAssets.createdAt))) as any;
+}
+
+export async function createInventoryAsset(data: InsertInventoryAsset) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  return db.insert(inventoryAssets).values(data);
+}
+
+export async function updateInventoryAsset(
+  id: number,
+  data: Partial<InsertInventoryAsset>
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const updateData: Partial<InsertInventoryAsset> = {
+    ...data,
+    updatedAt: new Date(),
+  };
+
+  return db.update(inventoryAssets).set(updateData).where(eq(inventoryAssets.id, id));
+}
+
+export async function deleteInventoryAsset(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  return db.delete(inventoryAssets).where(eq(inventoryAssets.id, id));
 }
 
 export async function getInventoryMovements(inventoryId: number) {

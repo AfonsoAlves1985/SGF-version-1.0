@@ -294,6 +294,40 @@ export const inventory = pgTable("inventory", {
   createdAt: timestamp().defaultNow().notNull(),
 });
 
+export const inventorySpaces = pgTable("inventory_spaces", {
+  id: serial().primaryKey(),
+  name: varchar({ length: 255 }).notNull(),
+  description: text(),
+  location: varchar({ length: 255 }),
+  createdAt: timestamp().defaultNow().notNull(),
+  updatedAt: timestamp().defaultNow().notNull(),
+});
+
+export const inventoryAssets = pgTable(
+  "inventory_assets",
+  {
+    id: serial().primaryKey(),
+    spaceId: integer()
+      .notNull()
+      .references(() => inventorySpaces.id, { onDelete: "cascade" }),
+    filial: varchar({ length: 255 }).notNull(),
+    nrBem: varchar({ length: 120 }).notNull(),
+    descricao: text().notNull(),
+    marca: varchar({ length: 120 }),
+    modelo: varchar({ length: 120 }),
+    conta: varchar({ length: 120 }).notNull(),
+    centroCusto: varchar({ length: 120 }).notNull(),
+    local: varchar({ length: 255 }),
+    fornecedor: varchar({ length: 255 }),
+    dtAquis: varchar({ length: 10 }).notNull(),
+    anoAquis: integer(),
+    vlrCusto: decimal({ precision: 12, scale: 2 }).notNull(),
+    createdAt: timestamp().defaultNow().notNull(),
+    updatedAt: timestamp().defaultNow().notNull(),
+  },
+  table => [index("inventory_assets_space_idx").on(table.spaceId)]
+);
+
 export const inventoryMovements = pgTable("inventory_movements", {
   id: serial().primaryKey(),
   inventoryId: integer().references(() => inventory.id),
@@ -497,6 +531,12 @@ export type UserInvitation = typeof userInvitations.$inferSelect;
 
 export type InsertInventory = typeof inventory.$inferInsert;
 export type Inventory = typeof inventory.$inferSelect;
+
+export type InsertInventorySpace = typeof inventorySpaces.$inferInsert;
+export type InventorySpace = typeof inventorySpaces.$inferSelect;
+
+export type InsertInventoryAsset = typeof inventoryAssets.$inferInsert;
+export type InventoryAsset = typeof inventoryAssets.$inferSelect;
 
 export type InsertInventoryMovement = typeof inventoryMovements.$inferInsert;
 export type InventoryMovement = typeof inventoryMovements.$inferSelect;
