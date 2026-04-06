@@ -59,7 +59,7 @@ Exemplo:
 1. Acesse o domínio do Vercel.
 2. Faça login com:
    - usuário: `admin`
-   - senha: `admin123`
+   - senha: `admin@2026`
 3. Abra DevTools > Network e confirme:
    - chamadas para `/api/trpc/*` retornando `200`
    - chamadas protegidas retornando erro `401` se sem token

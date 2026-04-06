@@ -44,7 +44,7 @@ const LOGIN_WINDOW_MINUTES = Math.max(
   1,
   Number(process.env.LOGIN_WINDOW_MINUTES ?? "30") || 30
 );
-const DEFAULT_ADMIN_PASSWORD = "admin123";
+const DEFAULT_ADMIN_PASSWORD = "admin@2026";
 const ALLOW_DEFAULT_ADMIN_LOGIN =
   process.env.ALLOW_DEFAULT_ADMIN_LOGIN !== "false";
 
@@ -162,7 +162,7 @@ async function ensureDefaultAdminUser() {
   }
 
   if (!user) {
-    const passwordHash = await hashPassword("admin123");
+    const passwordHash = await hashPassword(DEFAULT_ADMIN_PASSWORD);
     await db.createUser({
       openId: DEFAULT_ADMIN.openId,
       name: DEFAULT_ADMIN.name,
@@ -184,7 +184,7 @@ async function ensureDefaultAdminUser() {
   }
 
   if (!user.password) {
-    const passwordHash = await hashPassword("admin123");
+    const passwordHash = await hashPassword(DEFAULT_ADMIN_PASSWORD);
     await db.updateUserPassword(user.id, passwordHash);
     user = await db.getUserById(user.id);
   }
