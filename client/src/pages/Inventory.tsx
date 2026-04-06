@@ -25,9 +25,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Building2, Plus, Trash2 } from "lucide-react";
+import { Building2, Check, Plus, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { SpaceManager, type Space } from "@/components/SpaceManager";
+import { DateInputWithCalendar } from "@/components/DateInputWithCalendar";
 
 const DATE_MASK_REGEX = /^\d{2}-\d{2}-\d{4}$/;
 
@@ -47,6 +48,21 @@ type AssetFormData = {
 };
 
 type AssetEditableField = keyof AssetFormData;
+
+type InlineEditState = {
+  assetId: number;
+  field: AssetEditableField;
+};
+
+const REQUIRED_FIELDS: AssetEditableField[] = [
+  "filial",
+  "nrBem",
+  "descricao",
+  "conta",
+  "centroCusto",
+  "dtAquis",
+  "vlrCusto",
+];
 
 const ASSET_FIELD_LABEL: Record<AssetEditableField, string> = {
   filial: "Filial",
@@ -82,9 +98,7 @@ function formatCurrencyBRL(value: unknown) {
   const amount =
     typeof value === "number" ? value : Number(String(value || "0"));
 
-  if (Number.isNaN(amount)) {
-    return "R$ 0,00";
-  }
+  if (Number.isNaN(amount)) return "R$ 0,00";
 
   return amount.toLocaleString("pt-BR", {
     style: "currency",
@@ -103,18 +117,21 @@ function parseCurrencyInput(value: string) {
   return Number(normalized);
 }
 
+function toInlineString(asset: any, field: AssetEditableField) {
+  if (field === "anoAquis") return asset.anoAquis ? String(asset.anoAquis) : "";
+  if (field === "vlrCusto") return String(asset.vlrCusto ?? "");
+  return String(asset[field] ?? "");
+}
+
 export default function Inventory() {
   const [selectedSpace, setSelectedSpace] = useState<number | null>(null);
   const [search, setSearch] = useState("");
   const [isAssetDialogOpen, setIsAssetDialogOpen] = useState(false);
   const [assetFormData, setAssetFormData] =
     useState<AssetFormData>(INITIAL_ASSET_FORM_DATA);
-  const [isFieldEditDialogOpen, setIsFieldEditDialogOpen] = useState(false);
-  const [editingAssetId, setEditingAssetId] = useState<number | null>(null);
-  const [editingField, setEditingField] = useState<AssetEditableField | null>(
-    null
-  );
-  const [editingFieldValue, setEditingFieldValue] = useState("");
+
+  const [inlineEdit, setInlineEdit] = useState<InlineEditState | null>(null);
+  const [inlineValue, setInlineValue] = useState("");
 
   const spacesQuery = trpc.inventorySpaces.list.useQuery();
   const spaces = (spacesQuery.data || []) as Space[];
@@ -134,20 +151,36 @@ export default function Inventory() {
     }
   );
 
+  const assets = (assetsQuery.data || []) as any[];
+
   useEffect(() => {
     if (!selectedSpace && spaces.length > 0) {
       setSelectedSpace(spaces[0].id);
     }
   }, [selectedSpace, spaces]);
 
+  const contaOptions = useMemo(
+    () => Array.from(new Set(assets.map(item => item.conta).filter(Boolean))),
+    [assets]
+  );
+
+  const centroCustoOptions = useMemo(
+    () =>
+      Array.from(new Set(assets.map(item => item.centroCusto).filter(Boolean))),
+    [assets]
+  );
+
+  const localOptions = useMemo(
+    () => Array.from(new Set(assets.map(item => item.local).filter(Boolean))),
+    [assets]
+  );
+
   const createSpaceMutation = trpc.inventorySpaces.create.useMutation({
     onSuccess: async () => {
       toast.success("Unidade criada com sucesso");
       await spacesQuery.refetch();
     },
-    onError: error => {
-      toast.error(error.message);
-    },
+    onError: error => toast.error(error.message),
   });
 
   const updateSpaceMutation = trpc.inventorySpaces.update.useMutation({
@@ -155,23 +188,17 @@ export default function Inventory() {
       toast.success("Unidade atualizada com sucesso");
       await spacesQuery.refetch();
     },
-    onError: error => {
-      toast.error(error.message);
-    },
+    onError: error => toast.error(error.message),
   });
 
   const deleteSpaceMutation = trpc.inventorySpaces.delete.useMutation({
     onSuccess: async (_data, deletedId) => {
       toast.success("Unidade removida com sucesso");
-      if (selectedSpace === deletedId) {
-        setSelectedSpace(null);
-      }
+      if (selectedSpace === deletedId) setSelectedSpace(null);
       await spacesQuery.refetch();
       await assetsQuery.refetch();
     },
-    onError: error => {
-      toast.error(error.message);
-    },
+    onError: error => toast.error(error.message),
   });
 
   const createAssetMutation = trpc.inventoryAssets.create.useMutation({
@@ -181,23 +208,17 @@ export default function Inventory() {
       setAssetFormData(INITIAL_ASSET_FORM_DATA);
       await assetsQuery.refetch();
     },
-    onError: error => {
-      toast.error(error.message);
-    },
+    onError: error => toast.error(error.message),
   });
 
   const updateAssetMutation = trpc.inventoryAssets.update.useMutation({
     onSuccess: async () => {
       toast.success("Campo atualizado com sucesso");
-      setIsFieldEditDialogOpen(false);
-      setEditingAssetId(null);
-      setEditingField(null);
-      setEditingFieldValue("");
+      setInlineEdit(null);
+      setInlineValue("");
       await assetsQuery.refetch();
     },
-    onError: error => {
-      toast.error(error.message);
-    },
+    onError: error => toast.error(error.message),
   });
 
   const deleteAssetMutation = trpc.inventoryAssets.delete.useMutation({
@@ -205,15 +226,14 @@ export default function Inventory() {
       toast.success("Bem removido com sucesso");
       await assetsQuery.refetch();
     },
-    onError: error => {
-      toast.error(error.message);
-    },
+    onError: error => toast.error(error.message),
   });
 
   const isSpaceMutating =
     createSpaceMutation.isPending ||
     updateSpaceMutation.isPending ||
     deleteSpaceMutation.isPending;
+
   const isAssetMutating =
     createAssetMutation.isPending ||
     updateAssetMutation.isPending ||
@@ -257,7 +277,6 @@ export default function Inventory() {
     }
 
     const normalizedCost = parseCurrencyInput(assetFormData.vlrCusto);
-
     if (Number.isNaN(normalizedCost) || normalizedCost < 0) {
       toast.error("Valor de custo inválido");
       return;
@@ -287,87 +306,58 @@ export default function Inventory() {
     });
   };
 
-  const handleOpenFieldEdit = (asset: any, field: AssetEditableField) => {
-    setEditingAssetId(asset.id);
-    setEditingField(field);
-
-    if (field === "vlrCusto") {
-      setEditingFieldValue(String(asset.vlrCusto ?? ""));
-    } else if (field === "anoAquis") {
-      setEditingFieldValue(asset.anoAquis ? String(asset.anoAquis) : "");
-    } else {
-      setEditingFieldValue(String(asset[field] ?? ""));
-    }
-
-    setIsFieldEditDialogOpen(true);
+  const startInlineEdit = (asset: any, field: AssetEditableField) => {
+    if (isAssetMutating) return;
+    setInlineEdit({ assetId: asset.id, field });
+    setInlineValue(toInlineString(asset, field));
   };
 
-  const handleSaveFieldEdit = () => {
-    if (!editingAssetId || !editingField) {
+  const cancelInlineEdit = () => {
+    setInlineEdit(null);
+    setInlineValue("");
+  };
+
+  const saveInlineEdit = () => {
+    if (!inlineEdit) return;
+
+    const { assetId, field } = inlineEdit;
+    const trimmedValue = inlineValue.trim();
+
+    if (REQUIRED_FIELDS.includes(field) && !trimmedValue) {
+      toast.error(`${ASSET_FIELD_LABEL[field]} é obrigatório`);
       return;
     }
 
-    const rawValue = editingFieldValue;
-    const trimmedValue = rawValue.trim();
-    const requiredFields: AssetEditableField[] = [
-      "filial",
-      "nrBem",
-      "descricao",
-      "conta",
-      "centroCusto",
-      "dtAquis",
-      "vlrCusto",
-    ];
+    const payload: Record<string, unknown> = { id: assetId };
 
-    if (requiredFields.includes(editingField) && !trimmedValue) {
-      toast.error(`${ASSET_FIELD_LABEL[editingField]} é obrigatório`);
-      return;
-    }
-
-    const payload: Record<string, unknown> = { id: editingAssetId };
-
-    if (editingField === "vlrCusto") {
-      const normalizedCost = parseCurrencyInput(rawValue);
-
+    if (field === "vlrCusto") {
+      const normalizedCost = parseCurrencyInput(inlineValue);
       if (Number.isNaN(normalizedCost) || normalizedCost < 0) {
         toast.error("Valor de custo inválido");
         return;
       }
-
       payload.vlrCusto = normalizedCost;
-      updateAssetMutation.mutate(payload as any);
-      return;
-    }
-
-    if (editingField === "dtAquis") {
+    } else if (field === "dtAquis") {
       if (!DATE_MASK_REGEX.test(trimmedValue)) {
         toast.error("Data de aquisição deve estar no formato DD-MM-YYYY");
         return;
       }
-
       payload.dtAquis = trimmedValue;
-      updateAssetMutation.mutate(payload as any);
-      return;
-    }
-
-    if (editingField === "anoAquis") {
+    } else if (field === "anoAquis") {
       if (!trimmedValue) {
-        toast.error("Ano de aquisição é obrigatório para esta edição");
+        toast.error("Ano de aquisição é obrigatório para edição inline");
         return;
       }
-
       const year = Number(trimmedValue);
       if (!Number.isInteger(year) || year <= 0) {
         toast.error("Ano de aquisição inválido");
         return;
       }
-
       payload.anoAquis = year;
-      updateAssetMutation.mutate(payload as any);
-      return;
+    } else {
+      payload[field] = inlineValue;
     }
 
-    payload[editingField] = rawValue;
     updateAssetMutation.mutate(payload as any);
   };
 
@@ -377,8 +367,123 @@ export default function Inventory() {
     }
   };
 
+  const renderInlineEditor = (field: AssetEditableField) => {
+    if (field === "dtAquis") {
+      return (
+        <DateInputWithCalendar
+          value={inlineValue}
+          onChange={setInlineValue}
+          className="h-8 bg-slate-700 border-slate-600 text-white"
+          disabled={isAssetMutating}
+        />
+      );
+    }
+
+    const listId =
+      field === "conta"
+        ? "inventory-conta-options"
+        : field === "centroCusto"
+          ? "inventory-centro-custo-options"
+          : field === "local"
+            ? "inventory-local-options"
+            : undefined;
+
+    return (
+      <Input
+        type={field === "anoAquis" || field === "vlrCusto" ? "number" : "text"}
+        step={field === "vlrCusto" ? "0.01" : undefined}
+        list={listId}
+        value={inlineValue}
+        onChange={event => setInlineValue(event.target.value)}
+        onKeyDown={event => {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            saveInlineEdit();
+          }
+          if (event.key === "Escape") {
+            event.preventDefault();
+            cancelInlineEdit();
+          }
+        }}
+        className="h-8 bg-slate-700 border-slate-600 text-white"
+        disabled={isAssetMutating}
+        autoFocus
+      />
+    );
+  };
+
+  const renderEditableCell = (
+    asset: any,
+    field: AssetEditableField,
+    renderedValue: React.ReactNode,
+    className: string
+  ) => {
+    const isEditing =
+      inlineEdit?.assetId === asset.id && inlineEdit?.field === field;
+
+    if (isEditing) {
+      return (
+        <TableCell className={className}>
+          <div className="flex items-center gap-1 min-w-[230px]">
+            <div className="flex-1">{renderInlineEditor(field)}</div>
+            <Button
+              type="button"
+              size="icon"
+              variant="outline"
+              className="h-8 w-8 border-sky-600 text-sky-300 hover:bg-sky-600/20"
+              disabled={isAssetMutating}
+              onClick={saveInlineEdit}
+            >
+              <Check className="h-4 w-4" />
+            </Button>
+            <Button
+              type="button"
+              size="icon"
+              variant="outline"
+              className="h-8 w-8 border-slate-600 text-gray-300 hover:bg-slate-700"
+              disabled={isAssetMutating}
+              onClick={cancelInlineEdit}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        </TableCell>
+      );
+    }
+
+    return (
+      <TableCell className={className}>
+        <button
+          type="button"
+          className="text-left hover:text-sky-300 transition"
+          onClick={() => startInlineEdit(asset, field)}
+          disabled={isAssetMutating}
+          title={`Editar ${ASSET_FIELD_LABEL[field]}`}
+        >
+          {renderedValue}
+        </button>
+      </TableCell>
+    );
+  };
+
   return (
     <div className="space-y-6">
+      <datalist id="inventory-conta-options">
+        {contaOptions.map(option => (
+          <option key={option} value={option} />
+        ))}
+      </datalist>
+      <datalist id="inventory-centro-custo-options">
+        {centroCustoOptions.map(option => (
+          <option key={option} value={option} />
+        ))}
+      </datalist>
+      <datalist id="inventory-local-options">
+        {localOptions.map(option => (
+          <option key={option} value={option} />
+        ))}
+      </datalist>
+
       <div>
         <h1 className="text-3xl font-bold text-white">Inventário</h1>
         <p className="text-gray-400 mt-1">
@@ -416,9 +521,8 @@ export default function Inventory() {
                 Tabela da unidade: {selectedSpaceData.name}
               </h2>
               <p className="text-gray-400 text-sm mt-1">
-                Campos: Filial, Nr. bem, Descrição, Marca, Modelo, Conta,
-                Centro de Custo, Local, Fornecedor, Dt. Aquis., Ano Aquis. e
-                Vlr. Custo.
+                Edição inline ativa. Em Conta/Centro de Custo/Local você pode
+                escolher da lista ou digitar um novo valor.
               </p>
             </div>
             <Button
@@ -452,7 +556,7 @@ export default function Inventory() {
               <CardTitle className="text-white">Bens cadastrados</CardTitle>
               <CardDescription className="text-gray-400">
                 {(assetsQuery.data || []).length} registro(s) nesta unidade.
-                Clique em qualquer coluna para editar.
+                Clique em qualquer coluna para editar inline.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -461,7 +565,7 @@ export default function Inventory() {
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-sky-600 mx-auto" />
                   <p className="text-gray-400 mt-2">Carregando dados...</p>
                 </div>
-              ) : (assetsQuery.data || []).length === 0 ? (
+              ) : assets.length === 0 ? (
                 <div className="text-center py-8 text-gray-400">
                   Nenhum bem cadastrado nesta unidade.
                 </div>
@@ -496,137 +600,84 @@ export default function Inventory() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {(assetsQuery.data || []).map((asset: any) => (
+                      {assets.map(asset => (
                         <TableRow
                           key={asset.id}
                           className="border-sky-700/20 hover:bg-slate-700/30"
                         >
-                          <TableCell className="text-white">
-                            <button
-                              type="button"
-                              disabled={isAssetMutating}
-                              onClick={() => handleOpenFieldEdit(asset, "filial")}
-                              className="text-left hover:text-sky-300 transition"
-                            >
-                              {asset.filial}
-                            </button>
-                          </TableCell>
-                          <TableCell className="text-gray-300">
-                            <button
-                              type="button"
-                              disabled={isAssetMutating}
-                              onClick={() => handleOpenFieldEdit(asset, "nrBem")}
-                              className="text-left hover:text-sky-300 transition"
-                            >
-                              {asset.nrBem}
-                            </button>
-                          </TableCell>
-                          <TableCell className="text-gray-300">
-                            <button
-                              type="button"
-                              disabled={isAssetMutating}
-                              onClick={() =>
-                                handleOpenFieldEdit(asset, "descricao")
-                              }
-                              className="text-left hover:text-sky-300 transition"
-                            >
-                              {asset.descricao}
-                            </button>
-                          </TableCell>
-                          <TableCell className="text-gray-300">
-                            <button
-                              type="button"
-                              disabled={isAssetMutating}
-                              onClick={() => handleOpenFieldEdit(asset, "marca")}
-                              className="text-left hover:text-sky-300 transition"
-                            >
-                              {asset.marca || "-"}
-                            </button>
-                          </TableCell>
-                          <TableCell className="text-gray-300">
-                            <button
-                              type="button"
-                              disabled={isAssetMutating}
-                              onClick={() => handleOpenFieldEdit(asset, "modelo")}
-                              className="text-left hover:text-sky-300 transition"
-                            >
-                              {asset.modelo || "-"}
-                            </button>
-                          </TableCell>
-                          <TableCell className="text-gray-300">
-                            <button
-                              type="button"
-                              disabled={isAssetMutating}
-                              onClick={() => handleOpenFieldEdit(asset, "conta")}
-                              className="text-left hover:text-sky-300 transition"
-                            >
-                              {asset.conta}
-                            </button>
-                          </TableCell>
-                          <TableCell className="text-gray-300">
-                            <button
-                              type="button"
-                              disabled={isAssetMutating}
-                              onClick={() =>
-                                handleOpenFieldEdit(asset, "centroCusto")
-                              }
-                              className="text-left hover:text-sky-300 transition"
-                            >
-                              {asset.centroCusto}
-                            </button>
-                          </TableCell>
-                          <TableCell className="text-gray-300">
-                            <button
-                              type="button"
-                              disabled={isAssetMutating}
-                              onClick={() => handleOpenFieldEdit(asset, "local")}
-                              className="text-left hover:text-sky-300 transition"
-                            >
-                              {asset.local || "-"}
-                            </button>
-                          </TableCell>
-                          <TableCell className="text-gray-300">
-                            <button
-                              type="button"
-                              disabled={isAssetMutating}
-                              onClick={() =>
-                                handleOpenFieldEdit(asset, "fornecedor")
-                              }
-                              className="text-left hover:text-sky-300 transition"
-                            >
-                              {asset.fornecedor || "-"}
-                            </button>
-                          </TableCell>
-                          <TableCell className="text-gray-300">
-                            <button
-                              type="button"
-                              disabled={isAssetMutating}
-                              onClick={() => handleOpenFieldEdit(asset, "dtAquis")}
-                              className="text-left hover:text-sky-300 transition"
-                            >
-                              {asset.dtAquis}
-                            </button>
-                          </TableCell>
-                          <TableCell className="text-gray-300">
-                            <button
-                              type="button"
-                              disabled={isAssetMutating}
-                              onClick={() => handleOpenFieldEdit(asset, "anoAquis")}
-                              className="text-left hover:text-sky-300 transition"
-                            >
-                              {asset.anoAquis || "-"}
-                            </button>
-                          </TableCell>
-                          <TableCell className="text-sky-400 font-semibold">
-                            <button
-                              type="button"
-                              disabled={isAssetMutating}
-                              onClick={() => handleOpenFieldEdit(asset, "vlrCusto")}
-                              className="text-left hover:text-sky-300 transition"
-                            >
-                              {formatCurrencyBRL(asset.vlrCusto)}
-                            </button>
-                          </TableCell>
+                          {renderEditableCell(
+                            asset,
+                            "filial",
+                            asset.filial,
+                            "text-white"
+                          )}
+                          {renderEditableCell(
+                            asset,
+                            "nrBem",
+                            asset.nrBem,
+                            "text-gray-300"
+                          )}
+                          {renderEditableCell(
+                            asset,
+                            "descricao",
+                            asset.descricao,
+                            "text-gray-300"
+                          )}
+                          {renderEditableCell(
+                            asset,
+                            "marca",
+                            asset.marca || "-",
+                            "text-gray-300"
+                          )}
+                          {renderEditableCell(
+                            asset,
+                            "modelo",
+                            asset.modelo || "-",
+                            "text-gray-300"
+                          )}
+                          {renderEditableCell(
+                            asset,
+                            "conta",
+                            asset.conta,
+                            "text-gray-300"
+                          )}
+                          {renderEditableCell(
+                            asset,
+                            "centroCusto",
+                            asset.centroCusto,
+                            "text-gray-300"
+                          )}
+                          {renderEditableCell(
+                            asset,
+                            "local",
+                            asset.local || "-",
+                            "text-gray-300"
+                          )}
+                          {renderEditableCell(
+                            asset,
+                            "fornecedor",
+                            asset.fornecedor || "-",
+                            "text-gray-300"
+                          )}
+                          {renderEditableCell(
+                            asset,
+                            "dtAquis",
+                            asset.dtAquis,
+                            "text-gray-300"
+                          )}
+                          {renderEditableCell(
+                            asset,
+                            "anoAquis",
+                            asset.anoAquis || "-",
+                            "text-gray-300"
+                          )}
+                          {renderEditableCell(
+                            asset,
+                            "vlrCusto",
+                            formatCurrencyBRL(asset.vlrCusto),
+                            "text-sky-400 font-semibold"
+                          )}
+
                           <TableCell>
                             <Button
                               variant="outline"
@@ -732,6 +783,7 @@ export default function Inventory() {
             <div>
               <Label className="text-gray-300">Conta *</Label>
               <Input
+                list="inventory-conta-options"
                 value={assetFormData.conta}
                 onChange={event =>
                   setAssetFormData(current => ({
@@ -746,6 +798,7 @@ export default function Inventory() {
             <div>
               <Label className="text-gray-300">Centro de Custo *</Label>
               <Input
+                list="inventory-centro-custo-options"
                 value={assetFormData.centroCusto}
                 onChange={event =>
                   setAssetFormData(current => ({
@@ -760,6 +813,7 @@ export default function Inventory() {
             <div>
               <Label className="text-gray-300">Local</Label>
               <Input
+                list="inventory-local-options"
                 value={assetFormData.local}
                 onChange={event =>
                   setAssetFormData(current => ({
@@ -786,16 +840,15 @@ export default function Inventory() {
             </div>
 
             <div>
-              <Label className="text-gray-300">Dt. Aquis. * (DD-MM-YYYY)</Label>
-              <Input
+              <Label className="text-gray-300">Dt. Aquis. *</Label>
+              <DateInputWithCalendar
                 value={assetFormData.dtAquis}
-                onChange={event =>
+                onChange={value =>
                   setAssetFormData(current => ({
                     ...current,
-                    dtAquis: event.target.value,
+                    dtAquis: value,
                   }))
                 }
-                placeholder="DD-MM-YYYY"
                 className="mt-1 bg-slate-700 border-slate-600 text-white"
               />
             </div>
@@ -846,84 +899,6 @@ export default function Inventory() {
             >
               Cancelar
             </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog
-        open={isFieldEditDialogOpen}
-        onOpenChange={open => {
-          setIsFieldEditDialogOpen(open);
-          if (!open) {
-            setEditingAssetId(null);
-            setEditingField(null);
-            setEditingFieldValue("");
-          }
-        }}
-      >
-        <DialogContent className="w-[calc(100vw-2rem)] max-w-lg max-h-[90vh] overflow-y-auto bg-slate-800 border-sky-700/30">
-          <DialogHeader>
-            <DialogTitle className="text-white">
-              Editar {editingField ? ASSET_FIELD_LABEL[editingField] : "campo"}
-            </DialogTitle>
-            <DialogDescription className="text-gray-400">
-              Atualize o valor da coluna selecionada.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            <div>
-              <Label className="text-gray-300">
-                {editingField ? ASSET_FIELD_LABEL[editingField] : "Campo"}
-                {editingField &&
-                [
-                  "filial",
-                  "nrBem",
-                  "descricao",
-                  "conta",
-                  "centroCusto",
-                  "dtAquis",
-                  "vlrCusto",
-                ].includes(editingField)
-                  ? " *"
-                  : ""}
-              </Label>
-              <Input
-                type={
-                  editingField === "anoAquis" || editingField === "vlrCusto"
-                    ? "number"
-                    : "text"
-                }
-                step={editingField === "vlrCusto" ? "0.01" : undefined}
-                placeholder={
-                  editingField === "dtAquis"
-                    ? "DD-MM-YYYY"
-                    : editingField === "vlrCusto"
-                      ? "Ex: 1500,00"
-                      : undefined
-                }
-                value={editingFieldValue}
-                onChange={event => setEditingFieldValue(event.target.value)}
-                className="mt-1 bg-slate-700 border-slate-600 text-white"
-              />
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-3 pt-1">
-              <Button
-                onClick={handleSaveFieldEdit}
-                className="flex-1 bg-sky-600 hover:bg-sky-700"
-                disabled={isAssetMutating || !editingField || !editingAssetId}
-              >
-                {updateAssetMutation.isPending ? "Salvando..." : "Salvar"}
-              </Button>
-              <Button
-                variant="outline"
-                className="border-slate-600 text-gray-300 hover:bg-slate-700"
-                onClick={() => setIsFieldEditDialogOpen(false)}
-              >
-                Cancelar
-              </Button>
-            </div>
           </div>
         </DialogContent>
       </Dialog>
