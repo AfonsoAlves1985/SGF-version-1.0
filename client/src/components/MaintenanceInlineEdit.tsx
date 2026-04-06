@@ -176,7 +176,7 @@ export function MaintenanceInlineEdit({
                 type="button"
                 size="sm"
                 onClick={handleAddDepartment}
-                className="bg-orange-600 hover:bg-orange-700"
+                className="bg-sky-600 hover:bg-sky-700"
               >
                 Adicionar departamento
               </Button>
@@ -193,7 +193,7 @@ export function MaintenanceInlineEdit({
           onChange={setEditValue}
           placeholder="DD-MM-YYYY"
           className="bg-slate-700 border-slate-600 text-white"
-          calendarClassName="[&_.rdp-cell]:text-white [&_.rdp-button]:text-white [&_.rdp-button_today]:bg-orange-600 [&_.rdp-button_selected]:bg-orange-600 [&_.rdp-button_selected]:text-white"
+          calendarClassName="[&_.rdp-cell]:text-white [&_.rdp-button]:text-white [&_.rdp-button_today]:bg-sky-600 [&_.rdp-button_selected]:bg-sky-600 [&_.rdp-button_selected]:text-white"
         />
       );
     }
@@ -253,7 +253,7 @@ export function MaintenanceInlineEdit({
               size="sm"
               onClick={handleSave}
               disabled={isLoading || editValue === value}
-              className="bg-orange-600 hover:bg-orange-700"
+              className="bg-sky-600 hover:bg-sky-700"
             >
               <Check className="w-4 h-4" />
             </Button>

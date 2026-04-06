@@ -110,7 +110,7 @@ export function MaintenanceSpaceManager({
             <DialogTrigger asChild>
               <Button
                 onClick={() => handleOpenDialog()}
-                className="w-full bg-orange-600 hover:bg-orange-700 text-white sm:w-auto"
+                className="w-full bg-sky-600 hover:bg-sky-700 text-white sm:w-auto"
               >
                 <Plus className="h-4 w-4 mr-2" />
                 {buttonLabel}
@@ -156,7 +156,7 @@ export function MaintenanceSpaceManager({
                 <div className="flex flex-col sm:flex-row gap-2">
                   <Button
                     type="submit"
-                    className="flex-1 bg-orange-600 hover:bg-orange-700"
+                    className="flex-1 bg-sky-600 hover:bg-sky-700"
                     disabled={isLoading}
                   >
                     {editingId ? "Atualizar" : "Criar"} Unidade
@@ -199,8 +199,8 @@ export function MaintenanceSpaceManager({
               onClick={() => onSelectSpace(space.id)}
               className={`p-4 rounded-lg border-2 transition-all duration-200 cursor-pointer group ${
                 selectedSpace === space.id
-                  ? "border-orange-600 bg-slate-700 bg-opacity-70"
-                  : "border-slate-600 bg-slate-700/50 hover:border-orange-600 hover:bg-slate-700"
+                  ? "border-sky-600 bg-slate-700 bg-opacity-70"
+                  : "border-slate-600 bg-slate-700/50 hover:border-sky-600 hover:bg-slate-700"
               }`}
             >
               <div className="flex items-start justify-between">

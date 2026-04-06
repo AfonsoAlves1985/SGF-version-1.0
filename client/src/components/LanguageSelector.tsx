@@ -29,7 +29,7 @@ export function LanguageSelector() {
           {currentLanguage?.flag}
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="bg-slate-800 border-orange-700/30 w-auto p-2">
+      <DropdownMenuContent align="end" className="bg-slate-800 border-sky-700/30 w-auto p-2">
         <div className="flex gap-2">
           {languages.map((lang) => (
             <button
@@ -37,7 +37,7 @@ export function LanguageSelector() {
               onClick={() => setLanguage(lang.code)}
               className={`text-2xl p-1 rounded transition-all ${
                 language === lang.code 
-                  ? "bg-orange-600/30 scale-125" 
+                  ? "bg-sky-600/30 scale-125" 
                   : "hover:bg-slate-700 hover:scale-110"
               }`}
               title={lang.name}

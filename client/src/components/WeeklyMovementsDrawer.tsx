@@ -180,8 +180,8 @@ export function WeeklyMovementsDrawer({
 
   return (
     <Sheet open={isOpen} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full sm:w-[600px] bg-slate-900 border-orange-700/20 p-0 flex flex-col">
-        <SheetHeader className="px-6 py-4 border-b border-orange-700/20">
+      <SheetContent side="right" className="w-full sm:w-[600px] bg-slate-900 border-sky-700/20 p-0 flex flex-col">
+        <SheetHeader className="px-6 py-4 border-b border-sky-700/20">
           <div className="flex items-start justify-between">
             <div>
               <SheetTitle className="text-white text-xl">{consumableName}</SheetTitle>
@@ -203,7 +203,7 @@ export function WeeklyMovementsDrawer({
         ) : (
           <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
             {/* Week Selector */}
-            <Card className="bg-slate-800/50 border-orange-700/20">
+            <Card className="bg-slate-800/50 border-sky-700/20">
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between gap-4">
                   <button
@@ -227,7 +227,7 @@ export function WeeklyMovementsDrawer({
             </Card>
 
             {/* Calendar */}
-            <Card className="bg-slate-800/50 border-orange-700/20">
+            <Card className="bg-slate-800/50 border-sky-700/20">
               <CardHeader>
                 <CardTitle className="text-white text-sm">Selecione uma Data</CardTitle>
               </CardHeader>
@@ -236,13 +236,13 @@ export function WeeklyMovementsDrawer({
                   mode="single"
                   selected={selectedDate}
                   onSelect={(date) => date && setSelectedDate(date)}
-                  className="w-full [&_.rdp-cell]:text-white [&_.rdp-button]:text-white [&_.rdp-button_today]:bg-orange-600 [&_.rdp-button_selected]:bg-orange-600 [&_.rdp-button_selected]:text-white"
+                  className="w-full [&_.rdp-cell]:text-white [&_.rdp-button]:text-white [&_.rdp-button_today]:bg-sky-600 [&_.rdp-button_selected]:bg-sky-600 [&_.rdp-button_selected]:text-white"
                 />
               </CardContent>
             </Card>
 
             {/* Daily Movements */}
-            <Card className="bg-slate-800/50 border-orange-700/20">
+            <Card className="bg-slate-800/50 border-sky-700/20">
               <CardHeader>
                 <CardTitle className="text-white text-sm">Movimentações Diárias</CardTitle>
               </CardHeader>
@@ -268,11 +268,11 @@ export function WeeklyMovementsDrawer({
             </Card>
 
             {/* Total */}
-            <Card className="bg-orange-900/30 border-orange-700/50">
+            <Card className="bg-sky-900/30 border-sky-700/50">
               <CardContent className="pt-6">
                 <div className="flex justify-between items-center">
                   <span className="text-gray-300 font-medium">Total da Semana:</span>
-                  <span className="text-3xl font-bold text-orange-400">{totalMovement}</span>
+                  <span className="text-3xl font-bold text-sky-400">{totalMovement}</span>
                 </div>
               </CardContent>
             </Card>
@@ -280,11 +280,11 @@ export function WeeklyMovementsDrawer({
         )}
 
         {/* Footer with Save Button */}
-        <div className="px-6 py-4 border-t border-orange-700/20 space-y-3">
+        <div className="px-6 py-4 border-t border-sky-700/20 space-y-3">
           <Button
             onClick={handleSave}
             disabled={isSaving}
-            className="w-full bg-orange-600 hover:bg-orange-700 text-white h-12 font-semibold"
+            className="w-full bg-sky-600 hover:bg-sky-700 text-white h-12 font-semibold"
           >
             {isSaving ? "Salvando..." : "Salvar Movimentações"}
           </Button>

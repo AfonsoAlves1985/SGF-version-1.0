@@ -91,49 +91,49 @@ export default function Home() {
       label: t("home.inventory"),
       description: t("home.inventory.desc"),
       path: "/inventory",
-      color: "bg-orange-900/20 hover:bg-orange-900/30 border-orange-700/30",
+      color: "bg-sky-900/20 hover:bg-sky-900/30 border-sky-700/30",
     },
     {
       icon: Package,
       label: "Consumíveis",
       description: "Gestão de consumo e tendências de estoque",
       path: "/consumables",
-      color: "bg-orange-900/20 hover:bg-orange-900/30 border-orange-700/30",
+      color: "bg-sky-900/20 hover:bg-sky-900/30 border-sky-700/30",
     },
     {
       icon: Building2,
       label: t("home.rooms"),
       description: t("home.rooms.desc"),
       path: "/rooms",
-      color: "bg-orange-900/20 hover:bg-orange-900/30 border-orange-700/30",
+      color: "bg-sky-900/20 hover:bg-sky-900/30 border-sky-700/30",
     },
     {
       icon: Wrench,
       label: t("home.maintenance"),
       description: t("home.maintenance.desc"),
       path: "/maintenance",
-      color: "bg-orange-900/20 hover:bg-orange-900/30 border-orange-700/30",
+      color: "bg-sky-900/20 hover:bg-sky-900/30 border-sky-700/30",
     },
     {
       icon: Handshake,
       label: t("home.suppliers"),
       description: t("home.suppliers.desc"),
       path: "/suppliers",
-      color: "bg-orange-900/20 hover:bg-orange-900/30 border-orange-700/30",
+      color: "bg-sky-900/20 hover:bg-sky-900/30 border-sky-700/30",
     },
     {
       icon: FileText,
       label: "Contratos",
       description: "Gestão de contratos por unidade",
       path: "/contracts",
-      color: "bg-orange-900/20 hover:bg-orange-900/30 border-orange-700/30",
+      color: "bg-sky-900/20 hover:bg-sky-900/30 border-sky-700/30",
     },
     {
       icon: BarChart3,
       label: t("home.dashboard"),
       description: t("home.dashboard.desc"),
       path: "/dashboard",
-      color: "bg-orange-900/20 hover:bg-orange-900/30 border-orange-700/30",
+      color: "bg-sky-900/20 hover:bg-sky-900/30 border-sky-700/30",
     },
     ...(user?.role === "superadmin" || user?.role === "admin"
       ? [
@@ -143,7 +143,7 @@ export default function Home() {
             description: "Convites por link e permissões de usuários",
             path: "/access-management",
             color:
-              "bg-orange-900/20 hover:bg-orange-900/30 border-orange-700/30",
+              "bg-sky-900/20 hover:bg-sky-900/30 border-sky-700/30",
           },
         ]
       : []),
@@ -153,7 +153,7 @@ export default function Home() {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
         <div className="text-center">
-          <Loader2 className="animate-spin h-12 w-12 text-orange-600 mx-auto mb-4" />
+          <Loader2 className="animate-spin h-12 w-12 text-sky-600 mx-auto mb-4" />
           <p className="text-muted-foreground">{t("inventory.loading")}</p>
         </div>
       </div>
@@ -211,7 +211,7 @@ export default function Home() {
                   >
                     <CardHeader>
                       <div className="flex items-center gap-3">
-                        <Icon className="h-8 w-8 text-orange-500" />
+                        <Icon className="h-8 w-8 text-sky-500" />
                         <CardTitle className="text-foreground">
                           {module.label}
                         </CardTitle>
@@ -230,7 +230,7 @@ export default function Home() {
             {/* Dicas de Utilização */}
             <Card className="bg-card border-border">
               <CardHeader>
-                <CardTitle className="text-orange-500">
+                <CardTitle className="text-sky-500">
                   {t("home.tips")}
                 </CardTitle>
                 <CardDescription className="text-muted-foreground">
@@ -240,19 +240,19 @@ export default function Home() {
               <CardContent>
                 <div className="space-y-4">
                   <div className="flex gap-4">
-                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-orange-600 text-white flex items-center justify-center font-bold">
+                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-sky-600 text-white flex items-center justify-center font-bold">
                       1
                     </div>
                     <p className="text-foreground">{t("home.tips.1")}</p>
                   </div>
                   <div className="flex gap-4">
-                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-orange-600 text-white flex items-center justify-center font-bold">
+                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-sky-600 text-white flex items-center justify-center font-bold">
                       2
                     </div>
                     <p className="text-foreground">{t("home.tips.2")}</p>
                   </div>
                   <div className="flex gap-4">
-                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-orange-600 text-white flex items-center justify-center font-bold">
+                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-sky-600 text-white flex items-center justify-center font-bold">
                       3
                     </div>
                     <p className="text-foreground">{t("home.tips.3")}</p>
@@ -280,7 +280,7 @@ export default function Home() {
               </div>
               <Button
                 onClick={() => (window.location.href = getLoginUrl())}
-                className="bg-orange-600 hover:bg-orange-700 text-white px-8 py-3 text-lg"
+                className="bg-sky-600 hover:bg-sky-700 text-white px-8 py-3 text-lg"
               >
                 {t("app.welcome")}
               </Button>

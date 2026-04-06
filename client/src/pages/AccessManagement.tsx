@@ -226,7 +226,7 @@ export default function AccessManagement() {
               });
             }}
             disabled={inviteMutation.isPending}
-            className="bg-orange-600 hover:bg-orange-700"
+            className="bg-sky-600 hover:bg-sky-700"
           >
             {inviteMutation.isPending && (
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -235,8 +235,8 @@ export default function AccessManagement() {
           </Button>
 
           {latestInvitationLink && (
-            <div className="rounded-md border border-orange-700/40 bg-orange-900/20 p-3">
-              <p className="text-sm text-orange-200 mb-2">
+            <div className="rounded-md border border-sky-700/40 bg-sky-900/20 p-3">
+              <p className="text-sm text-sky-200 mb-2">
                 Link de convite gerado:
               </p>
               <div className="flex flex-col sm:flex-row gap-2">

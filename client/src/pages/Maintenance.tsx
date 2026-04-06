@@ -340,7 +340,7 @@ export default function Maintenance() {
       case "urgente":
         return "bg-red-900/30 text-red-400 border border-red-700/30";
       case "alta":
-        return "bg-orange-900/30 text-orange-400 border border-orange-700/30";
+        return "bg-sky-900/30 text-sky-400 border border-sky-700/30";
       case "media":
         return "bg-yellow-900/30 text-yellow-400 border border-yellow-700/30";
       case "baixa":
@@ -380,7 +380,7 @@ export default function Maintenance() {
       </div>
 
       {/* Space Manager */}
-      <Card className="bg-slate-800/50 border-orange-700/30">
+      <Card className="bg-slate-800/50 border-sky-700/30">
         <CardHeader>
           <CardTitle className="text-white">Unidades de Manutenção</CardTitle>
           <CardDescription className="text-gray-400">
@@ -416,7 +416,7 @@ export default function Maintenance() {
             </div>
             <Button
               onClick={handleCreateSample}
-              className="w-full bg-orange-600 hover:bg-orange-700 sm:w-auto"
+              className="w-full bg-sky-600 hover:bg-sky-700 sm:w-auto"
             >
               <Plus className="w-4 h-4 mr-2" />
               Novo Chamado
@@ -428,7 +428,7 @@ export default function Maintenance() {
               onClick={() => setViewMode("table")}
               className={`px-4 py-2 font-medium transition-colors ${
                 viewMode === "table"
-                  ? "text-orange-500 border-b-2 border-orange-500 -mb-px"
+                  ? "text-sky-500 border-b-2 border-sky-500 -mb-px"
                   : "text-gray-400 hover:text-gray-300"
               }`}
             >
@@ -438,7 +438,7 @@ export default function Maintenance() {
               onClick={() => setViewMode("kanban")}
               className={`px-4 py-2 font-medium transition-colors ${
                 viewMode === "kanban"
-                  ? "text-orange-500 border-b-2 border-orange-500 -mb-px"
+                  ? "text-sky-500 border-b-2 border-sky-500 -mb-px"
                   : "text-gray-400 hover:text-gray-300"
               }`}
             >
@@ -447,21 +447,21 @@ export default function Maintenance() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <Card className="bg-slate-800/50 border-orange-700/30">
+            <Card className="bg-slate-800/50 border-sky-700/30">
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm font-medium text-white">
                   Total de Chamados
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-orange-500">
+                <div className="text-2xl font-bold text-sky-500">
                   {stats.total}
                 </div>
                 <p className="text-xs text-gray-400 mt-1">Todos os chamados</p>
               </CardContent>
             </Card>
 
-            <Card className="bg-slate-800/50 border-orange-700/30">
+            <Card className="bg-slate-800/50 border-sky-700/30">
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm font-medium text-white">
                   Abertos
@@ -477,7 +477,7 @@ export default function Maintenance() {
               </CardContent>
             </Card>
 
-            <Card className="bg-slate-800/50 border-orange-700/30">
+            <Card className="bg-slate-800/50 border-sky-700/30">
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm font-medium text-white">
                   Urgentes
@@ -491,7 +491,7 @@ export default function Maintenance() {
               </CardContent>
             </Card>
 
-            <Card className="bg-slate-800/50 border-orange-700/30">
+            <Card className="bg-slate-800/50 border-sky-700/30">
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm font-medium text-white">
                   Concluídos
@@ -506,7 +506,7 @@ export default function Maintenance() {
             </Card>
           </div>
 
-          <Card className="bg-slate-800/50 border-orange-700/30">
+          <Card className="bg-slate-800/50 border-sky-700/30">
             <CardHeader>
               <CardTitle className="text-white">Filtros</CardTitle>
               <CardDescription className="text-gray-400">
@@ -564,7 +564,7 @@ export default function Maintenance() {
           </Card>
 
           {viewMode === "kanban" ? (
-            <Card className="bg-slate-800/50 border-orange-700/30">
+            <Card className="bg-slate-800/50 border-sky-700/30">
               <CardHeader>
                 <CardTitle className="text-white">Kanban de Chamados</CardTitle>
                 <CardDescription className="text-gray-400">
@@ -574,7 +574,7 @@ export default function Maintenance() {
               <CardContent>
                 {isLoading ? (
                   <div className="text-center py-8">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600 mx-auto"></div>
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-sky-600 mx-auto"></div>
                   </div>
                 ) : (
                   <MaintenanceKanban
@@ -591,7 +591,7 @@ export default function Maintenance() {
               </CardContent>
             </Card>
           ) : (
-            <Card className="bg-slate-800/50 border-orange-700/30">
+            <Card className="bg-slate-800/50 border-sky-700/30">
               <CardHeader>
                 <CardTitle className="text-white">
                   Chamados de Manutenção
@@ -603,7 +603,7 @@ export default function Maintenance() {
               <CardContent>
                 {isLoading ? (
                   <div className="text-center py-8">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600 mx-auto"></div>
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-sky-600 mx-auto"></div>
                   </div>
                 ) : requests.length === 0 ? (
                   <div className="text-center py-8 text-gray-400">
@@ -651,7 +651,7 @@ export default function Maintenance() {
                                 }
                                 isLoading={updateMutation.isPending}
                               >
-                                <span className="cursor-pointer hover:text-orange-400">
+                                <span className="cursor-pointer hover:text-sky-400">
                                   {request.title}
                                 </span>
                               </MaintenanceInlineEdit>
@@ -689,7 +689,7 @@ export default function Maintenance() {
                                 }
                                 isLoading={updateMutation.isPending}
                               >
-                                <span className="text-gray-300 cursor-pointer hover:text-orange-400">
+                                <span className="text-gray-300 cursor-pointer hover:text-sky-400">
                                   {request.department || "-"}
                                 </span>
                               </MaintenanceInlineEdit>
@@ -711,7 +711,7 @@ export default function Maintenance() {
                                 }}
                                 isLoading={updateMutation.isPending}
                               >
-                                <span className="text-gray-300 cursor-pointer hover:text-orange-400">
+                                <span className="text-gray-300 cursor-pointer hover:text-sky-400">
                                   {request.requestDate || "-"}
                                 </span>
                               </MaintenanceInlineEdit>
@@ -867,7 +867,7 @@ export default function Maintenance() {
                         <Button
                           type="button"
                           onClick={handleAddDepartment}
-                          className="bg-orange-600 hover:bg-orange-700"
+                          className="bg-sky-600 hover:bg-sky-700"
                         >
                           Adicionar
                         </Button>
@@ -883,7 +883,7 @@ export default function Maintenance() {
                         setFormData({ ...formData, requestDate: value })
                       }
                       className="bg-slate-700 border-slate-600 text-white mt-1"
-                      calendarClassName="[&_.rdp-cell]:text-white [&_.rdp-button]:text-white [&_.rdp-button_today]:bg-orange-600 [&_.rdp-button_selected]:bg-orange-600 [&_.rdp-button_selected]:text-white"
+                      calendarClassName="[&_.rdp-cell]:text-white [&_.rdp-button]:text-white [&_.rdp-button_today]:bg-sky-600 [&_.rdp-button_selected]:bg-sky-600 [&_.rdp-button_selected]:text-white"
                     />
                   </div>
                 </div>
@@ -931,7 +931,7 @@ export default function Maintenance() {
                 <div className="flex flex-col sm:flex-row gap-2">
                   <Button
                     onClick={handleSubmit}
-                    className="flex-1 bg-orange-600 hover:bg-orange-700"
+                    className="flex-1 bg-sky-600 hover:bg-sky-700"
                     disabled={
                       createMutation.isPending || updateMutation.isPending
                     }

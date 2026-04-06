@@ -60,7 +60,7 @@ export function ConsumableChartRow({ consumable, selectedSpace }: ConsumableChar
         </div>
         <div className="bg-slate-700/30 p-3 rounded">
           <div className="text-gray-400">A Repor</div>
-          <div className={`text-lg font-semibold ${(consumable.maxStock - consumable.currentStock) > 0 ? 'text-orange-400' : 'text-green-400'}`}>
+          <div className={`text-lg font-semibold ${(consumable.maxStock - consumable.currentStock) > 0 ? 'text-sky-400' : 'text-green-400'}`}>
             {Math.max(0, consumable.maxStock - consumable.currentStock)}
           </div>
         </div>

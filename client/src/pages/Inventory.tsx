@@ -235,14 +235,14 @@ export default function Inventory() {
         </div>
         <Button
           onClick={handleCreateSample}
-          className="w-full bg-orange-600 hover:bg-orange-700 sm:w-auto"
+          className="w-full bg-sky-600 hover:bg-sky-700 sm:w-auto"
         >
           <Plus className="w-4 h-4 mr-2" />
           Novo Item
         </Button>
       </div>
 
-      <Card className="bg-slate-800/50 border-orange-700/30">
+      <Card className="bg-slate-800/50 border-sky-700/30">
         <CardHeader>
           <CardTitle className="text-white">Filtros</CardTitle>
           <CardDescription className="text-gray-400">
@@ -283,7 +283,7 @@ export default function Inventory() {
                 <Button
                   onClick={() => setIsAddingCategory(true)}
                   size="sm"
-                  className="bg-orange-600 hover:bg-orange-700"
+                  className="bg-sky-600 hover:bg-sky-700"
                   title="Adicionar nova categoria"
                 >
                   <Plus className="w-4 h-4" />
@@ -310,7 +310,7 @@ export default function Inventory() {
         </CardContent>
       </Card>
 
-      <Card className="bg-slate-800/50 border-orange-700/30">
+      <Card className="bg-slate-800/50 border-sky-700/30">
         <CardHeader>
           <CardTitle className="text-white">Itens do Inventário</CardTitle>
           <CardDescription className="text-gray-400">
@@ -320,7 +320,7 @@ export default function Inventory() {
         <CardContent>
           {isLoading ? (
             <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600 mx-auto"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-sky-600 mx-auto"></div>
               <p className="text-gray-400 mt-2">Carregando...</p>
             </div>
           ) : items.length === 0 ? (
@@ -329,7 +329,7 @@ export default function Inventory() {
               <Button
                 onClick={handleCreateSample}
                 variant="outline"
-                className="mt-4 border-orange-600 text-orange-500 hover:bg-orange-600/10"
+                className="mt-4 border-sky-600 text-sky-500 hover:bg-sky-600/10"
               >
                 Criar primeiro item
               </Button>
@@ -338,21 +338,21 @@ export default function Inventory() {
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="border-orange-700/30 hover:bg-slate-700/50">
+                  <TableRow className="border-sky-700/30 hover:bg-slate-700/50">
                     <TableHead className="text-gray-300">Nome</TableHead>
-                    <TableHead className="text-gray-300 cursor-pointer hover:text-orange-400">
+                    <TableHead className="text-gray-300 cursor-pointer hover:text-sky-400">
                       Categoria
                     </TableHead>
-                    <TableHead className="text-gray-300 cursor-pointer hover:text-orange-400">
+                    <TableHead className="text-gray-300 cursor-pointer hover:text-sky-400">
                       Quantidade
                     </TableHead>
-                    <TableHead className="text-gray-300 cursor-pointer hover:text-orange-400">
+                    <TableHead className="text-gray-300 cursor-pointer hover:text-sky-400">
                       Mínimo
                     </TableHead>
-                    <TableHead className="text-gray-300 cursor-pointer hover:text-orange-400">
+                    <TableHead className="text-gray-300 cursor-pointer hover:text-sky-400">
                       Localização
                     </TableHead>
-                    <TableHead className="text-gray-300 cursor-pointer hover:text-orange-400">
+                    <TableHead className="text-gray-300 cursor-pointer hover:text-sky-400">
                       Status
                     </TableHead>
                     <TableHead className="text-gray-300">Ações</TableHead>
@@ -362,31 +362,31 @@ export default function Inventory() {
                   {items.map((item: any) => (
                     <TableRow
                       key={item.id}
-                      className="border-orange-700/20 hover:bg-slate-700/30"
+                      className="border-sky-700/20 hover:bg-slate-700/30"
                     >
                       <TableCell className="font-medium text-white">
                         {item.name}
                       </TableCell>
                       <TableCell
-                        className="text-gray-300 cursor-pointer hover:text-orange-400 transition"
+                        className="text-gray-300 cursor-pointer hover:text-sky-400 transition"
                         onClick={() => handleInlineEdit(item, "category")}
                       >
                         {item.category}
                       </TableCell>
                       <TableCell
-                        className={`cursor-pointer hover:text-orange-400 transition ${item.quantity < item.minQuantity ? "text-red-400 font-semibold" : "text-gray-300"}`}
+                        className={`cursor-pointer hover:text-sky-400 transition ${item.quantity < item.minQuantity ? "text-red-400 font-semibold" : "text-gray-300"}`}
                         onClick={() => handleInlineEdit(item, "quantity")}
                       >
                         {item.quantity} {item.unit}
                       </TableCell>
                       <TableCell
-                        className="text-gray-300 cursor-pointer hover:text-orange-400 transition"
+                        className="text-gray-300 cursor-pointer hover:text-sky-400 transition"
                         onClick={() => handleInlineEdit(item, "minQuantity")}
                       >
                         {item.minQuantity}
                       </TableCell>
                       <TableCell
-                        className="text-gray-300 cursor-pointer hover:text-orange-400 transition"
+                        className="text-gray-300 cursor-pointer hover:text-sky-400 transition"
                         onClick={() => handleInlineEdit(item, "location")}
                       >
                         {item.location}
@@ -410,7 +410,7 @@ export default function Inventory() {
                           <Button
                             variant="outline"
                             size="sm"
-                            className="border-orange-600 text-orange-500 hover:bg-orange-600/10"
+                            className="border-sky-600 text-sky-500 hover:bg-sky-600/10"
                             onClick={() => handleEditItem(item)}
                           >
                             <Edit2 className="w-4 h-4" />
@@ -436,7 +436,7 @@ export default function Inventory() {
 
       {/* Dialog de Edição Completa */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="w-[calc(100vw-2rem)] max-w-lg max-h-[90vh] overflow-y-auto bg-slate-800 border-orange-700/30">
+        <DialogContent className="w-[calc(100vw-2rem)] max-w-lg max-h-[90vh] overflow-y-auto bg-slate-800 border-sky-700/30">
           <DialogHeader>
             <DialogTitle className="text-white">
               {editingItem ? "Editar Item" : "Novo Item"}
@@ -583,7 +583,7 @@ export default function Inventory() {
             <div className="flex flex-col sm:flex-row gap-3 pt-4">
               <Button
                 onClick={handleSubmit}
-                className="bg-orange-600 hover:bg-orange-700 text-white flex-1"
+                className="bg-sky-600 hover:bg-sky-700 text-white flex-1"
                 disabled={createMutation.isPending || updateMutation.isPending}
               >
                 {createMutation.isPending || updateMutation.isPending
@@ -606,7 +606,7 @@ export default function Inventory() {
 
       {/* Dialog de Nova Categoria */}
       <Dialog open={isAddingCategory} onOpenChange={setIsAddingCategory}>
-        <DialogContent className="w-[calc(100vw-2rem)] max-w-sm max-h-[90vh] overflow-y-auto bg-slate-800 border-orange-700/30">
+        <DialogContent className="w-[calc(100vw-2rem)] max-w-sm max-h-[90vh] overflow-y-auto bg-slate-800 border-sky-700/30">
           <DialogHeader>
             <DialogTitle className="text-white">
               Adicionar Nova Categoria
@@ -626,7 +626,7 @@ export default function Inventory() {
             <div className="flex flex-col sm:flex-row gap-3 pt-4">
               <Button
                 onClick={handleAddCategory}
-                className="bg-orange-600 hover:bg-orange-700 text-white flex-1"
+                className="bg-sky-600 hover:bg-sky-700 text-white flex-1"
               >
                 Adicionar
               </Button>
@@ -647,7 +647,7 @@ export default function Inventory() {
         open={inlineEditingId !== null}
         onOpenChange={open => !open && setInlineEditingId(null)}
       >
-        <DialogContent className="w-[calc(100vw-2rem)] max-w-sm max-h-[90vh] overflow-y-auto bg-slate-800 border-orange-700/30">
+        <DialogContent className="w-[calc(100vw-2rem)] max-w-sm max-h-[90vh] overflow-y-auto bg-slate-800 border-sky-700/30">
           <DialogHeader>
             <DialogTitle className="text-white">
               Editar {inlineEditField?.charAt(0).toUpperCase()}
@@ -714,7 +714,7 @@ export default function Inventory() {
             <div className="flex flex-col sm:flex-row gap-3 pt-4">
               <Button
                 onClick={handleInlineSubmit}
-                className="bg-orange-600 hover:bg-orange-700 text-white flex-1"
+                className="bg-sky-600 hover:bg-sky-700 text-white flex-1"
                 disabled={updateMutation.isPending}
               >
                 {updateMutation.isPending ? "Guardando..." : "Guardar"}

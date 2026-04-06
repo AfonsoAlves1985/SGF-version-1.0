@@ -466,7 +466,7 @@ export default function Consumables() {
             <DropdownMenuTrigger asChild>
               <Button
                 disabled={!selectedSpace || consumables.length === 0}
-                className="w-full bg-orange-600 hover:bg-orange-700 text-white sm:w-auto"
+                className="w-full bg-sky-600 hover:bg-sky-700 text-white sm:w-auto"
               >
                 <Download className="h-4 w-4 mr-2" />
                 Exportar Relatório
@@ -500,7 +500,7 @@ export default function Consumables() {
           </Button>
           <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogTrigger asChild>
-              <Button className="w-full bg-orange-600 hover:bg-orange-700 text-white sm:w-auto">
+              <Button className="w-full bg-sky-600 hover:bg-sky-700 text-white sm:w-auto">
                 <Plus className="h-4 w-4 mr-2" />
                 Novo Consumível
               </Button>
@@ -604,7 +604,7 @@ export default function Consumables() {
                 </div>
                 <Button
                   type="submit"
-                  className="w-full bg-orange-600 hover:bg-orange-700"
+                  className="w-full bg-sky-600 hover:bg-sky-700"
                 >
                   {editingId ? "Atualizar" : "Criar"} Consumível
                 </Button>
@@ -653,7 +653,7 @@ export default function Consumables() {
                   if (date) setSelectedDate(date);
                   setShowCalendar(false);
                 }}
-                className="w-full [&_.rdp-cell]:text-white [&_.rdp-button]:text-white [&_.rdp-button_today]:bg-orange-600 [&_.rdp-button_selected]:bg-orange-600 [&_.rdp-button_selected]:text-white"
+                className="w-full [&_.rdp-cell]:text-white [&_.rdp-button]:text-white [&_.rdp-button_today]:bg-sky-600 [&_.rdp-button_selected]:bg-sky-600 [&_.rdp-button_selected]:text-white"
               />
             </div>
           )}
@@ -786,7 +786,7 @@ export default function Consumables() {
                         <TableCell
                           className={
                             replenishStock > 0
-                              ? "text-orange-400"
+                              ? "text-sky-400"
                               : "text-green-400"
                           }
                         >

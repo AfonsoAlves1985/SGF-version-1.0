@@ -364,7 +364,7 @@ export function WeeklyMovementsTable({
                           movement.status === "REPOR_ESTOQUE"
                             ? "bg-red-100 text-red-800"
                             : movement.status === "ACIMA_DO_ESTOQUE"
-                              ? "bg-orange-100 text-orange-800"
+                              ? "bg-sky-100 text-sky-800"
                               : "bg-green-100 text-green-800"
                         }`}
                       >

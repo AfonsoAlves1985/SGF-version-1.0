@@ -54,7 +54,7 @@ export function EditableCell({
         onChange={(e) => setEditValue(e.target.value)}
         onBlur={handleBlur}
         onKeyDown={handleKeyDown}
-        className={`bg-slate-700 border-orange-500 text-white ${className}`}
+        className={`bg-slate-700 border-sky-500 text-white ${className}`}
       />
     );
   }

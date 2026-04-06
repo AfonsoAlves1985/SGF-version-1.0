@@ -447,14 +447,14 @@ export default function Rooms() {
         </div>
         <Button
           onClick={handleCreateSample}
-          className="w-full bg-orange-600 hover:bg-orange-700 sm:w-auto"
+          className="w-full bg-sky-600 hover:bg-sky-700 sm:w-auto"
         >
           <Plus className="w-4 h-4 mr-2" />
           Nova Sala
         </Button>
       </div>
 
-      <Card className="bg-slate-800/50 border-orange-700/30">
+      <Card className="bg-slate-800/50 border-sky-700/30">
         <CardHeader>
           <CardTitle className="text-white">Filtros</CardTitle>
           <CardDescription className="text-gray-400">
@@ -481,7 +481,7 @@ export default function Rooms() {
 
       {/* Dialog de Edição Completa */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="w-[calc(100vw-2rem)] max-w-2xl max-h-[90vh] overflow-y-auto bg-slate-800 border-orange-700/30">
+        <DialogContent className="w-[calc(100vw-2rem)] max-w-2xl max-h-[90vh] overflow-y-auto bg-slate-800 border-sky-700/30">
           <DialogHeader>
             <DialogTitle className="text-white">
               {editingRoom ? "Editar Sala" : "Nova Sala"}
@@ -685,7 +685,7 @@ export default function Rooms() {
             <div className="flex flex-col sm:flex-row gap-3 pt-4">
               <Button
                 onClick={handleSubmit}
-                className="bg-orange-600 hover:bg-orange-700 text-white flex-1"
+                className="bg-sky-600 hover:bg-sky-700 text-white flex-1"
                 disabled={createMutation.isPending || updateMutation.isPending}
               >
                 {createMutation.isPending || updateMutation.isPending
@@ -711,7 +711,7 @@ export default function Rooms() {
         open={inlineEditingId !== null}
         onOpenChange={open => !open && setInlineEditingId(null)}
       >
-        <DialogContent className="w-[calc(100vw-2rem)] max-w-sm max-h-[90vh] overflow-y-auto bg-slate-800 border-orange-700/30">
+        <DialogContent className="w-[calc(100vw-2rem)] max-w-sm max-h-[90vh] overflow-y-auto bg-slate-800 border-sky-700/30">
           <DialogHeader>
             <DialogTitle className="text-white">
               Editar {inlineEditField?.charAt(0).toUpperCase()}
@@ -832,7 +832,7 @@ export default function Rooms() {
             <div className="flex flex-col sm:flex-row gap-3 pt-4">
               <Button
                 onClick={handleInlineSubmit}
-                className="bg-orange-600 hover:bg-orange-700 text-white flex-1"
+                className="bg-sky-600 hover:bg-sky-700 text-white flex-1"
                 disabled={updateMutation.isPending}
               >
                 {updateMutation.isPending ? "Guardando..." : "Guardar"}
@@ -850,7 +850,7 @@ export default function Rooms() {
       </Dialog>
 
       {/* Dashboard de Tempo de Uso */}
-      <Card className="bg-slate-800/50 border-orange-700/30">
+      <Card className="bg-slate-800/50 border-sky-700/30">
         <CardHeader>
           <CardTitle className="text-white">Tempo de Uso das Salas</CardTitle>
           <CardDescription className="text-gray-400">
@@ -966,7 +966,7 @@ export default function Rooms() {
                           </p>
                           <Button
                             onClick={() => handleOpenUseRoom(room)}
-                            className="mt-2 w-full bg-orange-600 hover:bg-orange-700 text-white text-xs py-1"
+                            className="mt-2 w-full bg-sky-600 hover:bg-sky-700 text-white text-xs py-1"
                             disabled={updateMutation.isPending}
                           >
                             Utilizar Sala
@@ -1072,7 +1072,7 @@ export default function Rooms() {
                         </p>
                         {room.responsibleUserName &&
                         room.responsibleUserName.trim() ? (
-                          <p className="text-orange-400 text-xs font-medium">
+                          <p className="text-sky-400 text-xs font-medium">
                             Solicitante:{" "}
                             <span className="text-white">
                               {room.responsibleUserName}
@@ -1096,7 +1096,7 @@ export default function Rooms() {
                         </div>
                         <div className="w-full bg-slate-700 rounded-full h-2">
                           <div
-                            className="bg-orange-600 h-2 rounded-full transition-all"
+                            className="bg-sky-600 h-2 rounded-full transition-all"
                             style={{
                               width: `${Math.min(usagePercentage, 100)}%`,
                             }}
@@ -1122,7 +1122,7 @@ export default function Rooms() {
                       <div className="pt-2 border-t border-slate-700">
                         <p className="text-xs font-semibold text-white mb-1">
                           Status:{" "}
-                          <span className="text-orange-400">{alertText}</span>
+                          <span className="text-sky-400">{alertText}</span>
                         </p>
                         <p className="text-xs text-gray-400">
                           {now < startDate
@@ -1244,7 +1244,7 @@ export default function Rooms() {
             <div className="flex flex-col sm:flex-row gap-2 pt-2">
               <Button
                 onClick={handleConfirmUseRoom}
-                className="flex-1 bg-orange-600 hover:bg-orange-700 text-white"
+                className="flex-1 bg-sky-600 hover:bg-sky-700 text-white"
                 disabled={updateMutation.isPending}
               >
                 Confirmar Uso

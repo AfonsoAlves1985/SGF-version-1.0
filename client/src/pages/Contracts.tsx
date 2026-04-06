@@ -437,7 +437,7 @@ export default function Contracts() {
           <h1 className="text-3xl font-bold text-white">Contratos</h1>
           <p className="text-gray-400 mt-2">
             Unidade:{" "}
-            <span className="text-orange-400 font-semibold">
+            <span className="text-sky-400 font-semibold">
               {spaces.find((space: any) => space.id === selectedSpace)?.name}
             </span>
           </p>
@@ -455,7 +455,7 @@ export default function Contracts() {
 
           <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogTrigger asChild>
-              <Button className="w-full bg-orange-600 hover:bg-orange-700 text-white sm:w-auto">
+              <Button className="w-full bg-sky-600 hover:bg-sky-700 text-white sm:w-auto">
                 <Plus className="h-4 w-4 mr-2" />
                 Novo Contrato
               </Button>
@@ -705,7 +705,7 @@ export default function Contracts() {
                 <div className="flex flex-col sm:flex-row gap-2">
                   <Button
                     type="submit"
-                    className="flex-1 bg-orange-600 hover:bg-orange-700 disabled:opacity-60"
+                    className="flex-1 bg-sky-600 hover:bg-sky-700 disabled:opacity-60"
                     disabled={isSubmitDisabled}
                   >
                     {editingId ? "Atualizar" : "Criar"} Contrato

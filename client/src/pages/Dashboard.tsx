@@ -355,10 +355,10 @@ export default function Dashboard() {
       >
         <DialogContent className="w-[calc(100vw-2rem)] max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-orange-700">
+            <DialogTitle className="text-sky-700">
               Itens Críticos de Consumíveis
             </DialogTitle>
-            <DialogDescription className="text-orange-600">
+            <DialogDescription className="text-sky-600">
               Lista de itens abaixo do estoque mínimo com quantidade atual e
               unidade.
             </DialogDescription>
@@ -366,7 +366,7 @@ export default function Dashboard() {
 
           <div className="max-h-[60vh] overflow-y-auto">
             {criticalAlerts.length === 0 ? (
-              <p className="text-sm text-orange-600">
+              <p className="text-sm text-sky-600">
                 Nenhum item crítico no momento.
               </p>
             ) : (
@@ -374,15 +374,15 @@ export default function Dashboard() {
                 {criticalAlerts.map((alert: any) => (
                   <div
                     key={`${alert.spaceId ?? "sem-espaco"}-${alert.id}`}
-                    className="rounded-lg border border-orange-200 p-3"
+                    className="rounded-lg border border-sky-200 p-3"
                   >
-                    <div className="font-medium text-orange-700">
+                    <div className="font-medium text-sky-700">
                       {alert.name}
                     </div>
-                    <div className="text-sm text-orange-600">
+                    <div className="text-sm text-sky-600">
                       Quantidade atual: {alert.currentStock} {alert.unit}
                     </div>
-                    <div className="text-sm text-orange-600">
+                    <div className="text-sm text-sky-600">
                       Unidade: {alert.spaceName || "Sem unidade"}
                     </div>
                   </div>
@@ -399,17 +399,17 @@ export default function Dashboard() {
       >
         <DialogContent className="w-[calc(100vw-2rem)] max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-orange-700">
+            <DialogTitle className="text-sky-700">
               Contratos Vencidos ou Próximos
             </DialogTitle>
-            <DialogDescription className="text-orange-600">
+            <DialogDescription className="text-sky-600">
               Contratos vencidos e contratos com vencimento em até 30 dias.
             </DialogDescription>
           </DialogHeader>
 
           <div className="max-h-[60vh] overflow-y-auto">
             {contractAlerts.length === 0 ? (
-              <p className="text-sm text-orange-600">
+              <p className="text-sm text-sky-600">
                 Nenhum contrato vencido ou próximo de vencer.
               </p>
             ) : (
@@ -417,18 +417,18 @@ export default function Dashboard() {
                 {contractAlerts.map((contract: any) => (
                   <div
                     key={`${contract.id}-${contract.spaceId ?? "sem-espaco"}`}
-                    className="rounded-lg border border-orange-200 p-3"
+                    className="rounded-lg border border-sky-200 p-3"
                   >
-                    <div className="font-medium text-orange-700">
+                    <div className="font-medium text-sky-700">
                       {contract.companyName}
                     </div>
-                    <div className="text-sm text-orange-600">
+                    <div className="text-sm text-sky-600">
                       Unidade: {contract.spaceName || "Sem unidade"}
                     </div>
-                    <div className="text-sm text-orange-600">
+                    <div className="text-sm text-sky-600">
                       Vencimento: {formatContractDate(contract.endDate)}
                     </div>
-                    <div className="text-sm font-medium text-orange-600">
+                    <div className="text-sm font-medium text-sky-600">
                       {contract.isExpired
                         ? contract.daysUntilExpiry !== null
                           ? `Vencido há ${Math.abs(contract.daysUntilExpiry)} dia(s)`
@@ -682,13 +682,13 @@ export default function Dashboard() {
         <button
           type="button"
           onClick={() => setIsContractsDialogOpen(true)}
-          className="w-full text-left rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500"
+          className="w-full text-left rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
         >
-          <Card className="cursor-pointer transition hover:border-orange-300 hover:shadow-sm">
+          <Card className="cursor-pointer transition hover:border-sky-300 hover:shadow-sm">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-sm font-medium">Contratos</CardTitle>
-                <Clock className="w-4 h-4 text-orange-600" />
+                <Clock className="w-4 h-4 text-sky-600" />
               </div>
             </CardHeader>
             <CardContent>

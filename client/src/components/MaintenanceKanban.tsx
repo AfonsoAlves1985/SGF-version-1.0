@@ -34,7 +34,7 @@ const getPriorityColor = (priority: string) => {
     case "urgente":
       return "bg-red-900/50 text-red-300";
     case "alta":
-      return "bg-orange-900/50 text-orange-300";
+      return "bg-sky-900/50 text-sky-300";
     case "media":
       return "bg-yellow-900/50 text-yellow-300";
     case "baixa":
@@ -110,7 +110,7 @@ export function MaintenanceKanban({
                     key={request.id}
                     draggable
                     onDragStart={(e) => handleDragStart(e, request.id)}
-                    className="bg-slate-800 border border-slate-700 rounded-lg p-3 cursor-move hover:shadow-lg hover:border-orange-600/50 transition-all"
+                    className="bg-slate-800 border border-slate-700 rounded-lg p-3 cursor-move hover:shadow-lg hover:border-sky-600/50 transition-all"
                   >
                     {/* Título */}
                     <MaintenanceInlineEdit
@@ -119,7 +119,7 @@ export function MaintenanceKanban({
                       onSave={(newValue) => onUpdateField(request.id, "title", newValue)}
                       isLoading={isLoading}
                     >
-                      <h4 className="font-semibold text-white text-sm mb-2 cursor-pointer hover:text-orange-400">
+                      <h4 className="font-semibold text-white text-sm mb-2 cursor-pointer hover:text-sky-400">
                         {request.title}
                       </h4>
                     </MaintenanceInlineEdit>

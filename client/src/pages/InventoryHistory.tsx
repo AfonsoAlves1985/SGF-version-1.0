@@ -155,9 +155,9 @@ export default function InventoryHistory() {
         </div>
 
         {/* Filtros */}
-        <Card className="bg-slate-800 border-orange-700/30 mb-6">
+        <Card className="bg-slate-800 border-sky-700/30 mb-6">
           <CardHeader>
-            <CardTitle className="text-orange-400">Filtros</CardTitle>
+            <CardTitle className="text-sky-400">Filtros</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -170,7 +170,7 @@ export default function InventoryHistory() {
                   value={startDate}
                   onChange={(e) => setStartDate(formatDateInput(e.target.value))}
                   placeholder="DD-MM-YYYY"
-                  className="bg-slate-700 border-orange-700/30 text-white mt-2"
+                  className="bg-slate-700 border-sky-700/30 text-white mt-2"
                 />
               </div>
               <div>
@@ -182,16 +182,16 @@ export default function InventoryHistory() {
                   value={endDate}
                   onChange={(e) => setEndDate(formatDateInput(e.target.value))}
                   placeholder="DD-MM-YYYY"
-                  className="bg-slate-700 border-orange-700/30 text-white mt-2"
+                  className="bg-slate-700 border-sky-700/30 text-white mt-2"
                 />
               </div>
               <div>
                 <Label className="text-gray-300">Categoria</Label>
                 <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                  <SelectTrigger className="bg-slate-700 border-orange-700/30 text-white mt-2">
+                  <SelectTrigger className="bg-slate-700 border-sky-700/30 text-white mt-2">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="bg-slate-700 border-orange-700/30">
+                  <SelectContent className="bg-slate-700 border-sky-700/30">
                     <SelectItem value="all">Todas as categorias</SelectItem>
                     {categories.map((cat: any) => (
                       <SelectItem key={cat} value={cat}>
@@ -208,7 +208,7 @@ export default function InventoryHistory() {
                     setEndDate(format(new Date(), "dd-MM-yyyy"));
                     setSelectedCategory("all");
                   }}
-                  className="w-full bg-orange-600 hover:bg-orange-700"
+                  className="w-full bg-sky-600 hover:bg-sky-700"
                 >
                   Resetar
                 </Button>
@@ -219,7 +219,7 @@ export default function InventoryHistory() {
 
         {/* Estatísticas */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <Card className="bg-slate-800 border-orange-700/30">
+          <Card className="bg-slate-800 border-sky-700/30">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-gray-400 flex items-center gap-2">
                 <ArrowUpRight className="h-4 w-4 text-green-500" />
@@ -231,7 +231,7 @@ export default function InventoryHistory() {
             </CardContent>
           </Card>
 
-          <Card className="bg-slate-800 border-orange-700/30">
+          <Card className="bg-slate-800 border-sky-700/30">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-gray-400 flex items-center gap-2">
                 <ArrowDownLeft className="h-4 w-4 text-red-500" />
@@ -243,10 +243,10 @@ export default function InventoryHistory() {
             </CardContent>
           </Card>
 
-          <Card className="bg-slate-800 border-orange-700/30">
+          <Card className="bg-slate-800 border-sky-700/30">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-gray-400 flex items-center gap-2">
-                <Package className="h-4 w-4 text-orange-500" />
+                <Package className="h-4 w-4 text-sky-500" />
                 Saldo
               </CardTitle>
             </CardHeader>
@@ -257,7 +257,7 @@ export default function InventoryHistory() {
             </CardContent>
           </Card>
 
-          <Card className="bg-slate-800 border-orange-700/30">
+          <Card className="bg-slate-800 border-sky-700/30">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-gray-400 flex items-center gap-2">
                 <TrendingUp className="h-4 w-4 text-blue-500" />
@@ -273,9 +273,9 @@ export default function InventoryHistory() {
         {/* Gráficos */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           {/* Gráfico de Consumo por Dia */}
-          <Card className="bg-slate-800 border-orange-700/30">
+          <Card className="bg-slate-800 border-sky-700/30">
             <CardHeader>
-              <CardTitle className="text-orange-400">Consumo por Dia</CardTitle>
+              <CardTitle className="text-sky-400">Consumo por Dia</CardTitle>
               <CardDescription className="text-gray-400">Entrada vs Saída</CardDescription>
             </CardHeader>
             <CardContent>
@@ -297,9 +297,9 @@ export default function InventoryHistory() {
           </Card>
 
           {/* Gráfico de Tipo de Movimentação */}
-          <Card className="bg-slate-800 border-orange-700/30">
+          <Card className="bg-slate-800 border-sky-700/30">
             <CardHeader>
-              <CardTitle className="text-orange-400">Distribuição de Movimentações</CardTitle>
+              <CardTitle className="text-sky-400">Distribuição de Movimentações</CardTitle>
               <CardDescription className="text-gray-400">Entrada vs Saída</CardDescription>
             </CardHeader>
             <CardContent className="flex justify-center">
@@ -329,9 +329,9 @@ export default function InventoryHistory() {
           </Card>
 
           {/* Gráfico de Consumo por Categoria */}
-          <Card className="bg-slate-800 border-orange-700/30 lg:col-span-2">
+          <Card className="bg-slate-800 border-sky-700/30 lg:col-span-2">
             <CardHeader>
-              <CardTitle className="text-orange-400">Consumo por Categoria</CardTitle>
+              <CardTitle className="text-sky-400">Consumo por Categoria</CardTitle>
               <CardDescription className="text-gray-400">Quantidade de saídas por categoria</CardDescription>
             </CardHeader>
             <CardContent>
@@ -352,16 +352,16 @@ export default function InventoryHistory() {
         </div>
 
         {/* Tabela de Movimentações */}
-        <Card className="bg-slate-800 border-orange-700/30">
+        <Card className="bg-slate-800 border-sky-700/30">
           <CardHeader>
-            <CardTitle className="text-orange-400">Histórico Detalhado</CardTitle>
+            <CardTitle className="text-sky-400">Histórico Detalhado</CardTitle>
             <CardDescription className="text-gray-400">Todas as movimentações registadas</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-orange-700/30">
+                  <tr className="border-b border-sky-700/30">
                     <th className="text-left py-3 px-4 text-gray-400">Item</th>
                     <th className="text-left py-3 px-4 text-gray-400">Tipo</th>
                     <th className="text-left py-3 px-4 text-gray-400">Quantidade</th>
