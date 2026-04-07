@@ -26,6 +26,13 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { DateInputWithCalendar } from "@/components/DateInputWithCalendar";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 type AuditAction = "create" | "read" | "update" | "delete" | "login" | "logout";
 
@@ -37,6 +44,9 @@ type AuditRow = {
   recordName?: string | null;
   changes?: unknown;
   status: string;
+  ipAddress?: string | null;
+  userAgent?: string | null;
+  errorMessage?: string | null;
   createdAt: string;
   user?: {
     id: number;
@@ -44,6 +54,12 @@ type AuditRow = {
     email?: string | null;
     role?: string;
   } | null;
+};
+
+type ChangeDetail = {
+  field: string;
+  before?: string;
+  after: string;
 };
 
 const ACTION_LABEL: Record<AuditAction, string> = {
@@ -322,6 +338,47 @@ function renderChangedColumns(changes: unknown): ReactNode {
   );
 }
 
+function buildChangeDetails(changes: unknown): ChangeDetail[] {
+  const parsed = normalizeChanges(changes);
+  if (!parsed) return [];
+
+  if (typeof parsed === "string") {
+    return [{ field: "Mensagem", after: parsed }];
+  }
+
+  if (typeof parsed !== "object") {
+    return [{ field: "Valor", after: formatValue(parsed) }];
+  }
+
+  const parsedObject = parsed as Record<string, unknown>;
+  const before =
+    parsedObject.before && typeof parsedObject.before === "object"
+      ? (parsedObject.before as Record<string, unknown>)
+      : null;
+  const after =
+    parsedObject.after && typeof parsedObject.after === "object"
+      ? (parsedObject.after as Record<string, unknown>)
+      : null;
+
+  if (before && after) {
+    return Array.from(new Set([...Object.keys(before), ...Object.keys(after)]))
+      .filter(key => JSON.stringify(before[key]) !== JSON.stringify(after[key]))
+      .filter(key => !IGNORED_CHANGE_KEYS.has(key))
+      .map(key => ({
+        field: normalizeFieldLabel(key),
+        before: formatValue(before[key]),
+        after: formatValue(after[key]),
+      }));
+  }
+
+  return Object.entries(parsedObject)
+    .filter(([key]) => !IGNORED_CHANGE_KEYS.has(key))
+    .map(([key, value]) => ({
+      field: normalizeFieldLabel(key),
+      after: formatValue(value),
+    }));
+}
+
 function formatRecordFallback(row: AuditRow): string {
   if (row.recordName && row.recordId !== null && row.recordId !== undefined) {
     return `${row.recordName} (#${row.recordId})`;
@@ -364,6 +421,7 @@ export default function Logs() {
   const [selectedAction, setSelectedAction] = useState("all");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [selectedLog, setSelectedLog] = useState<AuditRow | null>(null);
 
   const usersQuery = trpc.auditLogs.listUsers.useQuery(undefined, {
     enabled: canAccess,
@@ -551,7 +609,8 @@ export default function Logs() {
                   {logs.map(row => (
                     <TableRow
                       key={row.id}
-                      className="border-sky-700/20 hover:bg-slate-700/30"
+                      className="border-sky-700/20 hover:bg-slate-700/30 cursor-pointer"
+                      onClick={() => setSelectedLog(row)}
                     >
                       <TableCell className="text-gray-300">
                         {formatDateTime(row.createdAt)}
@@ -596,6 +655,122 @@ export default function Logs() {
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={Boolean(selectedLog)} onOpenChange={open => !open && setSelectedLog(null)}>
+        <DialogContent className="w-[calc(100vw-2rem)] max-w-5xl max-h-[90vh] overflow-y-auto bg-slate-900 border-slate-700">
+          <DialogHeader>
+            <DialogTitle className="text-white">Detalhes do evento de auditoria</DialogTitle>
+            <DialogDescription className="text-gray-400">
+              Visualização completa das informações do evento selecionado.
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedLog && (
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="rounded-md border border-slate-700 bg-slate-800/70 p-3">
+                  <p className="text-xs text-gray-400">Data/Hora</p>
+                  <p className="text-sm text-white mt-1">
+                    {formatDateTime(selectedLog.createdAt)}
+                  </p>
+                </div>
+                <div className="rounded-md border border-slate-700 bg-slate-800/70 p-3">
+                  <p className="text-xs text-gray-400">Módulo</p>
+                  <p className="text-sm text-white mt-1">
+                    {formatModule(selectedLog.module)}
+                  </p>
+                </div>
+                <div className="rounded-md border border-slate-700 bg-slate-800/70 p-3">
+                  <p className="text-xs text-gray-400">Ação</p>
+                  <p className="text-sm text-white mt-1">
+                    {formatAction(selectedLog.action)}
+                  </p>
+                </div>
+                <div className="rounded-md border border-slate-700 bg-slate-800/70 p-3">
+                  <p className="text-xs text-gray-400">Status</p>
+                  <p
+                    className={`text-sm mt-1 ${
+                      selectedLog.status === "success"
+                        ? "text-emerald-300"
+                        : "text-red-300"
+                    }`}
+                  >
+                    {selectedLog.status === "success" ? "Sucesso" : "Falha"}
+                  </p>
+                </div>
+                <div className="rounded-md border border-slate-700 bg-slate-800/70 p-3 md:col-span-2">
+                  <p className="text-xs text-gray-400">Usuário</p>
+                  <p className="text-sm text-white mt-1">
+                    {selectedLog.user
+                      ? `${selectedLog.user.name} (${selectedLog.user.email || "sem e-mail"})`
+                      : "Sistema / removido"}
+                  </p>
+                </div>
+                <div className="rounded-md border border-slate-700 bg-slate-800/70 p-3 md:col-span-2">
+                  <p className="text-xs text-gray-400">Registro</p>
+                  <p className="text-sm text-white mt-1">
+                    {formatRecordFallback(selectedLog)}
+                  </p>
+                </div>
+              </div>
+
+              <div className="rounded-md border border-slate-700 bg-slate-800/70 p-3">
+                <p className="text-sm font-medium text-white mb-3">Alterações detalhadas</p>
+                {buildChangeDetails(selectedLog.changes).length === 0 ? (
+                  <p className="text-sm text-gray-400">Sem detalhes de alteração para este evento.</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="border-slate-700 hover:bg-transparent">
+                          <TableHead className="text-gray-300">Coluna</TableHead>
+                          <TableHead className="text-gray-300">Valor anterior</TableHead>
+                          <TableHead className="text-gray-300">Valor novo</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {buildChangeDetails(selectedLog.changes).map(detail => (
+                          <TableRow
+                            key={`${detail.field}-${detail.before || ""}-${detail.after}`}
+                            className="border-slate-700"
+                          >
+                            <TableCell className="text-white">{detail.field}</TableCell>
+                            <TableCell className="text-gray-300">
+                              {detail.before || "-"}
+                            </TableCell>
+                            <TableCell className="text-sky-300">{detail.after}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="rounded-md border border-slate-700 bg-slate-800/70 p-3">
+                  <p className="text-xs text-gray-400">IP</p>
+                  <p className="text-sm text-gray-200 mt-1">{selectedLog.ipAddress || "-"}</p>
+                </div>
+                <div className="rounded-md border border-slate-700 bg-slate-800/70 p-3">
+                  <p className="text-xs text-gray-400">User Agent</p>
+                  <p className="text-sm text-gray-200 mt-1 break-words">
+                    {selectedLog.userAgent || "-"}
+                  </p>
+                </div>
+                {selectedLog.errorMessage && (
+                  <div className="rounded-md border border-red-500/40 bg-red-900/20 p-3 md:col-span-2">
+                    <p className="text-xs text-red-300">Mensagem de erro</p>
+                    <p className="text-sm text-red-200 mt-1 break-words">
+                      {selectedLog.errorMessage}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
