@@ -37,6 +37,7 @@ import {
 import {
   Check,
   FilePlus2,
+  LoaderCircle,
   Paperclip,
   Plus,
   Send,
@@ -94,6 +95,47 @@ type RequestFormState = {
   billingCnpj: string;
   paymentTerms: string;
   status: PurchaseRequestStatus;
+};
+
+type PurchaseRequestDetail = {
+  id: number;
+  documentNumber: string;
+  requestDate: string;
+  neededDate: string;
+  urgency: PurchaseRequestUrgency;
+  company: string;
+  costCenter: string;
+  purchaseType: string;
+  requesterName: string;
+  requesterRegistration?: string | null;
+  requesterRole?: string | null;
+  requesterEmail: string;
+  requesterPhone?: string | null;
+  supplierName?: string | null;
+  supplierDocument?: string | null;
+  supplierContact?: string | null;
+  supplierDeliveryEstimate?: string | null;
+  justification: string;
+  observations?: string | null;
+  financeApproved?: boolean;
+  billingCnpj?: string | null;
+  paymentTerms?: string | null;
+  status: PurchaseRequestStatus;
+  itemsCount?: number;
+  totalAmount?: number | string;
+  attachments?: unknown;
+  createdAt?: string | Date;
+  updatedAt?: string | Date;
+  completedAt?: string | Date | null;
+  items?: Array<{
+    itemOrder?: number;
+    description: string;
+    unit: string;
+    quantity: number | string;
+    unitPrice: number | string;
+    totalPrice?: number | string;
+    supplierSuggestion?: string | null;
+  }>;
 };
 
 const WEBHOOK_URL_KEY = "frz_purchase_webhook_url";
@@ -177,6 +219,12 @@ const STATUS_LABELS: Record<PurchaseRequestStatus, string> = {
   cancelado: "Cancelado",
 };
 
+const URGENCY_LABELS: Record<PurchaseRequestUrgency, string> = {
+  baixa: "Baixa",
+  normal: "Normal",
+  alta: "Alta",
+};
+
 const APPROVAL_FLOW: Array<{ key: PurchaseRequestStatus; label: string }> = [
   { key: "solicitado", label: "Gestor analisa" },
   { key: "cotacao", label: "Compras cotação" },
@@ -191,6 +239,13 @@ function formatMoney(value: number) {
     style: "currency",
     currency: "BRL",
   });
+}
+
+function formatDateTime(value?: string | Date | null) {
+  if (!value) return "-";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return String(value);
+  return parsed.toLocaleString("pt-BR");
 }
 
 function getStatusBadgeClass(status: PurchaseRequestStatus) {
@@ -226,6 +281,10 @@ export default function PurchaseRequests() {
   const [form, setForm] = useState<RequestFormState>(INITIAL_FORM);
   const [items, setItems] = useState<RequestItemForm[]>([INITIAL_ITEM]);
   const [attachments, setAttachments] = useState<AttachmentMeta[]>([]);
+  const [selectedRequest, setSelectedRequest] =
+    useState<PurchaseRequestDetail | null>(null);
+  const [isRequestDialogOpen, setIsRequestDialogOpen] = useState(false);
+  const [isRequestDialogLoading, setIsRequestDialogLoading] = useState(false);
   const [listFilters, setListFilters] = useState<{
     status: "all" | PurchaseRequestStatus;
     urgency: "all" | PurchaseRequestUrgency;
@@ -494,6 +553,55 @@ export default function PurchaseRequests() {
     setAttachments(parsedAttachments as AttachmentMeta[]);
   };
 
+  const getStepState = (
+    requestStatus: PurchaseRequestStatus,
+    stepKey: PurchaseRequestStatus
+  ) => {
+    if (requestStatus === "cancelado") return "pending" as const;
+    if (requestStatus === "rascunho") return "pending" as const;
+
+    const currentIndex = APPROVAL_FLOW.findIndex(step => step.key === requestStatus);
+    const stepIndex = APPROVAL_FLOW.findIndex(step => step.key === stepKey);
+
+    if (currentIndex < 0 || stepIndex < 0) return "pending" as const;
+    if (stepIndex < currentIndex) return "done" as const;
+    if (stepIndex === currentIndex) return "current" as const;
+    return "pending" as const;
+  };
+
+  const openRequestDialog = async (requestId: number) => {
+    setIsRequestDialogOpen(true);
+    setIsRequestDialogLoading(true);
+    setSelectedRequest(null);
+
+    try {
+      const loaded = await utils.purchaseRequests.getById.fetch(requestId);
+
+      if (!loaded) {
+        toast.error("Solicitação não encontrada");
+        setSelectedRequest(null);
+        setIsRequestDialogOpen(false);
+        return;
+      }
+
+      setSelectedRequest(loaded as PurchaseRequestDetail);
+    } catch (error) {
+      console.error(error);
+      toast.error("Falha ao abrir detalhes da solicitação");
+      setSelectedRequest(null);
+      setIsRequestDialogOpen(false);
+    } finally {
+      setIsRequestDialogLoading(false);
+    }
+  };
+
+  const editRequestFromDialog = () => {
+    if (!selectedRequest) return;
+
+    loadRequestForEdit(selectedRequest);
+    setIsRequestDialogOpen(false);
+  };
+
   const sendWebhookIfConfigured = async (
     requestId: number,
     action: "created" | "updated"
@@ -604,6 +712,18 @@ export default function PurchaseRequests() {
       ? 0
       : Math.max(0, currentStepIndex + 1);
 
+  const selectedRequestItems = useMemo(() => {
+    if (!selectedRequest || !Array.isArray(selectedRequest.items)) return [];
+    return selectedRequest.items;
+  }, [selectedRequest]);
+
+  const selectedRequestAttachments = useMemo(() => {
+    if (!selectedRequest || !Array.isArray(selectedRequest.attachments)) return [];
+    return selectedRequest.attachments as AttachmentMeta[];
+  }, [selectedRequest]);
+
+  const selectedRequestTotalAmount = Number(selectedRequest?.totalAmount || 0);
+
   return (
     <div className="space-y-6">
       <Dialog open={isWebhookDialogOpen} onOpenChange={setIsWebhookDialogOpen}>
@@ -655,6 +775,312 @@ export default function PurchaseRequests() {
               </Button>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={isRequestDialogOpen}
+        onOpenChange={open => {
+          setIsRequestDialogOpen(open);
+          if (!open) {
+            setSelectedRequest(null);
+          }
+        }}
+      >
+        <DialogContent className="w-[calc(100vw-1rem)] sm:w-[calc(100vw-2rem)] max-w-[1100px] max-h-[92vh] min-h-[360px] md:min-h-[520px] md:min-w-[760px] overflow-auto md:resize bg-slate-900 border-slate-700 p-4 sm:p-6">
+          <DialogHeader>
+            <DialogTitle className="text-white">Detalhes da solicitação de compras</DialogTitle>
+            <DialogDescription className="text-gray-400">
+              Visualização completa da solicitação selecionada, incluindo o fluxo
+              atualizado de aprovação.
+            </DialogDescription>
+          </DialogHeader>
+
+          {isRequestDialogLoading ? (
+            <div className="py-12 flex items-center justify-center gap-3 text-gray-300">
+              <LoaderCircle className="h-5 w-5 animate-spin" />
+              Carregando solicitação...
+            </div>
+          ) : !selectedRequest ? (
+            <div className="py-10 text-center text-gray-400">
+              Não foi possível carregar os detalhes desta solicitação.
+            </div>
+          ) : (
+            <div className="space-y-5">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                <div>
+                  <p className="text-xs text-gray-400 uppercase tracking-wider">Documento</p>
+                  <p className="text-xl text-sky-300 font-semibold">
+                    {selectedRequest.documentNumber}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusBadgeClass(
+                      selectedRequest.status
+                    )}`}
+                  >
+                    {STATUS_LABELS[selectedRequest.status]}
+                  </span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="border-slate-600 text-gray-200 hover:bg-slate-800"
+                    onClick={editRequestFromDialog}
+                  >
+                    Editar solicitação
+                  </Button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="rounded-md border border-slate-700 bg-slate-800/70 p-3">
+                  <p className="text-xs text-gray-400">Data da solicitação</p>
+                  <p className="text-sm text-white mt-1">{selectedRequest.requestDate}</p>
+                </div>
+                <div className="rounded-md border border-slate-700 bg-slate-800/70 p-3">
+                  <p className="text-xs text-gray-400">Data necessária</p>
+                  <p className="text-sm text-white mt-1">{selectedRequest.neededDate}</p>
+                </div>
+                <div className="rounded-md border border-slate-700 bg-slate-800/70 p-3">
+                  <p className="text-xs text-gray-400">Urgência</p>
+                  <p className="text-sm text-white mt-1">
+                    {URGENCY_LABELS[selectedRequest.urgency]}
+                  </p>
+                </div>
+                <div className="rounded-md border border-slate-700 bg-slate-800/70 p-3">
+                  <p className="text-xs text-gray-400">Atualizado em</p>
+                  <p className="text-sm text-white mt-1">
+                    {formatDateTime(selectedRequest.updatedAt)}
+                  </p>
+                </div>
+              </div>
+
+              <div className="rounded-md border border-slate-700 bg-slate-800/70 p-3">
+                <p className="text-sm font-medium text-white mb-3">Fluxo de aprovação</p>
+                {selectedRequest.status === "cancelado" ? (
+                  <p className="text-sm text-red-300">
+                    Solicitação cancelada. Fluxo de aprovação interrompido.
+                  </p>
+                ) : selectedRequest.status === "rascunho" ? (
+                  <p className="text-sm text-slate-300">
+                    Solicitação em rascunho, aguardando envio para iniciar o fluxo.
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {APPROVAL_FLOW.map((step, index) => {
+                      const stepState = getStepState(selectedRequest.status, step.key);
+                      const markerClass =
+                        stepState === "done"
+                          ? "bg-emerald-500 border-emerald-400"
+                          : stepState === "current"
+                            ? "bg-sky-500 border-sky-400"
+                            : "bg-slate-700 border-slate-500";
+
+                      return (
+                        <div
+                          key={step.key}
+                          className="flex items-center gap-3 rounded-md border border-slate-700 bg-slate-900/60 p-2"
+                        >
+                          <span
+                            className={`h-6 w-6 rounded-full border flex items-center justify-center text-[11px] text-white ${markerClass}`}
+                          >
+                            {stepState === "done" ? <Check className="h-3.5 w-3.5" /> : index + 1}
+                          </span>
+                          <div className="flex-1">
+                            <p className="text-sm text-white">{step.label}</p>
+                            <p className="text-xs text-gray-400">
+                              {stepState === "current"
+                                ? "Etapa atual"
+                                : stepState === "done"
+                                  ? "Etapa concluída"
+                                  : "Aguardando etapa"}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="rounded-md border border-slate-700 bg-slate-800/70 p-3">
+                  <p className="text-xs text-gray-400">Empresa</p>
+                  <p className="text-sm text-white mt-1">{selectedRequest.company || "-"}</p>
+                </div>
+                <div className="rounded-md border border-slate-700 bg-slate-800/70 p-3">
+                  <p className="text-xs text-gray-400">Centro de custo</p>
+                  <p className="text-sm text-white mt-1">{selectedRequest.costCenter || "-"}</p>
+                </div>
+                <div className="rounded-md border border-slate-700 bg-slate-800/70 p-3">
+                  <p className="text-xs text-gray-400">Tipo de compra</p>
+                  <p className="text-sm text-white mt-1">{selectedRequest.purchaseType || "-"}</p>
+                </div>
+                <div className="rounded-md border border-slate-700 bg-slate-800/70 p-3">
+                  <p className="text-xs text-gray-400">Aprovado no financeiro</p>
+                  <p className="text-sm text-white mt-1">
+                    {selectedRequest.financeApproved ? "Sim" : "Não"}
+                  </p>
+                </div>
+              </div>
+
+              <div className="rounded-md border border-slate-700 bg-slate-800/70 p-3">
+                <p className="text-sm font-medium text-white mb-3">Solicitante</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <p className="text-xs text-gray-400">Nome</p>
+                    <p className="text-sm text-white mt-1">{selectedRequest.requesterName || "-"}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-400">E-mail</p>
+                    <p className="text-sm text-white mt-1">{selectedRequest.requesterEmail || "-"}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-400">Matrícula</p>
+                    <p className="text-sm text-white mt-1">
+                      {selectedRequest.requesterRegistration || "-"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-400">Cargo</p>
+                    <p className="text-sm text-white mt-1">{selectedRequest.requesterRole || "-"}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-md border border-slate-700 bg-slate-800/70 p-3">
+                <p className="text-sm font-medium text-white mb-3">Itens da solicitação</p>
+                {selectedRequestItems.length === 0 ? (
+                  <p className="text-sm text-gray-400">Nenhum item registrado.</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="border-slate-700 hover:bg-transparent">
+                          <TableHead className="text-gray-300">#</TableHead>
+                          <TableHead className="text-gray-300">Descrição</TableHead>
+                          <TableHead className="text-gray-300">Unidade</TableHead>
+                          <TableHead className="text-gray-300 text-right">Qtd</TableHead>
+                          <TableHead className="text-gray-300 text-right">Valor Unit.</TableHead>
+                          <TableHead className="text-gray-300 text-right">Total</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {selectedRequestItems.map((item, index) => {
+                          const quantity = Number(item.quantity || 0);
+                          const unitPrice = Number(item.unitPrice || 0);
+                          const totalPrice = Number(item.totalPrice || quantity * unitPrice);
+
+                          return (
+                            <TableRow
+                              key={`${selectedRequest.id}-item-${index}`}
+                              className="border-slate-700"
+                            >
+                              <TableCell className="text-gray-200">{index + 1}</TableCell>
+                              <TableCell className="text-white">{item.description || "-"}</TableCell>
+                              <TableCell className="text-gray-300">{item.unit || "-"}</TableCell>
+                              <TableCell className="text-right text-gray-300">{quantity}</TableCell>
+                              <TableCell className="text-right text-gray-300">
+                                {formatMoney(unitPrice)}
+                              </TableCell>
+                              <TableCell className="text-right text-sky-300">
+                                {formatMoney(totalPrice)}
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+                <div className="mt-3 text-right">
+                  <p className="text-xs text-gray-400">Valor total</p>
+                  <p className="text-lg font-semibold text-sky-300">
+                    {formatMoney(selectedRequestTotalAmount)}
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="rounded-md border border-slate-700 bg-slate-800/70 p-3">
+                  <p className="text-xs text-gray-400">Fornecedor sugerido</p>
+                  <p className="text-sm text-white mt-1">{selectedRequest.supplierName || "-"}</p>
+                </div>
+                <div className="rounded-md border border-slate-700 bg-slate-800/70 p-3">
+                  <p className="text-xs text-gray-400">Contato fornecedor</p>
+                  <p className="text-sm text-white mt-1">{selectedRequest.supplierContact || "-"}</p>
+                </div>
+                <div className="rounded-md border border-slate-700 bg-slate-800/70 p-3">
+                  <p className="text-xs text-gray-400">Documento fornecedor</p>
+                  <p className="text-sm text-white mt-1">{selectedRequest.supplierDocument || "-"}</p>
+                </div>
+                <div className="rounded-md border border-slate-700 bg-slate-800/70 p-3">
+                  <p className="text-xs text-gray-400">Previsão de entrega</p>
+                  <p className="text-sm text-white mt-1">
+                    {selectedRequest.supplierDeliveryEstimate || "-"}
+                  </p>
+                </div>
+              </div>
+
+              <div className="rounded-md border border-slate-700 bg-slate-800/70 p-3">
+                <p className="text-sm font-medium text-white mb-2">Justificativa</p>
+                <p className="text-sm text-gray-200 whitespace-pre-wrap">
+                  {selectedRequest.justification || "-"}
+                </p>
+                <p className="text-sm font-medium text-white mt-4 mb-2">Observações</p>
+                <p className="text-sm text-gray-200 whitespace-pre-wrap">
+                  {selectedRequest.observations || "-"}
+                </p>
+              </div>
+
+              <div className="rounded-md border border-slate-700 bg-slate-800/70 p-3">
+                <p className="text-sm font-medium text-white mb-2">Anexos</p>
+                {selectedRequestAttachments.length === 0 ? (
+                  <p className="text-sm text-gray-400">Sem anexos informados.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {selectedRequestAttachments.map((attachment, index) => (
+                      <div
+                        key={`${attachment.name}-${index}`}
+                        className="rounded-md border border-slate-700 bg-slate-900/60 px-3 py-2 flex items-center justify-between gap-3"
+                      >
+                        <p className="text-sm text-white break-words">{attachment.name}</p>
+                        <p className="text-xs text-gray-400 shrink-0">
+                          {(attachment.size / 1024).toFixed(1)} KB
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="rounded-md border border-slate-700 bg-slate-800/70 p-3">
+                  <p className="text-xs text-gray-400">CNPJ faturamento</p>
+                  <p className="text-sm text-white mt-1">{selectedRequest.billingCnpj || "-"}</p>
+                </div>
+                <div className="rounded-md border border-slate-700 bg-slate-800/70 p-3 md:col-span-2">
+                  <p className="text-xs text-gray-400">Condição de pagamento</p>
+                  <p className="text-sm text-white mt-1">{selectedRequest.paymentTerms || "-"}</p>
+                </div>
+                <div className="rounded-md border border-slate-700 bg-slate-800/70 p-3">
+                  <p className="text-xs text-gray-400">Criada em</p>
+                  <p className="text-sm text-white mt-1">{formatDateTime(selectedRequest.createdAt)}</p>
+                </div>
+                <div className="rounded-md border border-slate-700 bg-slate-800/70 p-3">
+                  <p className="text-xs text-gray-400">Atualizada em</p>
+                  <p className="text-sm text-white mt-1">{formatDateTime(selectedRequest.updatedAt)}</p>
+                </div>
+                <div className="rounded-md border border-slate-700 bg-slate-800/70 p-3">
+                  <p className="text-xs text-gray-400">Concluída em</p>
+                  <p className="text-sm text-white mt-1">
+                    {formatDateTime(selectedRequest.completedAt)}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 
@@ -1242,7 +1668,7 @@ export default function PurchaseRequests() {
           <div>
             <CardTitle className="text-white">Solicitações registradas</CardTitle>
             <CardDescription className="text-gray-400">
-              Clique na linha para carregar a solicitação para edição.
+              Clique na linha para abrir o modal completo da solicitação.
             </CardDescription>
           </div>
         </CardHeader>
@@ -1374,17 +1800,8 @@ export default function PurchaseRequests() {
                     <TableRow
                       key={request.id}
                       className="border-slate-700 hover:bg-slate-700/30 cursor-pointer"
-                      onClick={async () => {
-                        const loaded = await utils.purchaseRequests.getById.fetch(
-                          request.id
-                        );
-
-                        if (!loaded) {
-                          toast.error("Solicitação não encontrada");
-                          return;
-                        }
-
-                        loadRequestForEdit(loaded);
+                      onClick={() => {
+                        void openRequestDialog(request.id);
                       }}
                     >
                       <TableCell className="text-white font-medium">
