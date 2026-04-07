@@ -657,7 +657,7 @@ export default function Logs() {
       </Card>
 
       <Dialog open={Boolean(selectedLog)} onOpenChange={open => !open && setSelectedLog(null)}>
-        <DialogContent className="w-[calc(100vw-2rem)] max-w-5xl max-h-[90vh] overflow-y-auto bg-slate-900 border-slate-700">
+        <DialogContent className="w-[calc(100vw-1rem)] sm:w-[calc(100vw-2rem)] max-w-[1100px] max-h-[92vh] overflow-y-auto bg-slate-900 border-slate-700 p-4 sm:p-6">
           <DialogHeader>
             <DialogTitle className="text-white">Detalhes do evento de auditoria</DialogTitle>
             <DialogDescription className="text-gray-400">
@@ -667,22 +667,22 @@ export default function Logs() {
 
           {selectedLog && (
             <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
                 <div className="rounded-md border border-slate-700 bg-slate-800/70 p-3">
                   <p className="text-xs text-gray-400">Data/Hora</p>
-                  <p className="text-sm text-white mt-1">
+                  <p className="text-sm text-white mt-1 break-words">
                     {formatDateTime(selectedLog.createdAt)}
                   </p>
                 </div>
                 <div className="rounded-md border border-slate-700 bg-slate-800/70 p-3">
                   <p className="text-xs text-gray-400">Módulo</p>
-                  <p className="text-sm text-white mt-1">
+                  <p className="text-sm text-white mt-1 break-words">
                     {formatModule(selectedLog.module)}
                   </p>
                 </div>
                 <div className="rounded-md border border-slate-700 bg-slate-800/70 p-3">
                   <p className="text-xs text-gray-400">Ação</p>
-                  <p className="text-sm text-white mt-1">
+                  <p className="text-sm text-white mt-1 break-words">
                     {formatAction(selectedLog.action)}
                   </p>
                 </div>
@@ -700,7 +700,7 @@ export default function Logs() {
                 </div>
                 <div className="rounded-md border border-slate-700 bg-slate-800/70 p-3 md:col-span-2">
                   <p className="text-xs text-gray-400">Usuário</p>
-                  <p className="text-sm text-white mt-1">
+                  <p className="text-sm text-white mt-1 break-words">
                     {selectedLog.user
                       ? `${selectedLog.user.name} (${selectedLog.user.email || "sem e-mail"})`
                       : "Sistema / removido"}
@@ -708,7 +708,7 @@ export default function Logs() {
                 </div>
                 <div className="rounded-md border border-slate-700 bg-slate-800/70 p-3 md:col-span-2">
                   <p className="text-xs text-gray-400">Registro</p>
-                  <p className="text-sm text-white mt-1">
+                  <p className="text-sm text-white mt-1 break-words">
                     {formatRecordFallback(selectedLog)}
                   </p>
                 </div>
@@ -719,8 +719,25 @@ export default function Logs() {
                 {buildChangeDetails(selectedLog.changes).length === 0 ? (
                   <p className="text-sm text-gray-400">Sem detalhes de alteração para este evento.</p>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <Table>
+                  <>
+                    <div className="md:hidden space-y-2">
+                      {buildChangeDetails(selectedLog.changes).map(detail => (
+                        <div
+                          key={`${detail.field}-${detail.before || ""}-${detail.after}-mobile`}
+                          className="rounded-md border border-slate-700 bg-slate-900/60 p-3"
+                        >
+                          <p className="text-xs text-gray-400">Coluna</p>
+                          <p className="text-sm text-white break-words">{detail.field}</p>
+                          <p className="text-xs text-gray-400 mt-2">Valor anterior</p>
+                          <p className="text-sm text-gray-300 break-words">{detail.before || "-"}</p>
+                          <p className="text-xs text-gray-400 mt-2">Valor novo</p>
+                          <p className="text-sm text-sky-300 break-words">{detail.after}</p>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="hidden md:block overflow-x-auto">
+                      <Table>
                       <TableHeader>
                         <TableRow className="border-slate-700 hover:bg-transparent">
                           <TableHead className="text-gray-300">Coluna</TableHead>
@@ -735,15 +752,18 @@ export default function Logs() {
                             className="border-slate-700"
                           >
                             <TableCell className="text-white">{detail.field}</TableCell>
-                            <TableCell className="text-gray-300">
+                            <TableCell className="text-gray-300 break-words max-w-[260px]">
                               {detail.before || "-"}
                             </TableCell>
-                            <TableCell className="text-sky-300">{detail.after}</TableCell>
+                            <TableCell className="text-sky-300 break-words max-w-[260px]">
+                              {detail.after}
+                            </TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
                     </Table>
-                  </div>
+                    </div>
+                  </>
                 )}
               </div>
 
