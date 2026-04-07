@@ -301,7 +301,10 @@ export default function PurchaseRequests() {
     onError: error => toast.error(error.message),
   });
 
-  const isSaving = createMutation.isPending || updateMutation.isPending;
+  const webhookMutation = trpc.purchaseRequests.sendWebhook.useMutation();
+
+  const isSaving =
+    createMutation.isPending || updateMutation.isPending || webhookMutation.isPending;
 
   const mergedCompanies = useMemo(
     () =>
@@ -491,22 +494,29 @@ export default function PurchaseRequests() {
     setAttachments(parsedAttachments as AttachmentMeta[]);
   };
 
-  const sendWebhookIfConfigured = async (payload: Record<string, unknown>) => {
+  const sendWebhookIfConfigured = async (
+    requestId: number,
+    action: "created" | "updated"
+  ) => {
     if (!webhookUrl.trim()) return;
 
     try {
-      const response = await fetch(webhookUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...payload,
-          responsibleEmail,
-        }),
+      const result = await webhookMutation.mutateAsync({
+        requestId,
+        action,
+        webhookUrl: webhookUrl.trim(),
+        responsibleEmail: responsibleEmail.trim() || undefined,
       });
 
-      if (!response.ok && response.status !== 202) {
-        throw new Error(`HTTP ${response.status}`);
+      if (!result.delivered) {
+        const message = result.errorMessage
+          ? `Solicitação salva, mas webhook falhou (${result.errorMessage}).`
+          : "Solicitação salva, mas webhook falhou. Verifique a configuração.";
+        toast.warning(message);
+        return;
       }
+
+      toast.success("Webhook enviado com sucesso");
     } catch (error) {
       console.error(error);
       toast.warning(
@@ -556,20 +566,13 @@ export default function PurchaseRequests() {
     };
 
     if (editingId) {
-      await updateMutation.mutateAsync({ id: editingId, ...payload });
+      const requestId = editingId;
+      await updateMutation.mutateAsync({ id: requestId, ...payload });
+      await sendWebhookIfConfigured(requestId, "updated");
     } else {
       const result = await createMutation.mutateAsync(payload);
       if (result?.id) {
-        await sendWebhookIfConfigured({
-          id: result.id,
-          documentNumber: form.documentNumber,
-          company: form.company,
-          requesterName: form.requesterName,
-          urgency: form.urgency,
-          status,
-          totalAmount: totals.totalAmount,
-          items,
-        });
+        await sendWebhookIfConfigured(result.id, "created");
       }
     }
   };

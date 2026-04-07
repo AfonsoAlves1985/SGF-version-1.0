@@ -33,6 +33,7 @@ const LEGACY_ADMIN_OPEN_IDS = ["local-admin", "admin-local"];
 const LEGACY_ADMIN_EMAILS = ["admin@admin.com", "admin@local.com"];
 
 const DATE_MASK_REGEX = /^\d{2}-\d{2}-\d{4}$/;
+const WEBHOOK_TIMEOUT_MS = 10_000;
 
 type LoginAttemptState = {
   failedAttempts: number;
@@ -152,6 +153,104 @@ function parseMaskedDate(value: string) {
   }
 
   return date;
+}
+
+function getUnknownErrorMessage(error: unknown) {
+  if (error instanceof Error && error.message.trim().length > 0) {
+    return error.message;
+  }
+
+  return "Erro desconhecido";
+}
+
+type PurchaseWebhookAction = "created" | "updated";
+
+async function dispatchPurchaseRequestWebhook(input: {
+  requestId: number;
+  action: PurchaseWebhookAction;
+  webhookUrl: string;
+  responsibleEmail?: string;
+  actor: {
+    id: number;
+    name?: string | null;
+    email?: string | null;
+  };
+}) {
+  let parsedUrl: URL;
+
+  try {
+    parsedUrl = new URL(input.webhookUrl);
+  } catch {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: "Webhook inválido. Informe uma URL válida.",
+    });
+  }
+
+  if (parsedUrl.protocol !== "https:" && parsedUrl.protocol !== "http:") {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: "Webhook inválido. Use apenas HTTP ou HTTPS.",
+    });
+  }
+
+  const purchaseRequest = await db.getPurchaseRequestById(input.requestId);
+  if (!purchaseRequest) {
+    throw new TRPCError({
+      code: "NOT_FOUND",
+      message: "Solicitação de compra não encontrada para envio do webhook",
+    });
+  }
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), WEBHOOK_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(parsedUrl.toString(), {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      signal: controller.signal,
+      body: JSON.stringify({
+        event: `purchase_request.${input.action}`,
+        requestId: input.requestId,
+        responsibleEmail: input.responsibleEmail || null,
+        actor: {
+          id: input.actor.id,
+          name: input.actor.name || null,
+          email: input.actor.email || null,
+        },
+        timestamp: new Date().toISOString(),
+        data: purchaseRequest,
+      }),
+    });
+
+    if (!response.ok && response.status !== 202) {
+      return {
+        attempted: true,
+        delivered: false,
+        statusCode: response.status,
+        errorMessage: `HTTP ${response.status}`,
+      };
+    }
+
+    return {
+      attempted: true,
+      delivered: true,
+      statusCode: response.status,
+      errorMessage: null,
+    };
+  } catch (error) {
+    return {
+      attempted: true,
+      delivered: false,
+      statusCode: null,
+      errorMessage: getUnknownErrorMessage(error),
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 function ensureAccessManagementUser(user: { role: string } | null) {
@@ -1389,6 +1488,29 @@ export const appRouter = router({
     lookupValues: protectedProcedure.query(async () => {
       return db.listPurchaseRequestLookupValues();
     }),
+
+    sendWebhook: editorProcedure
+      .input(
+        z.object({
+          requestId: z.number(),
+          action: z.enum(["created", "updated"]).default("updated"),
+          webhookUrl: z.string().url(),
+          responsibleEmail: z.string().email().optional(),
+        })
+      )
+      .mutation(async ({ input, ctx }) => {
+        return dispatchPurchaseRequestWebhook({
+          requestId: input.requestId,
+          action: input.action,
+          webhookUrl: input.webhookUrl,
+          responsibleEmail: input.responsibleEmail,
+          actor: {
+            id: ctx.user.id,
+            name: ctx.user.name,
+            email: ctx.user.email,
+          },
+        });
+      }),
 
     create: editorProcedure
       .input(
