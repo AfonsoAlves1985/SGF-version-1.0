@@ -13,6 +13,7 @@
     "smoke:modules": "tsx scripts/smoke-modules.ts",
     "health:daily": "pnpm smoke:modules",
     "db:push": "drizzle-kit generate && drizzle-kit migrate",
+    "db:migrate:supabase": "bash scripts/migrate-supabase-maintenance.sh",
     "ac": "bash scripts/git-ac.sh",
     "acs": "bash scripts/git-acs.sh",
     "commit:check": "bash scripts/validate-commit-msg.sh",
