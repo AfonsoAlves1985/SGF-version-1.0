@@ -226,8 +226,47 @@ export default function PurchaseRequests() {
   const [form, setForm] = useState<RequestFormState>(INITIAL_FORM);
   const [items, setItems] = useState<RequestItemForm[]>([INITIAL_ITEM]);
   const [attachments, setAttachments] = useState<AttachmentMeta[]>([]);
+  const [listFilters, setListFilters] = useState<{
+    status: "all" | PurchaseRequestStatus;
+    urgency: "all" | PurchaseRequestUrgency;
+    company: string;
+    search: string;
+  }>({
+    status: "all",
+    urgency: "all",
+    company: "all",
+    search: "",
+  });
 
-  const requestsQuery = trpc.purchaseRequests.list.useQuery();
+  const requestsQueryInput = useMemo(() => {
+    const searchTerm = listFilters.search.trim();
+    const input: {
+      status?: PurchaseRequestStatus;
+      urgency?: PurchaseRequestUrgency;
+      company?: string;
+      search?: string;
+    } = {};
+
+    if (listFilters.status !== "all") {
+      input.status = listFilters.status;
+    }
+
+    if (listFilters.urgency !== "all") {
+      input.urgency = listFilters.urgency;
+    }
+
+    if (listFilters.company !== "all") {
+      input.company = listFilters.company;
+    }
+
+    if (searchTerm.length > 0) {
+      input.search = searchTerm;
+    }
+
+    return Object.keys(input).length > 0 ? input : undefined;
+  }, [listFilters]);
+
+  const requestsQuery = trpc.purchaseRequests.list.useQuery(requestsQueryInput);
   const lookupQuery = trpc.purchaseRequests.lookupValues.useQuery();
   const nextDocQuery = trpc.purchaseRequests.getNextDocumentNumber.useQuery(
     undefined,
@@ -551,6 +590,16 @@ export default function PurchaseRequests() {
   };
 
   const currentStepIndex = APPROVAL_FLOW.findIndex(step => step.key === form.status);
+  const currentFlowLabel =
+    form.status === "rascunho"
+      ? "Rascunho em elaboração"
+      : form.status === "cancelado"
+        ? "Solicitação cancelada"
+        : APPROVAL_FLOW[Math.max(currentStepIndex, 0)]?.label || "Em análise";
+  const completedFlowSteps =
+    form.status === "cancelado" || form.status === "rascunho"
+      ? 0
+      : Math.max(0, currentStepIndex + 1);
 
   return (
     <div className="space-y-6">
@@ -626,6 +675,12 @@ export default function PurchaseRequests() {
           >
             {STATUS_LABELS[form.status]}
           </span>
+          <p className="mt-2 text-xs text-gray-300">
+            Etapa atual: <span className="text-sky-300">{currentFlowLabel}</span>
+          </p>
+          <p className="text-xs text-gray-400">
+            Progresso: {completedFlowSteps}/{APPROVAL_FLOW.length}
+          </p>
         </div>
       </div>
 
@@ -1189,6 +1244,110 @@ export default function PurchaseRequests() {
           </div>
         </CardHeader>
         <CardContent>
+          <div className="mb-5 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3">
+            <div>
+              <Label className="text-gray-300">Buscar</Label>
+              <Input
+                value={listFilters.search}
+                onChange={event =>
+                  setListFilters(current => ({
+                    ...current,
+                    search: event.target.value,
+                  }))
+                }
+                placeholder="Documento, empresa, solicitante..."
+                className="mt-1 bg-slate-700 border-slate-600 text-white"
+              />
+            </div>
+            <div>
+              <Label className="text-gray-300">Status</Label>
+              <Select
+                value={listFilters.status}
+                onValueChange={value =>
+                  setListFilters(current => ({
+                    ...current,
+                    status: value as "all" | PurchaseRequestStatus,
+                  }))
+                }
+              >
+                <SelectTrigger className="mt-1 bg-slate-700 border-slate-600 text-white">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  {(Object.keys(STATUS_LABELS) as PurchaseRequestStatus[]).map(status => (
+                    <SelectItem key={status} value={status}>
+                      {STATUS_LABELS[status]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-gray-300">Urgência</Label>
+              <Select
+                value={listFilters.urgency}
+                onValueChange={value =>
+                  setListFilters(current => ({
+                    ...current,
+                    urgency: value as "all" | PurchaseRequestUrgency,
+                  }))
+                }
+              >
+                <SelectTrigger className="mt-1 bg-slate-700 border-slate-600 text-white">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas</SelectItem>
+                  <SelectItem value="baixa">Baixa</SelectItem>
+                  <SelectItem value="normal">Normal</SelectItem>
+                  <SelectItem value="alta">Alta</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-gray-300">Empresa</Label>
+              <Select
+                value={listFilters.company}
+                onValueChange={value =>
+                  setListFilters(current => ({
+                    ...current,
+                    company: value,
+                  }))
+                }
+              >
+                <SelectTrigger className="mt-1 bg-slate-700 border-slate-600 text-white">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas</SelectItem>
+                  {mergedCompanies.map(option => (
+                    <SelectItem key={option} value={option}>
+                      {option}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-end">
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full border-slate-600 text-gray-300 hover:bg-slate-800"
+                onClick={() =>
+                  setListFilters({
+                    status: "all",
+                    urgency: "all",
+                    company: "all",
+                    search: "",
+                  })
+                }
+              >
+                Limpar filtros
+              </Button>
+            </div>
+          </div>
+
           {requestsQuery.isLoading ? (
             <div className="text-center py-8 text-gray-400">Carregando solicitações...</div>
           ) : (requestsQuery.data || []).length === 0 ? (
