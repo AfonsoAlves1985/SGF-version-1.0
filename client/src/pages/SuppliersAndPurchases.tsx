@@ -49,8 +49,42 @@ const SERVICE_TYPES = [
   "Outro",
 ];
 
+function parseServiceTypes(value: unknown): string[] {
+  if (!value) return [];
+
+  if (Array.isArray(value)) {
+    return value.filter(item => typeof item === "string");
+  }
+
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+      if (Array.isArray(parsed)) {
+        return parsed.filter(item => typeof item === "string");
+      }
+    } catch {
+      return [];
+    }
+  }
+
+  return [];
+}
+
+function getSupplierStatusLabel(status: string) {
+  if (status === "ativo") return "Ativo";
+  if (status === "inativo") return "Inativo";
+  return "Suspenso";
+}
+
+function getSupplierStatusClass(status: string) {
+  if (status === "ativo") return "bg-green-600/30 text-green-300";
+  if (status === "inativo") return "bg-gray-600/30 text-gray-300";
+  return "bg-red-600/30 text-red-300";
+}
+
 export default function Suppliers() {
   const [isOpen, setIsOpen] = useState(false);
+  const [selectedSupplier, setSelectedSupplier] = useState<any | null>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [selectedSpace, setSelectedSpace] = useState<number | null>(null);
   const [filters, setFilters] = useState({ search: "" });
@@ -443,27 +477,22 @@ export default function Suppliers() {
                   {filteredSuppliers.map((supplier: any) => (
                     <TableRow
                       key={supplier.id}
-                      className="border-slate-700 hover:bg-slate-700/30"
+                      className="border-slate-700 hover:bg-slate-700/30 cursor-pointer"
+                      onClick={() => setSelectedSupplier(supplier)}
                     >
                       <TableCell className="text-white font-medium">
                         {supplier.companyName}
                       </TableCell>
                       <TableCell className="text-gray-300">
                         <div className="flex flex-wrap gap-1">
-                          {(() => {
-                            const types =
-                              typeof supplier.serviceTypes === "string"
-                                ? JSON.parse(supplier.serviceTypes || "[]")
-                                : supplier.serviceTypes || [];
-                            return types.map((type: string) => (
-                              <span
-                                key={type}
-                                className="px-2 py-1 bg-sky-600/30 text-sky-300 rounded text-xs"
-                              >
-                                {type}
-                              </span>
-                            ));
-                          })()}
+                          {parseServiceTypes(supplier.serviceTypes).map(type => (
+                            <span
+                              key={type}
+                              className="px-2 py-1 bg-sky-600/30 text-sky-300 rounded text-xs"
+                            >
+                              {type}
+                            </span>
+                          ))}
                         </div>
                       </TableCell>
                       <TableCell className="text-gray-300">
@@ -474,31 +503,29 @@ export default function Suppliers() {
                       </TableCell>
                       <TableCell>
                         <span
-                          className={`px-2 py-1 rounded text-xs font-medium ${
-                            supplier.status === "ativo"
-                              ? "bg-green-600/30 text-green-300"
-                              : supplier.status === "inativo"
-                                ? "bg-gray-600/30 text-gray-300"
-                                : "bg-red-600/30 text-red-300"
-                          }`}
+                          className={`px-2 py-1 rounded text-xs font-medium ${getSupplierStatusClass(
+                            supplier.status
+                          )}`}
                         >
-                          {supplier.status === "ativo"
-                            ? "Ativo"
-                            : supplier.status === "inativo"
-                              ? "Inativo"
-                              : "Suspenso"}
+                          {getSupplierStatusLabel(supplier.status)}
                         </span>
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
                           <button
-                            onClick={() => handleEdit(supplier)}
+                            onClick={event => {
+                              event.stopPropagation();
+                              handleEdit(supplier);
+                            }}
                             className="p-1 hover:bg-blue-600/30 rounded transition-colors"
                           >
                             <Edit2 className="h-4 w-4 text-blue-400" />
                           </button>
                           <button
-                            onClick={() => handleDelete(supplier.id)}
+                            onClick={event => {
+                              event.stopPropagation();
+                              handleDelete(supplier.id);
+                            }}
                             className="p-1 hover:bg-red-600/30 rounded transition-colors"
                           >
                             <Trash2 className="h-4 w-4 text-red-400" />
@@ -513,6 +540,98 @@ export default function Suppliers() {
           )}
         </CardContent>
       </Card>
+
+      <Dialog
+        open={Boolean(selectedSupplier)}
+        onOpenChange={open => !open && setSelectedSupplier(null)}
+      >
+        <DialogContent className="w-[calc(100vw-1rem)] sm:w-[calc(100vw-2rem)] max-w-[1000px] max-h-[92vh] overflow-y-auto bg-slate-900 border-slate-700 p-4 sm:p-6">
+          <DialogHeader>
+            <DialogTitle className="text-white text-2xl">
+              Detalhes do fornecedor
+            </DialogTitle>
+            <DialogDescription className="text-gray-400">
+              Visualização completa das informações do fornecedor selecionado.
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedSupplier && (
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+                <div className="rounded-md border border-slate-700 bg-slate-800/70 p-3 md:col-span-2">
+                  <p className="text-xs text-gray-400">Nome da empresa</p>
+                  <p className="text-sm text-white mt-1 break-words">
+                    {selectedSupplier.companyName}
+                  </p>
+                </div>
+
+                <div className="rounded-md border border-slate-700 bg-slate-800/70 p-3">
+                  <p className="text-xs text-gray-400">Status</p>
+                  <p className="text-sm mt-1">
+                    <span
+                      className={`px-2 py-1 rounded text-xs font-medium ${getSupplierStatusClass(
+                        selectedSupplier.status
+                      )}`}
+                    >
+                      {getSupplierStatusLabel(selectedSupplier.status)}
+                    </span>
+                  </p>
+                </div>
+
+                <div className="rounded-md border border-slate-700 bg-slate-800/70 p-3">
+                  <p className="text-xs text-gray-400">Responsável</p>
+                  <p className="text-sm text-white mt-1 break-words">
+                    {selectedSupplier.contactPerson || "-"}
+                  </p>
+                </div>
+
+                <div className="rounded-md border border-slate-700 bg-slate-800/70 p-3 md:col-span-2">
+                  <p className="text-xs text-gray-400">Contato</p>
+                  <p className="text-sm text-white mt-1 break-words">
+                    {selectedSupplier.contact || "-"}
+                  </p>
+                </div>
+
+                <div className="rounded-md border border-slate-700 bg-slate-800/70 p-3 md:col-span-2">
+                  <p className="text-xs text-gray-400 mb-2">Tipos de serviço</p>
+                  <div className="flex flex-wrap gap-2">
+                    {parseServiceTypes(selectedSupplier.serviceTypes).length === 0 ? (
+                      <span className="text-sm text-gray-400">-</span>
+                    ) : (
+                      parseServiceTypes(selectedSupplier.serviceTypes).map(type => (
+                        <span
+                          key={`${selectedSupplier.id}-${type}`}
+                          className="px-2 py-1 bg-sky-600/30 text-sky-300 rounded text-xs"
+                        >
+                          {type}
+                        </span>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                <div className="rounded-md border border-slate-700 bg-slate-800/70 p-3 md:col-span-2">
+                  <p className="text-xs text-gray-400">Notas</p>
+                  <p className="text-sm text-white mt-1 break-words whitespace-pre-wrap">
+                    {selectedSupplier.notes || "-"}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex justify-end">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="border-slate-600 text-gray-300 hover:bg-slate-700"
+                  onClick={() => setSelectedSupplier(null)}
+                >
+                  Fechar
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
