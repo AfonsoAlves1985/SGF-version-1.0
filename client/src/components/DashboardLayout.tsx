@@ -37,6 +37,7 @@ import {
   Handshake,
   ShieldCheck,
   ScrollText,
+  ShoppingCart,
 } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
@@ -52,7 +53,12 @@ const menuItems = [
 
   { icon: Building2, label: "Salas", path: "/rooms" },
   { icon: Wrench, label: "Manutenção", path: "/maintenance" },
-  { icon: FileText, label: "Fornecedores e Compras", path: "/suppliers" },
+  { icon: FileText, label: "Fornecedores", path: "/suppliers" },
+  {
+    icon: ShoppingCart,
+    label: "Solicitação de Compras",
+    path: "/purchase-requests",
+  },
   { icon: Handshake, label: "Contratos", path: "/contracts" },
   {
     icon: ShieldCheck,

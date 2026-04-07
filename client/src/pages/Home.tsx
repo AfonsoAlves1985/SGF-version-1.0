@@ -20,6 +20,7 @@ import {
   Handshake,
   ShieldCheck,
   ScrollText,
+  ShoppingCart,
 } from "lucide-react";
 import { getLoginUrl } from "@/const";
 import { useLocation } from "wouter";
@@ -120,6 +121,13 @@ export default function Home() {
       label: t("home.suppliers"),
       description: t("home.suppliers.desc"),
       path: "/suppliers",
+      color: "bg-sky-900/20 hover:bg-sky-900/30 border-sky-700/30",
+    },
+    {
+      icon: ShoppingCart,
+      label: "Solicitação de Compras",
+      description: "Fluxo completo de solicitação, cotação e aprovação",
+      path: "/purchase-requests",
       color: "bg-sky-900/20 hover:bg-sky-900/30 border-sky-700/30",
     },
     {

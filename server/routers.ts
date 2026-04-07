@@ -1350,6 +1350,507 @@ export const appRouter = router({
     }),
   }),
 
+  // ============ SOLICITAÇÃO DE COMPRAS ============
+  purchaseRequests: router({
+    list: protectedProcedure
+      .input(
+        z
+          .object({
+            status: z
+              .enum([
+                "rascunho",
+                "solicitado",
+                "cotacao",
+                "financeiro",
+                "aprovado",
+                "pedido_emitido",
+                "recebido",
+                "cancelado",
+              ])
+              .optional(),
+            urgency: z.enum(["baixa", "normal", "alta"]).optional(),
+            company: z.string().optional(),
+            search: z.string().optional(),
+          })
+          .optional()
+      )
+      .query(async ({ input }) => {
+        return db.listPurchaseRequests(input);
+      }),
+
+    getById: protectedProcedure.input(z.number()).query(async ({ input }) => {
+      return db.getPurchaseRequestById(input);
+    }),
+
+    getNextDocumentNumber: editorProcedure.query(async () => {
+      return db.getNextPurchaseRequestDocumentNumber();
+    }),
+
+    lookupValues: protectedProcedure.query(async () => {
+      return db.listPurchaseRequestLookupValues();
+    }),
+
+    create: editorProcedure
+      .input(
+        z.object({
+          documentNumber: z.string().min(1),
+          requestDate: z.string(),
+          neededDate: z.string(),
+          urgency: z.enum(["baixa", "normal", "alta"]),
+          company: z.string(),
+          costCenter: z.string(),
+          purchaseType: z.string(),
+          requesterName: z.string(),
+          requesterRegistration: z.string().optional(),
+          requesterRole: z.string().optional(),
+          requesterEmail: z.string(),
+          requesterPhone: z.string().optional(),
+          supplierName: z.string().optional(),
+          supplierDocument: z.string().optional(),
+          supplierContact: z.string().optional(),
+          supplierDeliveryEstimate: z.string().optional(),
+          justification: z.string(),
+          observations: z.string().optional(),
+          attachments: z
+            .array(
+              z.object({
+                name: z.string(),
+                size: z.number(),
+                type: z.string().optional(),
+              })
+            )
+            .optional(),
+          status: z
+            .enum([
+              "rascunho",
+              "solicitado",
+              "cotacao",
+              "financeiro",
+              "aprovado",
+              "pedido_emitido",
+              "recebido",
+              "cancelado",
+            ])
+            .default("solicitado"),
+          financeApproved: z.boolean().optional(),
+          billingCnpj: z.string().optional(),
+          paymentTerms: z.string().optional(),
+          items: z
+            .array(
+              z.object({
+                itemOrder: z.number().optional(),
+                description: z.string().min(1),
+                unit: z.string().min(1),
+                quantity: z.number().positive(),
+                unitPrice: z.number().nonnegative(),
+                supplierSuggestion: z.string().optional(),
+              })
+            )
+            .default([]),
+        })
+      )
+      .mutation(async ({ input, ctx }) => {
+        const isDraft = input.status === "rascunho";
+        const trimmedRequesterEmail = input.requesterEmail.trim().toLowerCase();
+        const emailValidation = z.string().email().safeParse(trimmedRequesterEmail);
+
+        const requestDate = parseMaskedDate(input.requestDate);
+        const neededDate = parseMaskedDate(input.neededDate);
+
+        if (!isDraft) {
+          if (
+            !input.requestDate.trim() ||
+            !input.neededDate.trim() ||
+            !requestDate ||
+            !neededDate
+          ) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: "Datas inválidas. Use DD-MM-YYYY",
+            });
+          }
+
+          if (neededDate.getTime() < requestDate.getTime()) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message:
+                "Data necessária não pode ser anterior à data da solicitação",
+            });
+          }
+
+          if (!input.company.trim()) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: "Empresa é obrigatória",
+            });
+          }
+
+          if (!input.costCenter.trim()) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: "Centro de custo é obrigatório",
+            });
+          }
+
+          if (!input.purchaseType.trim()) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: "Tipo de compra é obrigatório",
+            });
+          }
+
+          if (!input.requesterName.trim()) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: "Nome do solicitante é obrigatório",
+            });
+          }
+
+          if (!emailValidation.success) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: "E-mail do solicitante inválido",
+            });
+          }
+
+          if (!input.justification.trim()) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: "Justificativa é obrigatória",
+            });
+          }
+
+          if (input.items.length === 0) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: "Adicione ao menos um item na solicitação",
+            });
+          }
+        }
+
+        const now = new Date();
+        const maskToday = `${String(now.getDate()).padStart(2, "0")}-${String(
+          now.getMonth() + 1
+        ).padStart(2, "0")}-${now.getFullYear()}`;
+        const persistedRequestDate = requestDate ? input.requestDate : maskToday;
+        const persistedNeededDate = neededDate ? input.neededDate : persistedRequestDate;
+        const persistedRequesterEmail = emailValidation.success
+          ? trimmedRequesterEmail
+          : "rascunho@pendente.local";
+
+        const id = await db.createPurchaseRequest({
+          request: {
+            documentNumber: input.documentNumber.trim(),
+            requestDate: persistedRequestDate,
+            neededDate: persistedNeededDate,
+            urgency: input.urgency,
+            company: input.company.trim() || "Pendente",
+            costCenter: input.costCenter.trim() || "Pendente",
+            purchaseType: input.purchaseType.trim() || "Pendente",
+            requesterName: input.requesterName.trim() || "Não informado",
+            requesterRegistration: input.requesterRegistration?.trim() || null,
+            requesterRole: input.requesterRole?.trim() || null,
+            requesterEmail: persistedRequesterEmail,
+            requesterPhone: input.requesterPhone?.trim() || null,
+            supplierName: input.supplierName?.trim() || null,
+            supplierDocument: input.supplierDocument?.trim() || null,
+            supplierContact: input.supplierContact?.trim() || null,
+            supplierDeliveryEstimate:
+              input.supplierDeliveryEstimate?.trim() || null,
+            justification: input.justification.trim() || "Rascunho em preenchimento",
+            observations: input.observations?.trim() || null,
+            attachments: input.attachments || null,
+            status: input.status,
+            completedAt: input.status === "recebido" ? new Date() : null,
+            financeApproved: input.financeApproved ?? false,
+            billingCnpj: input.billingCnpj?.trim() || null,
+            paymentTerms: input.paymentTerms?.trim() || null,
+            createdBy: ctx.user.id,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+          items: input.items.map(item => ({
+            itemOrder: item.itemOrder,
+            description: item.description.trim(),
+            unit: item.unit.trim(),
+            quantity: item.quantity,
+            unitPrice: item.unitPrice.toFixed(2),
+            totalPrice: (item.quantity * item.unitPrice).toFixed(2),
+            supplierSuggestion: item.supplierSuggestion?.trim() || null,
+          })),
+        });
+
+        return { success: true, id };
+      }),
+
+    update: editorProcedure
+      .input(
+        z.object({
+          id: z.number(),
+          documentNumber: z.string().min(1).optional(),
+          requestDate: z.string().optional(),
+          neededDate: z.string().optional(),
+          urgency: z.enum(["baixa", "normal", "alta"]).optional(),
+          company: z.string().optional(),
+          costCenter: z.string().optional(),
+          purchaseType: z.string().optional(),
+          requesterName: z.string().optional(),
+          requesterRegistration: z.string().optional(),
+          requesterRole: z.string().optional(),
+          requesterEmail: z.string().optional(),
+          requesterPhone: z.string().optional(),
+          supplierName: z.string().optional(),
+          supplierDocument: z.string().optional(),
+          supplierContact: z.string().optional(),
+          supplierDeliveryEstimate: z.string().optional(),
+          justification: z.string().optional(),
+          observations: z.string().optional(),
+          attachments: z
+            .array(
+              z.object({
+                name: z.string(),
+                size: z.number(),
+                type: z.string().optional(),
+              })
+            )
+            .optional(),
+          status: z
+            .enum([
+              "rascunho",
+              "solicitado",
+              "cotacao",
+              "financeiro",
+              "aprovado",
+              "pedido_emitido",
+              "recebido",
+              "cancelado",
+            ])
+            .optional(),
+          financeApproved: z.boolean().optional(),
+          billingCnpj: z.string().optional(),
+          paymentTerms: z.string().optional(),
+          items: z
+            .array(
+              z.object({
+                itemOrder: z.number().optional(),
+                description: z.string().min(1),
+                unit: z.string().min(1),
+                quantity: z.number().positive(),
+                unitPrice: z.number().nonnegative(),
+                supplierSuggestion: z.string().optional(),
+              })
+            )
+            .optional(),
+        })
+      )
+      .mutation(async ({ input }) => {
+        const { id, items, ...requestData } = input;
+
+        const existingRequest = await db.getPurchaseRequestById(id);
+        if (!existingRequest) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Solicitação de compra não encontrada",
+          });
+        }
+
+        const targetStatus = requestData.status ?? existingRequest.status;
+        const isDraft = targetStatus === "rascunho";
+
+        const effectiveRequestDate =
+          requestData.requestDate ?? existingRequest.requestDate;
+        const effectiveNeededDate = requestData.neededDate ?? existingRequest.neededDate;
+        const parsedRequestDate = parseMaskedDate(effectiveRequestDate);
+        const parsedNeededDate = parseMaskedDate(effectiveNeededDate);
+
+        if (!isDraft) {
+          if (!parsedRequestDate || !parsedNeededDate) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: "Datas inválidas. Use DD-MM-YYYY",
+            });
+          }
+
+          if (parsedNeededDate.getTime() < parsedRequestDate.getTime()) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message:
+                "Data necessária não pode ser anterior à data da solicitação",
+            });
+          }
+
+          const effectiveCompany = requestData.company ?? existingRequest.company;
+          const effectiveCostCenter =
+            requestData.costCenter ?? existingRequest.costCenter;
+          const effectivePurchaseType =
+            requestData.purchaseType ?? existingRequest.purchaseType;
+          const effectiveRequesterName =
+            requestData.requesterName ?? existingRequest.requesterName;
+          const effectiveJustification =
+            requestData.justification ?? existingRequest.justification;
+          const effectiveRequesterEmail = (
+            requestData.requesterEmail ?? existingRequest.requesterEmail
+          )
+            .trim()
+            .toLowerCase();
+          const effectiveItems = items ?? existingRequest.items ?? [];
+
+          if (!effectiveCompany.trim()) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: "Empresa é obrigatória",
+            });
+          }
+
+          if (!effectiveCostCenter.trim()) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: "Centro de custo é obrigatório",
+            });
+          }
+
+          if (!effectivePurchaseType.trim()) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: "Tipo de compra é obrigatório",
+            });
+          }
+
+          if (!effectiveRequesterName.trim()) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: "Nome do solicitante é obrigatório",
+            });
+          }
+
+          if (!z.string().email().safeParse(effectiveRequesterEmail).success) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: "E-mail do solicitante inválido",
+            });
+          }
+
+          if (!effectiveJustification.trim()) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: "Justificativa é obrigatória",
+            });
+          }
+
+          if (effectiveItems.length === 0) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: "Adicione ao menos um item na solicitação",
+            });
+          }
+        }
+
+        await db.updatePurchaseRequest(id, {
+          request: {
+            ...(requestData.documentNumber !== undefined
+              ? { documentNumber: requestData.documentNumber.trim() }
+              : {}),
+            ...(requestData.requestDate !== undefined
+              ? { requestDate: requestData.requestDate }
+              : {}),
+            ...(requestData.neededDate !== undefined
+              ? { neededDate: requestData.neededDate }
+              : {}),
+            ...(requestData.urgency !== undefined
+              ? { urgency: requestData.urgency }
+              : {}),
+            ...(requestData.company !== undefined
+              ? { company: requestData.company.trim() }
+              : {}),
+            ...(requestData.costCenter !== undefined
+              ? { costCenter: requestData.costCenter.trim() }
+              : {}),
+            ...(requestData.purchaseType !== undefined
+              ? { purchaseType: requestData.purchaseType.trim() }
+              : {}),
+            ...(requestData.requesterName !== undefined
+              ? { requesterName: requestData.requesterName.trim() }
+              : {}),
+            ...(requestData.requesterRegistration !== undefined
+              ? {
+                  requesterRegistration:
+                    requestData.requesterRegistration.trim() || null,
+                }
+              : {}),
+            ...(requestData.requesterRole !== undefined
+              ? { requesterRole: requestData.requesterRole.trim() || null }
+              : {}),
+            ...(requestData.requesterEmail !== undefined
+              ? { requesterEmail: requestData.requesterEmail.trim().toLowerCase() }
+              : {}),
+            ...(requestData.requesterPhone !== undefined
+              ? { requesterPhone: requestData.requesterPhone.trim() || null }
+              : {}),
+            ...(requestData.supplierName !== undefined
+              ? { supplierName: requestData.supplierName.trim() || null }
+              : {}),
+            ...(requestData.supplierDocument !== undefined
+              ? { supplierDocument: requestData.supplierDocument.trim() || null }
+              : {}),
+            ...(requestData.supplierContact !== undefined
+              ? { supplierContact: requestData.supplierContact.trim() || null }
+              : {}),
+            ...(requestData.supplierDeliveryEstimate !== undefined
+              ? {
+                  supplierDeliveryEstimate:
+                    requestData.supplierDeliveryEstimate.trim() || null,
+                }
+              : {}),
+            ...(requestData.justification !== undefined
+              ? { justification: requestData.justification.trim() }
+              : {}),
+            ...(requestData.observations !== undefined
+              ? { observations: requestData.observations.trim() || null }
+              : {}),
+            ...(requestData.attachments !== undefined
+              ? { attachments: requestData.attachments || null }
+              : {}),
+            ...(requestData.status !== undefined
+              ? {
+                  status: requestData.status,
+                  completedAt:
+                    requestData.status === "recebido" ? new Date() : null,
+                }
+              : {}),
+            ...(requestData.financeApproved !== undefined
+              ? { financeApproved: requestData.financeApproved }
+              : {}),
+            ...(requestData.billingCnpj !== undefined
+              ? { billingCnpj: requestData.billingCnpj.trim() || null }
+              : {}),
+            ...(requestData.paymentTerms !== undefined
+              ? { paymentTerms: requestData.paymentTerms.trim() || null }
+              : {}),
+          },
+          ...(items
+            ? {
+                items: items.map(item => ({
+                  itemOrder: item.itemOrder,
+                  description: item.description.trim(),
+                  unit: item.unit.trim(),
+                  quantity: item.quantity,
+                  unitPrice: item.unitPrice.toFixed(2),
+                  totalPrice: (item.quantity * item.unitPrice).toFixed(2),
+                  supplierSuggestion: item.supplierSuggestion?.trim() || null,
+                })),
+              }
+            : {}),
+        });
+
+        return { success: true };
+      }),
+
+    delete: editorProcedure.input(z.number()).mutation(async ({ input }) => {
+      await db.deletePurchaseRequest(input);
+      return { success: true };
+    }),
+  }),
+
   // ============ CONSUMÍVEIS ============
   consumables: router({
     list: protectedProcedure

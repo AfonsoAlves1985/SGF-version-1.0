@@ -79,6 +79,21 @@ export const supplierStatusEnum = pgEnum("supplier_status", [
   "inativo",
   "suspenso",
 ]);
+export const purchaseRequestUrgencyEnum = pgEnum("purchase_request_urgency", [
+  "baixa",
+  "normal",
+  "alta",
+]);
+export const purchaseRequestStatusEnum = pgEnum("purchase_request_status", [
+  "rascunho",
+  "solicitado",
+  "cotacao",
+  "financeiro",
+  "aprovado",
+  "pedido_emitido",
+  "recebido",
+  "cancelado",
+]);
 export const teamRoleEnum = pgEnum("team_role", [
   "limpeza",
   "manutencao",
@@ -449,6 +464,67 @@ export const suppliersWithSpace = pgTable(
   ]
 );
 
+export const purchaseRequests = pgTable(
+  "purchase_requests",
+  {
+    id: serial().primaryKey(),
+    documentNumber: varchar({ length: 30 }).notNull(),
+    requestDate: varchar({ length: 10 }).notNull(),
+    neededDate: varchar({ length: 10 }).notNull(),
+    urgency: purchaseRequestUrgencyEnum().default("normal").notNull(),
+    company: varchar({ length: 255 }).notNull(),
+    costCenter: varchar({ length: 150 }).notNull(),
+    purchaseType: varchar({ length: 150 }).notNull(),
+    requesterName: varchar({ length: 255 }).notNull(),
+    requesterRegistration: varchar({ length: 80 }),
+    requesterRole: varchar({ length: 120 }),
+    requesterEmail: varchar({ length: 320 }).notNull(),
+    requesterPhone: varchar({ length: 40 }),
+    supplierName: varchar({ length: 255 }),
+    supplierDocument: varchar({ length: 30 }),
+    supplierContact: varchar({ length: 255 }),
+    supplierDeliveryEstimate: varchar({ length: 120 }),
+    justification: text().notNull(),
+    observations: text(),
+    attachments: json(),
+    itemsCount: integer().default(0).notNull(),
+    totalAmount: decimal({ precision: 14, scale: 2 }).default("0.00").notNull(),
+    status: purchaseRequestStatusEnum().default("solicitado").notNull(),
+    financeApproved: boolean().default(false).notNull(),
+    billingCnpj: varchar({ length: 18 }),
+    paymentTerms: varchar({ length: 255 }),
+    createdBy: integer().references(() => users.id),
+    createdAt: timestamp().defaultNow().notNull(),
+    updatedAt: timestamp().defaultNow().notNull(),
+    completedAt: timestamp(),
+  },
+  table => [
+    index("purchase_requests_document_idx").on(table.documentNumber),
+    index("purchase_requests_status_idx").on(table.status),
+    index("purchase_requests_createdAt_idx").on(table.createdAt),
+  ]
+);
+
+export const purchaseRequestItems = pgTable(
+  "purchase_request_items",
+  {
+    id: serial().primaryKey(),
+    purchaseRequestId: integer()
+      .notNull()
+      .references(() => purchaseRequests.id, { onDelete: "cascade" }),
+    itemOrder: integer().default(1).notNull(),
+    description: text().notNull(),
+    unit: varchar({ length: 40 }).notNull(),
+    quantity: doublePrecision().notNull(),
+    unitPrice: decimal({ precision: 14, scale: 2 }).notNull(),
+    totalPrice: decimal({ precision: 14, scale: 2 }).notNull(),
+    supplierSuggestion: varchar({ length: 255 }),
+    createdAt: timestamp().defaultNow().notNull(),
+    updatedAt: timestamp().defaultNow().notNull(),
+  },
+  table => [index("purchase_request_items_request_idx").on(table.purchaseRequestId)]
+);
+
 export const teams = pgTable("teams", {
   id: serial().primaryKey(),
   name: varchar({ length: 255 }).notNull(),
@@ -558,6 +634,12 @@ export type Supplier = typeof suppliers.$inferSelect;
 
 export type InsertSupplierWithSpace = typeof suppliersWithSpace.$inferInsert;
 export type SupplierWithSpace = typeof suppliersWithSpace.$inferSelect;
+
+export type InsertPurchaseRequest = typeof purchaseRequests.$inferInsert;
+export type PurchaseRequest = typeof purchaseRequests.$inferSelect;
+
+export type InsertPurchaseRequestItem = typeof purchaseRequestItems.$inferInsert;
+export type PurchaseRequestItem = typeof purchaseRequestItems.$inferSelect;
 
 export type InsertSupplierSpace = typeof supplierSpaces.$inferInsert;
 export type SupplierSpace = typeof supplierSpaces.$inferSelect;

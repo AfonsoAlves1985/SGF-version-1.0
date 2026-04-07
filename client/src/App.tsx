@@ -14,6 +14,7 @@ const Maintenance = lazy(() => import("./pages/Maintenance"));
 const SuppliersAndPurchases = lazy(
   () => import("./pages/SuppliersAndPurchases")
 );
+const PurchaseRequests = lazy(() => import("./pages/PurchaseRequests"));
 const Contracts = lazy(() => import("./pages/Contracts"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Consumables = lazy(() => import("./pages/Consumables"));
@@ -118,6 +119,7 @@ function Router() {
           <Route path={"/rooms"} component={Rooms} />
           <Route path={"/maintenance"} component={Maintenance} />
           <Route path={"/suppliers"} component={SuppliersAndPurchases} />
+          <Route path={"/purchase-requests"} component={PurchaseRequests} />
           <Route path={"/contracts"} component={Contracts} />
           <Route path={"/consumables"} component={Consumables} />
           <Route path={"/dashboard"} component={Dashboard} />

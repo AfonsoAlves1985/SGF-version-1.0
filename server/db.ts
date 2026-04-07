@@ -30,6 +30,10 @@ import {
   InsertSupplierWithSpace,
   supplierSpaces,
   InsertSupplierSpace,
+  purchaseRequests,
+  purchaseRequestItems,
+  InsertPurchaseRequest,
+  InsertPurchaseRequestItem,
   consumables,
   consumablesWeekly,
   consumablesMonthly,
@@ -70,6 +74,7 @@ const MIGRATION_FILES = [
   "0003_maintenance_request_fields.sql",
   "0004_user_invitations.sql",
   "0005_inventory_units_assets.sql",
+  "0006_purchase_requests_module.sql",
 ] as const;
 
 const NON_FATAL_MIGRATION_ERROR_CODES = new Set([
@@ -329,6 +334,99 @@ async function ensureEssentialModuleTables(db: ReturnType<typeof drizzle>) {
       ALTER TABLE "inventory_assets"
       ADD CONSTRAINT "inventory_assets_spaceId_inventory_spaces_id_fk"
       FOREIGN KEY ("spaceId") REFERENCES "inventory_spaces"("id")
+      ON DELETE CASCADE ON UPDATE NO ACTION;
+    EXCEPTION
+      WHEN duplicate_object THEN null;
+    END $$;
+  `);
+
+  await run(`
+    CREATE TABLE IF NOT EXISTS "purchase_requests" (
+      "id" serial PRIMARY KEY,
+      "documentNumber" varchar(30) NOT NULL,
+      "requestDate" varchar(10) NOT NULL,
+      "neededDate" varchar(10) NOT NULL,
+      "urgency" varchar(20) NOT NULL DEFAULT 'normal',
+      "company" varchar(255) NOT NULL,
+      "costCenter" varchar(150) NOT NULL,
+      "purchaseType" varchar(150) NOT NULL,
+      "requesterName" varchar(255) NOT NULL,
+      "requesterRegistration" varchar(80),
+      "requesterRole" varchar(120),
+      "requesterEmail" varchar(320) NOT NULL,
+      "requesterPhone" varchar(40),
+      "supplierName" varchar(255),
+      "supplierDocument" varchar(30),
+      "supplierContact" varchar(255),
+      "supplierDeliveryEstimate" varchar(120),
+      "justification" text NOT NULL,
+      "observations" text,
+      "attachments" json,
+      "itemsCount" integer DEFAULT 0 NOT NULL,
+      "totalAmount" numeric(14,2) DEFAULT '0.00' NOT NULL,
+      "status" varchar(32) DEFAULT 'solicitado' NOT NULL,
+      "financeApproved" boolean DEFAULT false NOT NULL,
+      "billingCnpj" varchar(18),
+      "paymentTerms" varchar(255),
+      "createdBy" integer,
+      "createdAt" timestamp DEFAULT now() NOT NULL,
+      "updatedAt" timestamp DEFAULT now() NOT NULL,
+      "completedAt" timestamp
+    );
+  `);
+
+  await run(`
+    CREATE TABLE IF NOT EXISTS "purchase_request_items" (
+      "id" serial PRIMARY KEY,
+      "purchaseRequestId" integer NOT NULL,
+      "itemOrder" integer DEFAULT 1 NOT NULL,
+      "description" text NOT NULL,
+      "unit" varchar(40) NOT NULL,
+      "quantity" double precision NOT NULL,
+      "unitPrice" numeric(14,2) NOT NULL,
+      "totalPrice" numeric(14,2) NOT NULL,
+      "supplierSuggestion" varchar(255),
+      "createdAt" timestamp DEFAULT now() NOT NULL,
+      "updatedAt" timestamp DEFAULT now() NOT NULL
+    );
+  `);
+
+  await run(`
+    CREATE INDEX IF NOT EXISTS "purchase_requests_document_idx"
+    ON "purchase_requests" ("documentNumber");
+  `);
+
+  await run(`
+    CREATE INDEX IF NOT EXISTS "purchase_requests_status_idx"
+    ON "purchase_requests" ("status");
+  `);
+
+  await run(`
+    CREATE INDEX IF NOT EXISTS "purchase_requests_createdAt_idx"
+    ON "purchase_requests" ("createdAt");
+  `);
+
+  await run(`
+    CREATE INDEX IF NOT EXISTS "purchase_request_items_request_idx"
+    ON "purchase_request_items" ("purchaseRequestId");
+  `);
+
+  await run(`
+    DO $$ BEGIN
+      ALTER TABLE "purchase_requests"
+      ADD CONSTRAINT "purchase_requests_createdBy_users_id_fk"
+      FOREIGN KEY ("createdBy") REFERENCES "users"("id")
+      ON DELETE NO ACTION ON UPDATE NO ACTION;
+    EXCEPTION
+      WHEN duplicate_object THEN null;
+    END $$;
+  `);
+
+  await run(`
+    DO $$ BEGIN
+      ALTER TABLE "purchase_request_items"
+      ADD CONSTRAINT "purchase_request_items_purchaseRequestId_purchase_requests_id_fk"
+      FOREIGN KEY ("purchaseRequestId") REFERENCES "purchase_requests"("id")
       ON DELETE CASCADE ON UPDATE NO ACTION;
     EXCEPTION
       WHEN duplicate_object THEN null;
@@ -2341,6 +2439,282 @@ export async function deleteSupplierWithSpace(id: number) {
   return db.delete(suppliersWithSpace).where(eq(suppliersWithSpace.id, id));
 }
 
+// ============ SOLICITAÇÃO DE COMPRAS ============
+
+type PurchaseRequestListFilters = {
+  status?: string;
+  urgency?: string;
+  company?: string;
+  search?: string;
+};
+
+type PurchaseRequestWithItemsInput = {
+  request: InsertPurchaseRequest;
+  items: Array<
+    Omit<InsertPurchaseRequestItem, "purchaseRequestId" | "createdAt" | "updatedAt">
+  >;
+};
+
+function normalizePurchaseRequestItems(
+  items: PurchaseRequestWithItemsInput["items"]
+) {
+  return items.map((item, index) => {
+    const quantity = Number(item.quantity || 0);
+    const unitPriceNumber = Number(item.unitPrice || 0);
+    const totalPriceNumber = quantity * unitPriceNumber;
+
+    return {
+      itemOrder: item.itemOrder ?? index + 1,
+      description: item.description,
+      unit: item.unit,
+      quantity,
+      unitPrice: unitPriceNumber.toFixed(2),
+      totalPrice: totalPriceNumber.toFixed(2),
+      supplierSuggestion: item.supplierSuggestion || null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+  });
+}
+
+function getPurchaseRequestTotals(
+  normalizedItems: ReturnType<typeof normalizePurchaseRequestItems>
+) {
+  const itemsCount = normalizedItems.length;
+  const totalAmount = normalizedItems
+    .reduce((sum, item) => sum + Number(item.totalPrice || 0), 0)
+    .toFixed(2);
+
+  return {
+    itemsCount,
+    totalAmount,
+  };
+}
+
+export async function getNextPurchaseRequestDocumentNumber() {
+  const db = await getDb();
+  if (!db) {
+    const year = new Date().getFullYear();
+    return `SC-${year}-0001`;
+  }
+
+  const year = new Date().getFullYear();
+  const prefix = `SC-${year}-`;
+
+  const rows = await db
+    .select({ documentNumber: purchaseRequests.documentNumber })
+    .from(purchaseRequests)
+    .where(like(purchaseRequests.documentNumber, `${prefix}%`))
+    .orderBy(desc(purchaseRequests.documentNumber));
+
+  let maxSequence = 0;
+  for (const row of rows) {
+    const numberPart = row.documentNumber.replace(prefix, "");
+    const value = Number(numberPart);
+    if (!Number.isNaN(value) && value > maxSequence) {
+      maxSequence = value;
+    }
+  }
+
+  return `${prefix}${String(maxSequence + 1).padStart(4, "0")}`;
+}
+
+export async function listPurchaseRequests(filters?: PurchaseRequestListFilters) {
+  const db = await getDb();
+  if (!db) return [];
+
+  const conditions = [];
+
+  if (filters?.status) {
+    conditions.push(eq(purchaseRequests.status, filters.status as any));
+  }
+
+  if (filters?.urgency) {
+    conditions.push(eq(purchaseRequests.urgency, filters.urgency as any));
+  }
+
+  if (filters?.company) {
+    conditions.push(eq(purchaseRequests.company, filters.company));
+  }
+
+  if (filters?.search) {
+    const term = `%${filters.search}%`;
+    conditions.push(
+      or(
+        like(purchaseRequests.documentNumber, term),
+        like(purchaseRequests.requesterName, term),
+        like(purchaseRequests.company, term),
+        like(purchaseRequests.justification, term)
+      )
+    );
+  }
+
+  let query: any = db.select().from(purchaseRequests);
+
+  if (conditions.length > 0) {
+    query = query.where(and(...conditions));
+  }
+
+  return (await query.orderBy(desc(purchaseRequests.createdAt))) as any[];
+}
+
+export async function getPurchaseRequestById(id: number) {
+  const db = await getDb();
+  if (!db) return null;
+
+  const requestResult = await db
+    .select()
+    .from(purchaseRequests)
+    .where(eq(purchaseRequests.id, id))
+    .limit(1);
+
+  if (requestResult.length === 0) return null;
+
+  const items = await db
+    .select()
+    .from(purchaseRequestItems)
+    .where(eq(purchaseRequestItems.purchaseRequestId, id))
+    .orderBy(asc(purchaseRequestItems.itemOrder));
+
+  return {
+    ...requestResult[0],
+    items,
+  };
+}
+
+export async function createPurchaseRequest(data: PurchaseRequestWithItemsInput) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const normalizedItems = normalizePurchaseRequestItems(data.items);
+  const totals = getPurchaseRequestTotals(normalizedItems);
+
+  return db.transaction(async tx => {
+    const insertedRequests = await tx
+      .insert(purchaseRequests)
+      .values({
+        ...data.request,
+        itemsCount: totals.itemsCount,
+        totalAmount: totals.totalAmount,
+        updatedAt: new Date(),
+      })
+      .returning({ id: purchaseRequests.id });
+
+    const requestId = insertedRequests[0]?.id;
+    if (!requestId) {
+      throw new Error("Failed to create purchase request");
+    }
+
+    if (normalizedItems.length > 0) {
+      await tx.insert(purchaseRequestItems).values(
+        normalizedItems.map(item => ({
+          ...item,
+          purchaseRequestId: requestId,
+        }))
+      );
+    }
+
+    return requestId;
+  });
+}
+
+export async function updatePurchaseRequest(
+  id: number,
+  data: {
+    request?: Partial<InsertPurchaseRequest>;
+    items?: PurchaseRequestWithItemsInput["items"];
+  }
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  return db.transaction(async tx => {
+    if (data.request) {
+      await tx
+        .update(purchaseRequests)
+        .set({
+          ...data.request,
+          updatedAt: new Date(),
+        })
+        .where(eq(purchaseRequests.id, id));
+    }
+
+    if (data.items) {
+      const normalizedItems = normalizePurchaseRequestItems(data.items);
+      const totals = getPurchaseRequestTotals(normalizedItems);
+
+      await tx
+        .delete(purchaseRequestItems)
+        .where(eq(purchaseRequestItems.purchaseRequestId, id));
+
+      if (normalizedItems.length > 0) {
+        await tx.insert(purchaseRequestItems).values(
+          normalizedItems.map(item => ({
+            ...item,
+            purchaseRequestId: id,
+          }))
+        );
+      }
+
+      await tx
+        .update(purchaseRequests)
+        .set({
+          itemsCount: totals.itemsCount,
+          totalAmount: totals.totalAmount,
+          updatedAt: new Date(),
+        })
+        .where(eq(purchaseRequests.id, id));
+    }
+
+    return tx
+      .select()
+      .from(purchaseRequests)
+      .where(eq(purchaseRequests.id, id))
+      .limit(1);
+  });
+}
+
+export async function deletePurchaseRequest(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  return db.transaction(async tx => {
+    await tx
+      .delete(purchaseRequestItems)
+      .where(eq(purchaseRequestItems.purchaseRequestId, id));
+    return tx.delete(purchaseRequests).where(eq(purchaseRequests.id, id));
+  });
+}
+
+export async function listPurchaseRequestLookupValues() {
+  const db = await getDb();
+  if (!db) {
+    return {
+      companies: [] as string[],
+      costCenters: [] as string[],
+      purchaseTypes: [] as string[],
+    };
+  }
+
+  const requests = await db.select().from(purchaseRequests);
+
+  const companies = Array.from(
+    new Set(requests.map(item => item.company).filter(Boolean))
+  ).sort((a, b) => a.localeCompare(b));
+  const costCenters = Array.from(
+    new Set(requests.map(item => item.costCenter).filter(Boolean))
+  ).sort((a, b) => a.localeCompare(b));
+  const purchaseTypes = Array.from(
+    new Set(requests.map(item => item.purchaseType).filter(Boolean))
+  ).sort((a, b) => a.localeCompare(b));
+
+  return {
+    companies,
+    costCenters,
+    purchaseTypes,
+  };
+}
+
 // ============ ALERTAS DE ESTOQUE ============
 
 export async function getStockAlerts(spaceId?: number) {
@@ -3212,6 +3586,11 @@ export async function deleteUserById(userId: number) {
     .update(userInvitations)
     .set({ invitedByUserId: null, updatedAt: new Date() })
     .where(eq(userInvitations.invitedByUserId, userId));
+
+  await db
+    .update(purchaseRequests)
+    .set({ createdBy: null, updatedAt: new Date() })
+    .where(eq(purchaseRequests.createdBy, userId));
 
   return db.delete(users).where(eq(users.id, userId));
 }
