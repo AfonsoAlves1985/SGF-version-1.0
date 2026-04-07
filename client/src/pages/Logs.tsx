@@ -657,11 +657,12 @@ export default function Logs() {
       </Card>
 
       <Dialog open={Boolean(selectedLog)} onOpenChange={open => !open && setSelectedLog(null)}>
-        <DialogContent className="w-[calc(100vw-1rem)] sm:w-[calc(100vw-2rem)] max-w-[1100px] max-h-[92vh] overflow-y-auto bg-slate-900 border-slate-700 p-4 sm:p-6">
+        <DialogContent className="w-[calc(100vw-1rem)] sm:w-[calc(100vw-2rem)] max-w-[1100px] max-h-[92vh] min-h-[360px] md:min-h-[520px] md:min-w-[760px] overflow-auto md:resize bg-slate-900 border-slate-700 p-4 sm:p-6">
           <DialogHeader>
             <DialogTitle className="text-white">Detalhes do evento de auditoria</DialogTitle>
             <DialogDescription className="text-gray-400">
-              Visualização completa das informações do evento selecionado.
+              Visualização completa das informações do evento selecionado. Em
+              desktop, arraste o canto inferior direito para redimensionar.
             </DialogDescription>
           </DialogHeader>
 
