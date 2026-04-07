@@ -131,6 +131,8 @@ function formatContractDate(value?: string | null) {
 export default function Dashboard() {
   const [isCriticalDialogOpen, setIsCriticalDialogOpen] = useState(false);
   const [isContractsDialogOpen, setIsContractsDialogOpen] = useState(false);
+  const [isUrgentMaintenanceDialogOpen, setIsUrgentMaintenanceDialogOpen] =
+    useState(false);
   const [isRoomsDialogOpen, setIsRoomsDialogOpen] = useState(false);
   const [isUseRoomDialogOpen, setIsUseRoomDialogOpen] = useState(false);
   const [selectedRoomForUse, setSelectedRoomForUse] = useState<any>(null);
@@ -218,13 +220,19 @@ export default function Dashboard() {
       return aDays - bDays;
     });
 
+  const urgentMaintenancePending = maintenance.filter(
+    (request: any) =>
+      request.priority === "urgente" &&
+      (request.status === "aberto" || request.status === "em_progresso")
+  );
+
   const metrics = {
     lowStockItems: criticalAlerts.length,
     criticalAlerts: criticalAlerts.length,
-    maintenanceOpen: maintenance.filter((m: any) => m.status === "aberto")
-      .length,
-    maintenanceUrgent: maintenance.filter((m: any) => m.priority === "urgente")
-      .length,
+    maintenanceOpen: maintenance.filter(
+      (m: any) => m.status === "aberto" || m.status === "em_progresso"
+    ).length,
+    maintenanceUrgent: urgentMaintenancePending.length,
     roomsAvailable: rooms.filter((r: any) => r.status === "disponivel").length,
     roomsTotal: rooms.length,
     reservationsToday: reservations.filter((r: any) => {
@@ -443,6 +451,67 @@ export default function Dashboard() {
         </DialogContent>
       </Dialog>
 
+      <Dialog
+        open={isUrgentMaintenanceDialogOpen}
+        onOpenChange={setIsUrgentMaintenanceDialogOpen}
+      >
+        <DialogContent className="w-[calc(100vw-2rem)] max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-red-700">
+              Chamados urgentes em aberto ou em andamento
+            </DialogTitle>
+            <DialogDescription className="text-red-600">
+              Esses chamados permanecem no dashboard até serem concluídos.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="max-h-[60vh] overflow-y-auto">
+            {urgentMaintenancePending.length === 0 ? (
+              <p className="text-sm text-sky-600">
+                Nenhum chamado urgente pendente no momento.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {urgentMaintenancePending.map((request: any) => (
+                  <div
+                    key={request.id}
+                    className="rounded-lg border border-red-200 p-3"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="font-medium text-red-700">
+                          {request.title}
+                        </div>
+                        <div className="text-sm text-red-600 mt-1">
+                          Status: {request.status === "aberto" ? "Aberto" : "Em andamento"}
+                        </div>
+                        <div className="text-sm text-red-600">
+                          Tipo: {request.type === "preventiva" ? "Preventiva" : "Corretiva"}
+                        </div>
+                        {request.department && (
+                          <div className="text-sm text-red-600">
+                            Departamento: {request.department}
+                          </div>
+                        )}
+                        <div className="text-sm text-red-600">
+                          Data do chamado: {request.requestDate || "-"}
+                        </div>
+                      </div>
+                      <div className="text-xs text-gray-500 whitespace-nowrap">
+                        #{request.id}
+                      </div>
+                    </div>
+                    {request.description && (
+                      <p className="text-sm text-gray-700 mt-2">{request.description}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={isRoomsDialogOpen} onOpenChange={setIsRoomsDialogOpen}>
         <DialogContent className="w-[calc(100vw-2rem)] max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -610,24 +679,30 @@ export default function Dashboard() {
 
       {/* KPIs Principais */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-        <Card>
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-sm font-medium">
-                Chamados Abertos
-              </CardTitle>
-              <AlertTriangle className="w-4 h-4 text-red-600" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-red-600">
-              {metrics.maintenanceOpen}
-            </div>
-            <p className="text-xs text-gray-600 mt-1">
-              {metrics.maintenanceUrgent} urgentes
-            </p>
-          </CardContent>
-        </Card>
+        <button
+          type="button"
+          onClick={() => setIsUrgentMaintenanceDialogOpen(true)}
+          className="w-full text-left rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
+        >
+          <Card className="cursor-pointer transition hover:border-red-300 hover:shadow-sm">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-medium">
+                  Chamados Abertos
+                </CardTitle>
+                <AlertTriangle className="w-4 h-4 text-red-600" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-red-600">
+                {metrics.maintenanceOpen}
+              </div>
+              <p className="text-xs text-gray-600 mt-1">
+                {metrics.maintenanceUrgent} urgentes pendentes
+              </p>
+            </CardContent>
+          </Card>
+        </button>
 
         <button
           type="button"
