@@ -568,7 +568,8 @@ export default function Maintenance() {
               <CardHeader>
                 <CardTitle className="text-white">Kanban de Chamados</CardTitle>
                 <CardDescription className="text-gray-400">
-                  Arraste os cards entre as colunas para alterar o status
+                  Arraste os cards para mudar status ou clique para abrir e
+                  editar no modal
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -582,10 +583,12 @@ export default function Maintenance() {
                     onUpdateStatus={(id, status) =>
                       updateMutation.mutate({ id, status: status as any })
                     }
-                    onUpdateField={(id, field, value) =>
-                      updateMutation.mutate({ id, [field]: value } as any)
+                    onSaveRequest={(id, data) =>
+                      updateMutation.mutate({ id, ...data } as any)
                     }
                     isLoading={updateMutation.isPending}
+                    departmentOptions={departmentOptions}
+                    onAddDepartmentOption={addDepartmentOption}
                   />
                 )}
               </CardContent>
