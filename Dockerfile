@@ -49,4 +49,4 @@ ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
 EXPOSE 3000
 
-CMD ["node", "dist/index.js"]
+CMD ["/bin/sh", "-c", "NODE_ENV=production node dist/index.js"]
