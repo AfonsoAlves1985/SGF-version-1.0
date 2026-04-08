@@ -959,7 +959,9 @@ export default function Rooms() {
                         <div className="pt-2 border-t border-slate-700">
                           <p className="text-xs font-semibold text-white mb-1">
                             Status:{" "}
-                            <span className="text-emerald-400">Disponível</span>
+                            <span className="text-emerald-950 dark:text-emerald-300">
+                              Disponível
+                            </span>
                           </p>
                           <p className="text-xs text-gray-400">
                             Pronta para nova solicitação
