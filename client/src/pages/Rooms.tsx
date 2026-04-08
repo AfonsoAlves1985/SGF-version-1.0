@@ -1046,6 +1046,9 @@ export default function Rooms() {
                 alertText = "Aviso";
               }
 
+              const cardStatusLabel =
+                room.status === "ocupada" ? "Ocupada" : alertText;
+
               return (
                 <Card key={room.id} className={`${alertColor} border relative`}>
                   <button
@@ -1124,7 +1127,7 @@ export default function Rooms() {
                       <div className="pt-2 border-t border-slate-700">
                         <p className="text-xs font-semibold text-white mb-1">
                           Status:{" "}
-                          <span className="text-sky-400">{alertText}</span>
+                          <span className="text-sky-400">{cardStatusLabel}</span>
                         </p>
                         <p className="text-xs text-gray-400">
                           {now < startDate
