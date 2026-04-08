@@ -6,6 +6,8 @@ RUN corepack enable && corepack prepare pnpm@10.33.0 --activate
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY patches ./patches/
+# Skip puppeteer Chrome download — system Chromium is used in runner
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 RUN pnpm install --frozen-lockfile
 
 COPY . .
@@ -36,12 +38,9 @@ RUN apt-get update && apt-get install -y \
   --no-install-recommends \
   && rm -rf /var/lib/apt/lists/*
 
-RUN corepack enable && corepack prepare pnpm@10.33.0 --activate
-
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-COPY patches ./patches/
-RUN pnpm install --frozen-lockfile --prod
-
+# Copy node_modules from builder to avoid missing devDependencies
+# (dist/index.js imports vite which is a devDep but external in esbuild bundle)
+COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
 
 ENV NODE_ENV=production
