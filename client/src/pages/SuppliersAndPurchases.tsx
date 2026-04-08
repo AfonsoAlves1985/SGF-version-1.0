@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -46,7 +46,6 @@ const SERVICE_TYPES = [
   "Logística",
   "Recursos Humanos",
   "Contabilidade",
-  "Outro",
 ];
 
 function parseServiceTypes(value: unknown): string[] {
@@ -88,6 +87,8 @@ export default function Suppliers() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [selectedSpace, setSelectedSpace] = useState<number | null>(null);
   const [filters, setFilters] = useState({ search: "" });
+  const [customServiceTypeInput, setCustomServiceTypeInput] = useState("");
+  const [customServiceTypes, setCustomServiceTypes] = useState<string[]>([]);
   const [formData, setFormData] = useState({
     companyName: "",
     serviceTypes: [] as string[],
@@ -199,10 +200,17 @@ export default function Suppliers() {
   };
 
   const handleEdit = (supplier: any) => {
+    const parsedTypes = parseServiceTypes(supplier.serviceTypes);
+    const parsedCustomTypes = parsedTypes.filter(
+      type => !SERVICE_TYPES.includes(type)
+    );
+
     setEditingId(supplier.id);
+    setCustomServiceTypes(parsedCustomTypes);
+    setCustomServiceTypeInput("");
     setFormData({
       companyName: supplier.companyName,
-      serviceTypes: supplier.serviceTypes || [],
+      serviceTypes: parsedTypes,
       contact: supplier.contact,
       contactPerson: supplier.contactPerson,
       status: supplier.status,
@@ -219,6 +227,8 @@ export default function Suppliers() {
 
   const resetForm = () => {
     setEditingId(null);
+    setCustomServiceTypeInput("");
+    setCustomServiceTypes([]);
     setFormData({
       companyName: "",
       serviceTypes: [],
@@ -238,9 +248,50 @@ export default function Suppliers() {
     }));
   };
 
+  const addCustomServiceType = () => {
+    const trimmedType = customServiceTypeInput.trim();
+    if (!trimmedType) {
+      toast.error("Informe o tipo de serviço para adicionar");
+      return;
+    }
+
+    const alreadyExists = availableServiceTypes.some(
+      type => type.toLowerCase() === trimmedType.toLowerCase()
+    );
+    if (alreadyExists) {
+      toast.warning("Esse tipo de serviço já existe na lista");
+      return;
+    }
+
+    setCustomServiceTypes(prev => [...prev, trimmedType]);
+    setFormData(prev => ({
+      ...prev,
+      serviceTypes: [...prev.serviceTypes, trimmedType],
+    }));
+    setCustomServiceTypeInput("");
+  };
+
   const filteredSuppliers = suppliers.filter((supplier: any) =>
     supplier.companyName.toLowerCase().includes(filters.search.toLowerCase())
   );
+
+  const availableServiceTypes = useMemo(() => {
+    const supplierTypes = suppliers.flatMap((supplier: any) =>
+      parseServiceTypes(supplier.serviceTypes)
+    );
+    const customTypesFromSuppliers = supplierTypes.filter(
+      type => !SERVICE_TYPES.includes(type)
+    );
+
+    return Array.from(
+      new Set([
+        ...SERVICE_TYPES,
+        ...customTypesFromSuppliers,
+        ...customServiceTypes,
+        ...formData.serviceTypes,
+      ])
+    );
+  }, [suppliers, customServiceTypes, formData.serviceTypes]);
 
   if (!selectedSpace) {
     return (
@@ -326,7 +377,7 @@ export default function Suppliers() {
                     Tipos de Serviço
                   </label>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
-                    {SERVICE_TYPES.map(type => (
+                    {availableServiceTypes.map(type => (
                       <label
                         key={type}
                         className="flex items-center gap-2 cursor-pointer"
@@ -340,6 +391,25 @@ export default function Suppliers() {
                         <span className="text-sm text-gray-300">{type}</span>
                       </label>
                     ))}
+                  </div>
+                  <div className="mt-3 flex flex-col sm:flex-row gap-2">
+                    <Input
+                      value={customServiceTypeInput}
+                      onChange={event =>
+                        setCustomServiceTypeInput(event.target.value)
+                      }
+                      placeholder="Adicionar outro tipo de serviço"
+                      className="bg-slate-700 border-slate-600 text-white"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="border-slate-600 text-gray-300 hover:bg-slate-800"
+                      onClick={addCustomServiceType}
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Adicionar
+                    </Button>
                   </div>
                 </div>
 
