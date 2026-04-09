@@ -76,6 +76,7 @@ const MIGRATION_FILES = [
   "0005_inventory_units_assets.sql",
   "0006_purchase_requests_module.sql",
   "0007_inventory_assets_responsavel.sql",
+  "0008_purchase_requests_external_approval.sql",
 ] as const;
 
 const NON_FATAL_MIGRATION_ERROR_CODES = new Set([
@@ -368,6 +369,12 @@ async function ensureEssentialModuleTables(db: ReturnType<typeof drizzle>) {
       "totalAmount" numeric(14,2) DEFAULT '0.00' NOT NULL,
       "status" varchar(32) DEFAULT 'solicitado' NOT NULL,
       "financeApproved" boolean DEFAULT false NOT NULL,
+      "externalRequestId" varchar(120),
+      "externalApprovalStatus" varchar(40),
+      "externalApprovedBy" varchar(255),
+      "externalApprovedAt" timestamp,
+      "externalApprovalReason" text,
+      "externalApprovalPayload" json,
       "billingCnpj" varchar(18),
       "paymentTerms" varchar(255),
       "createdBy" integer,
@@ -406,6 +413,11 @@ async function ensureEssentialModuleTables(db: ReturnType<typeof drizzle>) {
   await run(`
     CREATE INDEX IF NOT EXISTS "purchase_requests_createdAt_idx"
     ON "purchase_requests" ("createdAt");
+  `);
+
+  await run(`
+    CREATE INDEX IF NOT EXISTS "purchase_requests_external_request_idx"
+    ON "purchase_requests" ("externalRequestId");
   `);
 
   await run(`
@@ -2458,6 +2470,18 @@ type PurchaseRequestWithItemsInput = {
   >;
 };
 
+type ExternalPurchaseDecisionInput = {
+  requestId?: number;
+  documentNumber?: string;
+  decision: "approved" | "rejected" | "pending";
+  externalRequestId?: string | null;
+  decidedBy?: string | null;
+  decidedAt?: Date | null;
+  reason?: string | null;
+  message?: string | null;
+  payload?: unknown;
+};
+
 function normalizePurchaseRequestItems(
   items: PurchaseRequestWithItemsInput["items"]
 ) {
@@ -2582,6 +2606,92 @@ export async function getPurchaseRequestById(id: number) {
   return {
     ...requestResult[0],
     items,
+  };
+}
+
+export async function getPurchaseRequestByDocumentNumber(documentNumber: string) {
+  const db = await getDb();
+  if (!db) return null;
+
+  const requestResult = await db
+    .select()
+    .from(purchaseRequests)
+    .where(eq(purchaseRequests.documentNumber, documentNumber))
+    .limit(1);
+
+  if (requestResult.length === 0) return null;
+
+  const requestId = requestResult[0].id;
+  const items = await db
+    .select()
+    .from(purchaseRequestItems)
+    .where(eq(purchaseRequestItems.purchaseRequestId, requestId))
+    .orderBy(asc(purchaseRequestItems.itemOrder));
+
+  return {
+    ...requestResult[0],
+    items,
+  };
+}
+
+export async function applyExternalPurchaseRequestDecision(
+  input: ExternalPurchaseDecisionInput
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  let request =
+    typeof input.requestId === "number"
+      ? await getPurchaseRequestById(input.requestId)
+      : null;
+
+  if (!request && input.documentNumber) {
+    request = await getPurchaseRequestByDocumentNumber(input.documentNumber);
+  }
+
+  if (!request) {
+    throw new Error("Solicitação de compra não encontrada para callback externo");
+  }
+
+  const mappedStatus =
+    input.decision === "approved"
+      ? "aprovado"
+      : input.decision === "rejected"
+        ? "cancelado"
+        : "financeiro";
+
+  const existingObservations = request.observations?.trim() || "";
+  const notes = [
+    `[FRZ COUNT] Parecer externo: ${input.decision}.`,
+    input.message ? `[FRZ COUNT] Mensagem: ${input.message}` : null,
+    input.reason ? `[FRZ COUNT] Motivo: ${input.reason}` : null,
+  ].filter(Boolean);
+
+  const nextObservations =
+    notes.length === 0
+      ? existingObservations || null
+      : [existingObservations, ...notes].filter(Boolean).join("\n");
+
+  await updatePurchaseRequest(request.id, {
+    request: {
+      status: mappedStatus as any,
+      financeApproved: input.decision === "approved",
+      externalRequestId: input.externalRequestId || request.externalRequestId || null,
+      externalApprovalStatus: input.decision,
+      externalApprovedBy: input.decidedBy || null,
+      externalApprovedAt: input.decidedAt || new Date(),
+      externalApprovalReason: input.reason || null,
+      externalApprovalPayload: (input.payload as any) || null,
+      observations: nextObservations,
+      completedAt: null,
+    },
+  });
+
+  return {
+    id: request.id,
+    documentNumber: request.documentNumber,
+    status: mappedStatus,
+    decision: input.decision,
   };
 }
 

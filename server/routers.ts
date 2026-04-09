@@ -170,6 +170,7 @@ async function dispatchPurchaseRequestWebhook(input: {
   action: PurchaseWebhookAction;
   webhookUrl: string;
   responsibleEmail?: string;
+  callbackUrl?: string;
   actor: {
     id: number;
     name?: string | null;
@@ -220,6 +221,9 @@ async function dispatchPurchaseRequestWebhook(input: {
           id: input.actor.id,
           name: input.actor.name || null,
           email: input.actor.email || null,
+        },
+        integration: {
+          callbackUrl: input.callbackUrl || null,
         },
         timestamp: new Date().toISOString(),
         data: purchaseRequest,
@@ -1510,6 +1514,7 @@ export const appRouter = router({
           action: input.action,
           webhookUrl: input.webhookUrl,
           responsibleEmail: input.responsibleEmail,
+          callbackUrl: ENV.frzPurchaseCallbackUrl || undefined,
           actor: {
             id: ctx.user.id,
             name: ctx.user.name,

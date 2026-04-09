@@ -8,4 +8,9 @@ export const ENV = {
   isProduction: process.env.NODE_ENV === "production",
   forgeApiUrl: process.env.BUILT_IN_FORGE_API_URL ?? "",
   forgeApiKey: process.env.BUILT_IN_FORGE_API_KEY ?? "",
+  frzPurchaseCallbackToken: process.env.FRZ_PURCHASE_CALLBACK_TOKEN ?? "",
+  frzPurchaseCallbackPath:
+    process.env.FRZ_PURCHASE_CALLBACK_PATH ??
+    "/api/integrations/frz-count/purchase-approvals",
+  frzPurchaseCallbackUrl: process.env.FRZ_PURCHASE_CALLBACK_URL ?? "",
 };

@@ -143,6 +143,12 @@ const FIELD_LABELS: Record<string, string> = {
   billingCnpj: "CNPJ faturamento",
   paymentTerms: "Condição de pagamento",
   financeApproved: "Aprovado financeiro",
+  externalRequestId: "ID externo",
+  externalApprovalStatus: "Status externo",
+  externalApprovedBy: "Aprovado por (externo)",
+  externalApprovedAt: "Data aprovação externa",
+  externalApprovalReason: "Motivo externo",
+  externalApprovalPayload: "Payload externo",
 };
 
 const IGNORED_CHANGE_KEYS = new Set([

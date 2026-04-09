@@ -9,8 +9,51 @@ import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 import { existsSync, readFileSync } from "fs";
 import { extname, resolve } from "path";
+import { timingSafeEqual } from "node:crypto";
+import { ENV } from "./env";
+import * as db from "../db";
 
 const TMP_DIR = resolve("/tmp");
+
+function getBearerToken(authHeader?: string) {
+  if (!authHeader) return null;
+  const [scheme, token] = authHeader.split(" ");
+  if (!scheme || !token) return null;
+  if (scheme.toLowerCase() !== "bearer") return null;
+  return token.trim();
+}
+
+function safeCompareToken(expected: string, received: string) {
+  const expectedBuffer = Buffer.from(expected);
+  const receivedBuffer = Buffer.from(received);
+
+  if (expectedBuffer.length !== receivedBuffer.length) return false;
+  return timingSafeEqual(expectedBuffer, receivedBuffer);
+}
+
+function toOptionalTrimmedString(value: unknown) {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function parseDecision(value: unknown) {
+  if (value !== "approved" && value !== "rejected" && value !== "pending") {
+    return null;
+  }
+
+  return value;
+}
+
+function parseDecidedAt(value: unknown) {
+  if (typeof value !== "string" || value.trim().length === 0) {
+    return null;
+  }
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return parsed;
+}
 
 function resolveSafeTempFilePath(rawPath: string, allowedExtensions: string[]) {
   const normalizedPath = resolve(rawPath);
@@ -100,6 +143,70 @@ async function startServer() {
 
   // OAuth callback under /api/oauth/callback
   registerOAuthRoutes(app);
+
+  app.post(ENV.frzPurchaseCallbackPath, async (req, res) => {
+    try {
+      if (!ENV.frzPurchaseCallbackToken) {
+        return res.status(503).json({
+          ok: false,
+          error: "Integração FRZ COUNT não configurada no servidor",
+        });
+      }
+
+      const authHeader = Array.isArray(req.headers.authorization)
+        ? req.headers.authorization[0]
+        : req.headers.authorization;
+      const token = getBearerToken(authHeader);
+
+      if (!token || !safeCompareToken(ENV.frzPurchaseCallbackToken, token)) {
+        return res.status(401).json({ ok: false, error: "Token inválido" });
+      }
+
+      const requestId =
+        typeof req.body?.requestId === "number" && Number.isInteger(req.body.requestId)
+          ? req.body.requestId
+          : undefined;
+      const documentNumber = toOptionalTrimmedString(req.body?.documentNumber);
+      const decision = parseDecision(req.body?.decision);
+
+      if (!requestId && !documentNumber) {
+        return res.status(400).json({
+          ok: false,
+          error: "Informe requestId ou documentNumber",
+        });
+      }
+
+      if (!decision) {
+        return res.status(400).json({
+          ok: false,
+          error: "Campo decision inválido. Use approved, rejected ou pending",
+        });
+      }
+
+      const result = await db.applyExternalPurchaseRequestDecision({
+        requestId,
+        documentNumber: documentNumber || undefined,
+        decision,
+        externalRequestId: toOptionalTrimmedString(req.body?.externalRequestId),
+        decidedBy: toOptionalTrimmedString(req.body?.decidedBy),
+        decidedAt: parseDecidedAt(req.body?.decidedAt),
+        reason: toOptionalTrimmedString(req.body?.reason),
+        message: toOptionalTrimmedString(req.body?.message),
+        payload: req.body,
+      });
+
+      return res.status(200).json({
+        ok: true,
+        requestId: result.id,
+        documentNumber: result.documentNumber,
+        status: result.status,
+        decision: result.decision,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Erro desconhecido";
+      return res.status(500).json({ ok: false, error: message });
+    }
+  });
 
   // Endpoint para download de PDF
   app.get("/api/download-pdf", (req, res) => {
