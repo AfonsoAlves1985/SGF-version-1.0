@@ -86,7 +86,6 @@ const MODULE_LABELS: Record<string, string> = {
   maintenanceRequests: "Manutenção",
   suppliersWithSpace: "Fornecedores",
   purchaseRequests: "Solicitação de Compras",
-  contractsWithSpace: "Contratos",
   users: "Usuários",
 };
 

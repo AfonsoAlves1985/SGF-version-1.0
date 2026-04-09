@@ -13,7 +13,6 @@ import {
   Calendar,
   Building2,
   Wrench,
-  FileText,
   BarChart3,
   AlertCircle,
   PenLine,
@@ -128,13 +127,6 @@ export default function Home() {
       label: "Solicitação de Compras",
       description: "Fluxo completo de solicitação, cotação e aprovação",
       path: "/purchase-requests",
-      color: "bg-sky-900/20 hover:bg-sky-900/30 border-sky-700/30",
-    },
-    {
-      icon: FileText,
-      label: "Contratos",
-      description: "Gestão de contratos por unidade",
-      path: "/contracts",
       color: "bg-sky-900/20 hover:bg-sky-900/30 border-sky-700/30",
     },
     {

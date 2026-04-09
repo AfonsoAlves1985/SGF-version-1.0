@@ -34,7 +34,6 @@ import {
   FileText,
   BarChart3,
   PenLine,
-  Handshake,
   ShieldCheck,
   ScrollText,
   ShoppingCart,
@@ -59,7 +58,6 @@ const menuItems = [
     label: "Solicitação de Compras",
     path: "/purchase-requests",
   },
-  { icon: Handshake, label: "Contratos", path: "/contracts" },
   {
     icon: ShieldCheck,
     label: "Administração de Acessos",

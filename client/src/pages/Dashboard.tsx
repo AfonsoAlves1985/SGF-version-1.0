@@ -35,7 +35,6 @@ import {
 import {
   AlertTriangle,
   CheckCircle,
-  Clock,
   Package,
   TrendingUp,
   Users,
@@ -75,62 +74,8 @@ function isDateRangeValid(startDate?: string, endDate?: string) {
   return end.getTime() >= start.getTime();
 }
 
-function parseContractDate(value?: string | null) {
-  if (!value) return null;
-
-  if (/^\d{2}-\d{2}-\d{4}$/.test(value)) {
-    const [day, month, year] = value.split("-").map(Number);
-    const date = new Date(year, month - 1, day);
-    return Number.isNaN(date.getTime()) ? null : date;
-  }
-
-  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    const [year, month, day] = value.split("-").map(Number);
-    const date = new Date(year, month - 1, day);
-    return Number.isNaN(date.getTime()) ? null : date;
-  }
-
-  const parsed = new Date(value);
-  return Number.isNaN(parsed.getTime()) ? null : parsed;
-}
-
-function getDaysUntilDate(value?: string | null) {
-  const parsedDate = parseContractDate(value);
-  if (!parsedDate) return null;
-
-  const target = new Date(parsedDate);
-  target.setHours(0, 0, 0, 0);
-
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  return Math.floor(
-    (target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
-  );
-}
-
-function formatContractDate(value?: string | null) {
-  if (!value) return "-";
-
-  if (/^\d{2}-\d{2}-\d{4}$/.test(value)) return value;
-
-  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    const [year, month, day] = value.split("-");
-    return `${day}-${month}-${year}`;
-  }
-
-  const parsed = parseContractDate(value);
-  if (!parsed) return value;
-
-  const day = String(parsed.getDate()).padStart(2, "0");
-  const month = String(parsed.getMonth() + 1).padStart(2, "0");
-  const year = parsed.getFullYear();
-  return `${day}-${month}-${year}`;
-}
-
 export default function Dashboard() {
   const [isCriticalDialogOpen, setIsCriticalDialogOpen] = useState(false);
-  const [isContractsDialogOpen, setIsContractsDialogOpen] = useState(false);
   const [isUrgentMaintenanceDialogOpen, setIsUrgentMaintenanceDialogOpen] =
     useState(false);
   const [isRoomsDialogOpen, setIsRoomsDialogOpen] = useState(false);
@@ -151,7 +96,6 @@ export default function Dashboard() {
 
   const { data: teams = [] } = trpc.teams.list.useQuery();
   const { data: stockAlerts = [] } = trpc.dashboard.getStockAlerts.useQuery();
-  const { data: contracts = [] } = trpc.contractsWithSpace.list.useQuery();
 
   const updateRoomMutation = trpc.rooms.update.useMutation({
     onSuccess: () => {
@@ -177,49 +121,6 @@ export default function Dashboard() {
     (a: any) => a.alertType === "critical" || a.currentStock < a.minStock
   );
 
-  const expiredContracts = contracts.filter((contract: any) => {
-    const daysUntilExpiry = getDaysUntilDate(contract.endDate);
-    if (daysUntilExpiry === null) return contract.status === "vencido";
-    return contract.status === "vencido" || daysUntilExpiry < 0;
-  });
-
-  const contractsExpiringSoon = contracts.filter((contract: any) => {
-    const daysUntilExpiry = getDaysUntilDate(contract.endDate);
-    return (
-      daysUntilExpiry !== null && daysUntilExpiry >= 0 && daysUntilExpiry <= 30
-    );
-  });
-
-  const contractAlerts = contracts
-    .map((contract: any) => {
-      const daysUntilExpiry = getDaysUntilDate(contract.endDate);
-      const isExpired =
-        contract.status === "vencido" ||
-        (daysUntilExpiry !== null && daysUntilExpiry < 0);
-      const isExpiringSoon =
-        !isExpired &&
-        daysUntilExpiry !== null &&
-        daysUntilExpiry >= 0 &&
-        daysUntilExpiry <= 30;
-
-      if (!isExpired && !isExpiringSoon) return null;
-
-      return {
-        ...contract,
-        isExpired,
-        daysUntilExpiry,
-      };
-    })
-    .filter((contract: any) => contract !== null)
-    .sort((a: any, b: any) => {
-      if (a.isExpired && !b.isExpired) return -1;
-      if (!a.isExpired && b.isExpired) return 1;
-
-      const aDays = a.daysUntilExpiry ?? 9999;
-      const bDays = b.daysUntilExpiry ?? 9999;
-      return aDays - bDays;
-    });
-
   const urgentMaintenancePending = maintenance.filter(
     (request: any) =>
       request.priority === "urgente" &&
@@ -241,8 +142,6 @@ export default function Dashboard() {
     }).length,
 
     teamMembers: teams.length,
-    contractsExpired: expiredContracts.length,
-    contractsExpiringSoon: contractsExpiringSoon.length,
   };
 
   const availableRooms = rooms.filter(
@@ -392,56 +291,6 @@ export default function Dashboard() {
                     </div>
                     <div className="text-sm text-sky-600">
                       Unidade: {alert.spaceName || "Sem unidade"}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog
-        open={isContractsDialogOpen}
-        onOpenChange={setIsContractsDialogOpen}
-      >
-        <DialogContent className="w-[calc(100vw-2rem)] max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-sky-700">
-              Contratos Vencidos ou Próximos
-            </DialogTitle>
-            <DialogDescription className="text-sky-600">
-              Contratos vencidos e contratos com vencimento em até 30 dias.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="max-h-[60vh] overflow-y-auto">
-            {contractAlerts.length === 0 ? (
-              <p className="text-sm text-sky-600">
-                Nenhum contrato vencido ou próximo de vencer.
-              </p>
-            ) : (
-              <div className="space-y-2">
-                {contractAlerts.map((contract: any) => (
-                  <div
-                    key={`${contract.id}-${contract.spaceId ?? "sem-espaco"}`}
-                    className="rounded-lg border border-sky-200 p-3"
-                  >
-                    <div className="font-medium text-sky-700">
-                      {contract.companyName}
-                    </div>
-                    <div className="text-sm text-sky-600">
-                      Unidade: {contract.spaceName || "Sem unidade"}
-                    </div>
-                    <div className="text-sm text-sky-600">
-                      Vencimento: {formatContractDate(contract.endDate)}
-                    </div>
-                    <div className="text-sm font-medium text-sky-600">
-                      {contract.isExpired
-                        ? contract.daysUntilExpiry !== null
-                          ? `Vencido há ${Math.abs(contract.daysUntilExpiry)} dia(s)`
-                          : "Vencido"
-                        : `Vence em ${contract.daysUntilExpiry} dia(s)`}
                     </div>
                   </div>
                 ))}
@@ -678,7 +527,7 @@ export default function Dashboard() {
       </div>
 
       {/* KPIs Principais */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <button
           type="button"
           onClick={() => setIsUrgentMaintenanceDialogOpen(true)}
@@ -754,28 +603,6 @@ export default function Dashboard() {
           </Card>
         </button>
 
-        <button
-          type="button"
-          onClick={() => setIsContractsDialogOpen(true)}
-          className="w-full text-left rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
-        >
-          <Card className="cursor-pointer transition hover:border-sky-300 hover:shadow-sm">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-medium">Contratos</CardTitle>
-                <Clock className="w-4 h-4 text-sky-600" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-red-600">
-                {metrics.contractsExpired}
-              </div>
-              <p className="text-xs text-gray-600 mt-1">
-                vencidos • {metrics.contractsExpiringSoon} próximos (30 dias)
-              </p>
-            </CardContent>
-          </Card>
-        </button>
       </div>
 
       {/* Gráficos */}
