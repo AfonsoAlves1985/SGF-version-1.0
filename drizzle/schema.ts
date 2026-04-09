@@ -333,6 +333,7 @@ export const inventoryAssets = pgTable(
     conta: varchar({ length: 120 }).notNull(),
     centroCusto: varchar({ length: 120 }).notNull(),
     local: varchar({ length: 255 }),
+    responsavel: varchar({ length: 255 }),
     fornecedor: varchar({ length: 255 }),
     dtAquis: varchar({ length: 10 }).notNull(),
     anoAquis: integer(),

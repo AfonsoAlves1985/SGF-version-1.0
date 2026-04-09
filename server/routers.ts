@@ -950,6 +950,7 @@ export const appRouter = router({
           conta: z.string().min(1),
           centroCusto: z.string().min(1),
           local: z.string().optional(),
+          responsavel: z.string().optional(),
           fornecedor: z.string().optional(),
           dtAquis: z.string().regex(DATE_MASK_REGEX, "Use formato DD-MM-YYYY"),
           anoAquis: z.number().int().optional(),
@@ -967,6 +968,7 @@ export const appRouter = router({
           conta: input.conta.trim(),
           centroCusto: input.centroCusto.trim(),
           local: input.local?.trim() || null,
+          responsavel: input.responsavel?.trim() || null,
           fornecedor: input.fornecedor?.trim() || null,
           dtAquis: input.dtAquis,
           anoAquis: input.anoAquis ?? null,
@@ -988,6 +990,7 @@ export const appRouter = router({
           conta: z.string().min(1).optional(),
           centroCusto: z.string().min(1).optional(),
           local: z.string().optional(),
+          responsavel: z.string().optional(),
           fornecedor: z.string().optional(),
           dtAquis: z
             .string()
@@ -1015,6 +1018,9 @@ export const appRouter = router({
             ? { centroCusto: data.centroCusto.trim() }
             : {}),
           ...(data.local !== undefined ? { local: data.local.trim() || null } : {}),
+          ...(data.responsavel !== undefined
+            ? { responsavel: data.responsavel.trim() || null }
+            : {}),
           ...(data.fornecedor !== undefined
             ? { fornecedor: data.fornecedor.trim() || null }
             : {}),

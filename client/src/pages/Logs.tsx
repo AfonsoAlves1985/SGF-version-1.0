@@ -111,6 +111,7 @@ const FIELD_LABELS: Record<string, string> = {
   conta: "Conta",
   centroCusto: "Centro de custo",
   local: "Local",
+  responsavel: "Responsável",
   fornecedor: "Fornecedor",
   dtAquis: "Data aquisição",
   anoAquis: "Ano aquisição",

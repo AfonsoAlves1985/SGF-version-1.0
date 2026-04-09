@@ -14,6 +14,7 @@
     "health:daily": "pnpm smoke:modules",
     "db:push": "drizzle-kit generate && drizzle-kit migrate",
     "db:migrate:supabase": "bash scripts/migrate-supabase-maintenance.sh",
+    "inventory:import:febracis-pa": "tsx scripts/import-inventory-assets-febracis-pa.ts",
     "ac": "bash scripts/git-ac.sh",
     "acs": "bash scripts/git-acs.sh",
     "commit:check": "bash scripts/validate-commit-msg.sh",

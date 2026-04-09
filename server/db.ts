@@ -75,6 +75,7 @@ const MIGRATION_FILES = [
   "0004_user_invitations.sql",
   "0005_inventory_units_assets.sql",
   "0006_purchase_requests_module.sql",
+  "0007_inventory_assets_responsavel.sql",
 ] as const;
 
 const NON_FATAL_MIGRATION_ERROR_CODES = new Set([
@@ -315,6 +316,7 @@ async function ensureEssentialModuleTables(db: ReturnType<typeof drizzle>) {
       "conta" varchar(120) NOT NULL,
       "centroCusto" varchar(120) NOT NULL,
       "local" varchar(255),
+      "responsavel" varchar(255),
       "fornecedor" varchar(255),
       "dtAquis" varchar(10) NOT NULL,
       "anoAquis" integer,
@@ -813,6 +815,7 @@ export async function listInventoryAssets(filters?: {
       or(
         like(inventoryAssets.nrBem, searchTerm),
         like(inventoryAssets.descricao, searchTerm),
+        like(inventoryAssets.responsavel, searchTerm),
         like(inventoryAssets.fornecedor, searchTerm),
         like(inventoryAssets.local, searchTerm)
       )

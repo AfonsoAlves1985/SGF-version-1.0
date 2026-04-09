@@ -48,6 +48,7 @@ type AssetFormData = {
   conta: string;
   centroCusto: string;
   local: string;
+  responsavel: string;
   fornecedor: string;
   dtAquis: string;
   anoAquis: string;
@@ -81,6 +82,7 @@ const ASSET_FIELD_LABEL: Record<AssetEditableField, string> = {
   conta: "Conta",
   centroCusto: "Centro de Custo",
   local: "Local",
+  responsavel: "Responsável",
   fornecedor: "Fornecedor",
   dtAquis: "Dt. Aquis.",
   anoAquis: "Ano Aquis.",
@@ -98,6 +100,7 @@ const INITIAL_ASSET_FORM_DATA: AssetFormData = {
   conta: "",
   centroCusto: "",
   local: "",
+  responsavel: "",
   fornecedor: "",
   dtAquis: "",
   anoAquis: "",
@@ -335,6 +338,7 @@ export default function Inventory() {
       conta: assetFormData.conta.trim(),
       centroCusto: assetFormData.centroCusto.trim(),
       local: assetFormData.local.trim() || undefined,
+      responsavel: assetFormData.responsavel.trim() || undefined,
       fornecedor: assetFormData.fornecedor.trim() || undefined,
       dtAquis: assetFormData.dtAquis.trim(),
       anoAquis:
@@ -680,6 +684,9 @@ export default function Inventory() {
                         </TableHead>
                         <TableHead className="text-gray-300">Local</TableHead>
                         <TableHead className="text-gray-300">
+                          Responsável
+                        </TableHead>
+                        <TableHead className="text-gray-300">
                           Fornecedor
                         </TableHead>
                         <TableHead className="text-gray-300">
@@ -746,6 +753,12 @@ export default function Inventory() {
                             asset,
                             "local",
                             asset.local || "-",
+                            "text-gray-300"
+                          )}
+                          {renderEditableCell(
+                            asset,
+                            "responsavel",
+                            asset.responsavel || "-",
                             "text-gray-300"
                           )}
                           {renderEditableCell(
@@ -1085,6 +1098,20 @@ export default function Inventory() {
                   </SelectContent>
                 </Select>
               )}
+            </div>
+
+            <div>
+              <Label className="text-gray-300">Responsável</Label>
+              <Input
+                value={assetFormData.responsavel}
+                onChange={event =>
+                  setAssetFormData(current => ({
+                    ...current,
+                    responsavel: event.target.value,
+                  }))
+                }
+                className="mt-1 bg-slate-700 border-slate-600 text-white"
+              />
             </div>
 
             <div>
