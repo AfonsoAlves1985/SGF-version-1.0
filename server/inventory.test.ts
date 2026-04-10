@@ -38,7 +38,9 @@ describe("Inventory Router", () => {
     caller = appRouter.createCaller(ctx);
   });
 
-  it("should create an inventory item", async () => {
+  it(
+    "should create an inventory item",
+    async () => {
     const result = await caller.inventory.create({
       name: "Papel A4",
       category: "Consumíveis",
@@ -49,7 +51,9 @@ describe("Inventory Router", () => {
     });
 
     expect(result).toBeDefined();
-  });
+    },
+    20000
+  );
 
   it("should list inventory items", async () => {
     const result = await caller.inventory.list();

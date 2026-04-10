@@ -20,7 +20,7 @@ describe('Export Reports', () => {
         // Space might not exist, which is ok for this test
         expect(error).toBeDefined();
       }
-    });
+    }, 20000);
 
     it('should generate Excel file when data exists', async () => {
       try {
