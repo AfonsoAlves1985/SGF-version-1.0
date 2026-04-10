@@ -2581,6 +2581,7 @@ type ExternalPurchaseDecisionInput = {
 type PurchaseWebhookDeliveryInput = {
   requestId: number;
   delivered: boolean;
+  attemptsPerformed?: number;
   statusCode?: number | null;
   errorMessage?: string | null;
 };
@@ -2858,14 +2859,18 @@ export async function registerPurchaseWebhookDelivery(
     throw new Error("Solicitação de compra não encontrada para rastreamento webhook");
   }
 
-  const attempts = (request.integrationWebhookAttempts ?? 0) + 1;
+  const attempts =
+    (request.integrationWebhookAttempts ?? 0) +
+    Math.max(1, input.attemptsPerformed ?? 1);
   const now = new Date();
 
   await updatePurchaseRequest(request.id, {
     request: {
       integrationWebhookAttempts: attempts,
       integrationWebhookLastAttemptAt: now,
-      integrationWebhookLastDeliveredAt: input.delivered ? now : null,
+      integrationWebhookLastDeliveredAt: input.delivered
+        ? now
+        : request.integrationWebhookLastDeliveredAt || null,
       integrationWebhookLastStatus: input.delivered ? "delivered" : "failed",
       integrationWebhookLastStatusCode: input.statusCode ?? null,
       integrationWebhookLastError: input.errorMessage || null,

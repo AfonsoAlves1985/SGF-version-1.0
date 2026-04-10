@@ -34,6 +34,8 @@ const LEGACY_ADMIN_EMAILS = ["admin@admin.com", "admin@local.com"];
 
 const DATE_MASK_REGEX = /^\d{2}-\d{2}-\d{4}$/;
 const WEBHOOK_TIMEOUT_MS = 10_000;
+const WEBHOOK_MAX_ATTEMPTS = 3;
+const WEBHOOK_RETRY_DELAY_MS = 1200;
 
 type LoginAttemptState = {
   failedAttempts: number;
@@ -177,6 +179,14 @@ async function dispatchPurchaseRequestWebhook(input: {
     email?: string | null;
   };
 }) {
+  const wait = (ms: number) =>
+    new Promise(resolve => {
+      setTimeout(resolve, ms);
+    });
+
+  const isRetryableStatus = (statusCode: number) =>
+    statusCode === 408 || statusCode === 425 || statusCode === 429 || statusCode >= 500;
+
   let parsedUrl: URL;
 
   try {
@@ -203,58 +213,89 @@ async function dispatchPurchaseRequestWebhook(input: {
     });
   }
 
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), WEBHOOK_TIMEOUT_MS);
+  let lastStatusCode: number | null = null;
+  let lastErrorMessage: string | null = null;
 
-  try {
-    const response = await fetch(parsedUrl.toString(), {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      signal: controller.signal,
-      body: JSON.stringify({
-        event: `purchase_request.${input.action}`,
-        requestId: input.requestId,
-        responsibleEmail: input.responsibleEmail || null,
-        actor: {
-          id: input.actor.id,
-          name: input.actor.name || null,
-          email: input.actor.email || null,
-        },
-        integration: {
-          callbackUrl: input.callbackUrl || null,
-        },
-        timestamp: new Date().toISOString(),
-        data: purchaseRequest,
-      }),
-    });
+  for (let attempt = 1; attempt <= WEBHOOK_MAX_ATTEMPTS; attempt += 1) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), WEBHOOK_TIMEOUT_MS);
 
-    if (!response.ok && response.status !== 202) {
+    try {
+      const response = await fetch(parsedUrl.toString(), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        signal: controller.signal,
+        body: JSON.stringify({
+          event: `purchase_request.${input.action}`,
+          requestId: input.requestId,
+          responsibleEmail: input.responsibleEmail || null,
+          actor: {
+            id: input.actor.id,
+            name: input.actor.name || null,
+            email: input.actor.email || null,
+          },
+          integration: {
+            callbackUrl: input.callbackUrl || null,
+          },
+          timestamp: new Date().toISOString(),
+          data: purchaseRequest,
+        }),
+      });
+
+      lastStatusCode = response.status;
+      if (response.ok || response.status === 202) {
+        return {
+          attempted: true,
+          delivered: true,
+          statusCode: response.status,
+          attempts: attempt,
+          errorMessage: null,
+        };
+      }
+
+      lastErrorMessage = `HTTP ${response.status}`;
+      if (attempt < WEBHOOK_MAX_ATTEMPTS && isRetryableStatus(response.status)) {
+        await wait(WEBHOOK_RETRY_DELAY_MS * attempt);
+        continue;
+      }
+
       return {
         attempted: true,
         delivered: false,
         statusCode: response.status,
-        errorMessage: `HTTP ${response.status}`,
+        attempts: attempt,
+        errorMessage: lastErrorMessage,
       };
-    }
+    } catch (error) {
+      lastStatusCode = null;
+      lastErrorMessage = getUnknownErrorMessage(error);
 
-    return {
-      attempted: true,
-      delivered: true,
-      statusCode: response.status,
-      errorMessage: null,
-    };
-  } catch (error) {
-    return {
-      attempted: true,
-      delivered: false,
-      statusCode: null,
-      errorMessage: getUnknownErrorMessage(error),
-    };
-  } finally {
-    clearTimeout(timeout);
+      if (attempt < WEBHOOK_MAX_ATTEMPTS) {
+        await wait(WEBHOOK_RETRY_DELAY_MS * attempt);
+        continue;
+      }
+
+      return {
+        attempted: true,
+        delivered: false,
+        statusCode: null,
+        attempts: attempt,
+        errorMessage: lastErrorMessage,
+      };
+    } finally {
+      clearTimeout(timeout);
+    }
   }
+
+  return {
+    attempted: true,
+    delivered: false,
+    statusCode: lastStatusCode,
+    attempts: WEBHOOK_MAX_ATTEMPTS,
+    errorMessage: lastErrorMessage || "Falha no webhook após tentativas",
+  };
 }
 
 function ensureAccessManagementUser(user: { role: string } | null) {
@@ -1525,6 +1566,7 @@ export const appRouter = router({
         await db.registerPurchaseWebhookDelivery({
           requestId: input.requestId,
           delivered: delivery.delivered,
+          attemptsPerformed: delivery.attempts,
           statusCode: delivery.statusCode,
           errorMessage: delivery.errorMessage,
         });

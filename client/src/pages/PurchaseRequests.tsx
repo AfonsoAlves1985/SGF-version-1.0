@@ -119,6 +119,23 @@ type PurchaseRequestDetail = {
   justification: string;
   observations?: string | null;
   financeApproved?: boolean;
+  externalRequestId?: string | null;
+  externalApprovalStatus?: string | null;
+  externalApprovedBy?: string | null;
+  externalApprovedAt?: string | Date | null;
+  externalApprovalReason?: string | null;
+  externalApprovalPayload?: unknown;
+  integrationWebhookAttempts?: number;
+  integrationWebhookLastAttemptAt?: string | Date | null;
+  integrationWebhookLastDeliveredAt?: string | Date | null;
+  integrationWebhookLastStatus?: string | null;
+  integrationWebhookLastStatusCode?: number | null;
+  integrationWebhookLastError?: string | null;
+  integrationCallbackAttempts?: number;
+  integrationCallbackLastAt?: string | Date | null;
+  integrationCallbackLastStatus?: string | null;
+  integrationCallbackLastDecision?: string | null;
+  integrationCallbackLastError?: string | null;
   billingCnpj?: string | null;
   paymentTerms?: string | null;
   status: PurchaseRequestStatus;
@@ -271,6 +288,33 @@ function getStatusBadgeClass(status: PurchaseRequestStatus) {
     return "bg-sky-600/20 text-sky-300";
   }
   return "bg-yellow-600/20 text-yellow-300";
+}
+
+function getIntegrationBadgeClass(status?: string | null) {
+  if (status === "delivered" || status === "applied") {
+    return "bg-emerald-600/20 text-emerald-300";
+  }
+
+  if (status === "duplicate") {
+    return "bg-slate-600/30 text-slate-200";
+  }
+
+  if (status === "failed") {
+    return "bg-red-600/20 text-red-300";
+  }
+
+  return "bg-slate-700/40 text-slate-300";
+}
+
+function getIntegrationSummary(request: Partial<PurchaseRequestDetail>) {
+  const callbackStatus = request.integrationCallbackLastStatus;
+  const webhookStatus = request.integrationWebhookLastStatus;
+
+  if (callbackStatus === "applied") return "Retorno aplicado";
+  if (callbackStatus === "duplicate") return "Retorno duplicado";
+  if (webhookStatus === "failed") return "Envio com falha";
+  if (webhookStatus === "delivered") return "Enviado ao FRZ";
+  return "Não enviado";
 }
 
 function toAttachmentMeta(files: FileList | null): AttachmentMeta[] {
@@ -703,16 +747,17 @@ export default function PurchaseRequests() {
         webhookUrl: webhookUrl.trim(),
         responsibleEmail: responsibleEmail.trim() || undefined,
       });
+      const attempts = Number((result as any).attempts || 1);
 
       if (!result.delivered) {
         const message = result.errorMessage
-          ? `Solicitação salva, mas webhook falhou (${result.errorMessage}).`
-          : "Solicitação salva, mas webhook falhou. Verifique a configuração.";
+          ? `Solicitação salva, mas webhook falhou após ${attempts} tentativa(s) (${result.errorMessage}).`
+          : `Solicitação salva, mas webhook falhou após ${attempts} tentativa(s). Verifique a configuração.`;
         toast.warning(message);
         return;
       }
 
-      toast.success("Webhook enviado com sucesso");
+      toast.success(`Webhook enviado com sucesso (${attempts} tentativa(s))`);
     } catch (error) {
       console.error(error);
       toast.warning(
@@ -1239,6 +1284,70 @@ export default function PurchaseRequests() {
                         </div>
                       );
                     })}
+                  </div>
+                )}
+              </div>
+
+              <div className="rounded-md border border-slate-700 bg-slate-800/70 p-3 space-y-3">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-medium text-white">Integração FRZ COUNT</p>
+                  <span
+                    className={`px-2 py-1 rounded text-xs font-medium ${getIntegrationBadgeClass(
+                      selectedRequest.integrationCallbackLastStatus ||
+                        selectedRequest.integrationWebhookLastStatus
+                    )}`}
+                  >
+                    {getIntegrationSummary(selectedRequest)}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <p className="text-xs text-gray-400">Envios webhook</p>
+                    <p className="text-sm text-white mt-1">
+                      {selectedRequest.integrationWebhookAttempts ?? 0} tentativa(s)
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-400">Callbacks recebidos</p>
+                    <p className="text-sm text-white mt-1">
+                      {selectedRequest.integrationCallbackAttempts ?? 0} evento(s)
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-400">Último envio</p>
+                    <p className="text-sm text-white mt-1">
+                      {formatDateTime(selectedRequest.integrationWebhookLastAttemptAt)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-400">Último retorno</p>
+                    <p className="text-sm text-white mt-1">
+                      {formatDateTime(selectedRequest.integrationCallbackLastAt)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-400">Status callback</p>
+                    <p className="text-sm text-white mt-1">
+                      {selectedRequest.integrationCallbackLastStatus || "-"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-400">Decisão externa</p>
+                    <p className="text-sm text-white mt-1">
+                      {selectedRequest.integrationCallbackLastDecision || "-"}
+                    </p>
+                  </div>
+                </div>
+
+                {(selectedRequest.integrationWebhookLastError ||
+                  selectedRequest.integrationCallbackLastError) && (
+                  <div className="rounded-md border border-red-500/30 bg-red-900/10 p-2">
+                    <p className="text-xs text-red-200">Último erro de integração</p>
+                    <p className="text-sm text-red-300 mt-1 whitespace-pre-wrap">
+                      {selectedRequest.integrationCallbackLastError ||
+                        selectedRequest.integrationWebhookLastError}
+                    </p>
                   </div>
                 )}
               </div>
@@ -2143,6 +2252,7 @@ export default function PurchaseRequests() {
                     <TableHead className="text-gray-300">Solicitante</TableHead>
                     <TableHead className="text-gray-300">Urgência</TableHead>
                     <TableHead className="text-gray-300">Status</TableHead>
+                    <TableHead className="text-gray-300">Integração</TableHead>
                     <TableHead className="text-gray-300 text-right">Total</TableHead>
                     <TableHead className="text-gray-300 text-right">Ações</TableHead>
                   </TableRow>
@@ -2171,6 +2281,16 @@ export default function PurchaseRequests() {
                           )}`}
                         >
                           {STATUS_LABELS[request.status as PurchaseRequestStatus]}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <span
+                          className={`px-2 py-1 rounded text-xs font-medium ${getIntegrationBadgeClass(
+                            request.integrationCallbackLastStatus ||
+                              request.integrationWebhookLastStatus
+                          )}`}
+                        >
+                          {getIntegrationSummary(request)}
                         </span>
                       </TableCell>
                       <TableCell className="text-right text-sky-300">
