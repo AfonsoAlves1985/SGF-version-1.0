@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { getDb } from "./db";
 import { suppliersWithSpace, supplierSpaces } from "../drizzle/schema";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 
 describe("Suppliers With Space CRUD Operations", () => {
   let db: any;
@@ -9,12 +9,32 @@ describe("Suppliers With Space CRUD Operations", () => {
 
   beforeAll(async () => {
     db = await getDb();
-    // Create a test space first
-    const spaceResult = await db.insert(supplierSpaces).values({
-      name: "Test Space",
-      description: "Space for testing suppliers",
-      location: "Test Location",
-    });
+    const created = await db
+      .insert(supplierSpaces)
+      .values({
+        name: "Test Space",
+        description: "Space for testing suppliers",
+        location: "Test Location",
+      })
+      .returning({ id: supplierSpaces.id });
+
+    testSpaceId = created[0]?.id;
+    expect(testSpaceId).toBeGreaterThan(0);
+  });
+
+  afterAll(async () => {
+    if (!db || !testSpaceId) return;
+
+    await db
+      .delete(suppliersWithSpace)
+      .where(
+        inArray(suppliersWithSpace.companyName, [
+          "Test Cleaning Service",
+          "Multi Service Company",
+        ])
+      );
+
+    await db.delete(supplierSpaces).where(eq(supplierSpaces.id, testSpaceId));
   });
 
   it("should list suppliers by space", async () => {
@@ -25,21 +45,18 @@ describe("Suppliers With Space CRUD Operations", () => {
   });
 
   it("should create a supplier with space", async () => {
-    const spaces = await db.select().from(supplierSpaces).limit(1);
-    if (spaces.length > 0) {
-      const newSupplier = {
-        spaceId: spaces[0].id,
-        companyName: "Test Cleaning Service",
-        serviceTypes: JSON.stringify(["Limpeza", "Manutenção"]),
-        contact: "(11) 98765-4321",
-        contactPerson: "João Silva",
-        status: "ativo" as const,
-        notes: "Test supplier",
-      };
+    const newSupplier = {
+      spaceId: testSpaceId,
+      companyName: "Test Cleaning Service",
+      serviceTypes: JSON.stringify(["Limpeza", "Manutenção"]),
+      contact: "(11) 98765-4321",
+      contactPerson: "João Silva",
+      status: "ativo" as const,
+      notes: "Test supplier",
+    };
 
-      const result = await db.insert(suppliersWithSpace).values(newSupplier);
-      expect(result).toBeDefined();
-    }
+    const result = await db.insert(suppliersWithSpace).values(newSupplier);
+    expect(result).toBeDefined();
   });
 
   it("should update supplier status", async () => {
@@ -89,45 +106,31 @@ describe("Suppliers With Space CRUD Operations", () => {
   });
 
   it("should handle supplier with multiple service types", async () => {
-    const spaces = await db.select().from(supplierSpaces).limit(1);
-    if (spaces.length > 0) {
-      const newSupplier = {
-        spaceId: spaces[0].id,
-        companyName: "Multi Service Company",
-        serviceTypes: JSON.stringify(["Limpeza", "Manutenção", "Segurança", "Catering"]),
-        contact: "contato@multiservice.com",
-        contactPerson: "Maria Santos",
-        status: "ativo" as const,
-        notes: "Company with multiple services",
-      };
+    const newSupplier = {
+      spaceId: testSpaceId,
+      companyName: "Multi Service Company",
+      serviceTypes: JSON.stringify([
+        "Limpeza",
+        "Manutenção",
+        "Segurança",
+        "Catering",
+      ]),
+      contact: "contato@multiservice.com",
+      contactPerson: "Maria Santos",
+      status: "ativo" as const,
+      notes: "Company with multiple services",
+    };
 
-      const result = await db.insert(suppliersWithSpace).values(newSupplier);
-      expect(result).toBeDefined();
-
-      // Cleanup
-      const created = await db
-        .select()
-        .from(suppliersWithSpace)
-        .where(eq(suppliersWithSpace.companyName, "Multi Service Company"))
-        .limit(1);
-
-      if (created.length > 0) {
-        await db
-          .delete(suppliersWithSpace)
-          .where(eq(suppliersWithSpace.id, created[0].id));
-      }
-    }
+    const result = await db.insert(suppliersWithSpace).values(newSupplier);
+    expect(result).toBeDefined();
   });
 
   it("should filter suppliers by space", async () => {
-    const spaces = await db.select().from(supplierSpaces).limit(1);
-    if (spaces.length > 0) {
-      const result = await db
-        .select()
-        .from(suppliersWithSpace)
-        .where(eq(suppliersWithSpace.spaceId, spaces[0].id));
-      expect(Array.isArray(result)).toBe(true);
-    }
+    const result = await db
+      .select()
+      .from(suppliersWithSpace)
+      .where(eq(suppliersWithSpace.spaceId, testSpaceId));
+    expect(Array.isArray(result)).toBe(true);
   });
 
   it("should validate foreign key constraint", async () => {
