@@ -165,6 +165,67 @@ function getUnknownErrorMessage(error: unknown) {
   return "Erro desconhecido";
 }
 
+function normalizeAssistantText(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+function inferAssistantModule(path?: string) {
+  if (!path) return "geral";
+  if (path.includes("purchase-requests")) return "compras";
+  if (path.includes("inventory")) return "inventario";
+  if (path.includes("maintenance")) return "manutencao";
+  if (path.includes("rooms")) return "salas";
+  if (path.includes("suppliers")) return "fornecedores";
+  return "geral";
+}
+
+const ASSISTANT_STOPWORDS = new Set([
+  "como",
+  "qual",
+  "quais",
+  "onde",
+  "com",
+  "sem",
+  "para",
+  "de",
+  "da",
+  "do",
+  "das",
+  "dos",
+  "uma",
+  "umas",
+  "um",
+  "uns",
+  "que",
+  "por",
+  "mais",
+  "menos",
+  "esta",
+  "estao",
+  "está",
+  "estão",
+  "sobre",
+  "a",
+  "o",
+  "e",
+  "em",
+  "no",
+  "na",
+  "nos",
+  "nas",
+]);
+
+function extractAssistantKeywords(question: string) {
+  const normalized = normalizeAssistantText(question);
+  return normalized
+    .split(/[^a-z0-9]+/)
+    .filter(word => word.length >= 4 && !ASSISTANT_STOPWORDS.has(word))
+    .slice(0, 5);
+}
+
 type PurchaseWebhookAction = "created" | "updated";
 
 async function dispatchPurchaseRequestWebhook(input: {
@@ -2033,6 +2094,281 @@ export const appRouter = router({
       await db.deletePurchaseRequest(input);
       return { success: true };
     }),
+  }),
+
+  assistant: router({
+    ask: protectedProcedure
+      .input(
+        z.object({
+          question: z.string().min(2),
+          context: z
+            .object({
+              path: z.string().optional(),
+              module: z.string().optional(),
+            })
+            .optional(),
+        })
+      )
+      .mutation(async ({ input }) => {
+        const question = input.question.trim();
+        const normalizedQuestion = normalizeAssistantText(question);
+        const keywords = extractAssistantKeywords(question);
+        const detectedModule =
+          input.context?.module || inferAssistantModule(input.context?.path);
+
+        if (
+          detectedModule === "compras" ||
+          normalizedQuestion.includes("compra") ||
+          normalizedQuestion.includes("solicit") ||
+          normalizedQuestion.includes("financeiro")
+        ) {
+          const records = await db.listPurchaseRequests();
+
+          const statusTokens: Array<
+            | "rascunho"
+            | "solicitado"
+            | "cotacao"
+            | "financeiro"
+            | "aprovado"
+            | "pedido_emitido"
+            | "recebido"
+            | "cancelado"
+          > = [];
+
+          if (normalizedQuestion.includes("financeiro")) {
+            statusTokens.push("financeiro");
+          }
+          if (normalizedQuestion.includes("aprovad")) {
+            statusTokens.push("aprovado");
+          }
+          if (normalizedQuestion.includes("cancelad") || normalizedQuestion.includes("reprovad")) {
+            statusTokens.push("cancelado");
+          }
+          if (normalizedQuestion.includes("rascunh")) {
+            statusTokens.push("rascunho");
+          }
+
+          const delayMatch = normalizedQuestion.match(/(\d+)\s*dias?/);
+          const overdueDays = delayMatch ? Number(delayMatch[1]) : 3;
+          const now = Date.now();
+          const threshold = now - overdueDays * 24 * 60 * 60 * 1000;
+          const asksOverdue =
+            normalizedQuestion.includes("trav") ||
+            normalizedQuestion.includes("atras") ||
+            normalizedQuestion.includes("pendente");
+
+          const companyMatch = normalizedQuestion.match(/empresa\s+([a-z0-9\s]+)/);
+          const companyTerm = companyMatch?.[1]?.trim() || null;
+
+          let filtered = records.filter((record: any) => {
+            if (statusTokens.length > 0 && !statusTokens.includes(record.status)) {
+              return false;
+            }
+
+            if (asksOverdue) {
+              const createdAtMs = new Date(record.createdAt).getTime();
+              if (Number.isNaN(createdAtMs) || createdAtMs > threshold) {
+                return false;
+              }
+            }
+
+            if (companyTerm) {
+              const normalizedCompany = normalizeAssistantText(record.company || "");
+              if (!normalizedCompany.includes(companyTerm)) {
+                return false;
+              }
+            }
+
+            if (keywords.length === 0) return true;
+
+            const haystack = normalizeAssistantText(
+              [
+                record.documentNumber,
+                record.company,
+                record.requesterName,
+                record.justification,
+                record.status,
+              ]
+                .filter(Boolean)
+                .join(" ")
+            );
+
+            return keywords.some(keyword => haystack.includes(keyword));
+          });
+
+          if (filtered.length === 0 && keywords.length > 0) {
+            filtered = records.filter((record: any) => {
+              const haystack = normalizeAssistantText(
+                [
+                  record.documentNumber,
+                  record.company,
+                  record.requesterName,
+                  record.justification,
+                  record.status,
+                ]
+                  .filter(Boolean)
+                  .join(" ")
+              );
+              return keywords.some(keyword => haystack.includes(keyword));
+            });
+          }
+
+          const top = filtered.slice(0, 8).map((record: any) => ({
+            id: record.id,
+            documentNumber: record.documentNumber,
+            company: record.company,
+            requesterName: record.requesterName,
+            status: record.status,
+            urgency: record.urgency,
+            totalAmount: record.totalAmount,
+          }));
+
+          const suggestedFilters = {
+            status: statusTokens[0] || "all",
+            urgency: "all",
+            company: "all",
+            search: keywords[0] || "",
+          };
+
+          return {
+            answer:
+              top.length > 0
+                ? `Encontrei ${filtered.length} solicitação(ões) relacionada(s). Mostrando as mais relevantes.`
+                : "Não encontrei solicitações com esse critério no momento.",
+            module: "compras",
+            confidence: top.length > 0 ? "alta" : "media",
+            actions: [
+              {
+                type: "navigate",
+                label: "Abrir Solicitação de Compras",
+                path: "/purchase-requests",
+              },
+              {
+                type: "apply_purchase_filters",
+                label: "Aplicar filtro sugerido",
+                filters: suggestedFilters,
+              },
+            ],
+            results: {
+              purchaseRequests: top,
+            },
+          };
+        }
+
+        if (
+          detectedModule === "inventario" ||
+          normalizedQuestion.includes("inventario") ||
+          normalizedQuestion.includes("bem") ||
+          normalizedQuestion.includes("responsavel")
+        ) {
+          const assets = await db.listInventoryAssets({
+            search: keywords[0] || undefined,
+          });
+
+          const filtered = assets
+            .filter((asset: any) => {
+              if (normalizedQuestion.includes("sem responsavel")) {
+                return !asset.responsavel;
+              }
+
+              if (keywords.length === 0) return true;
+
+              const haystack = normalizeAssistantText(
+                [
+                  asset.nrBem,
+                  asset.descricao,
+                  asset.responsavel,
+                  asset.fornecedor,
+                  asset.local,
+                ]
+                  .filter(Boolean)
+                  .join(" ")
+              );
+
+              return keywords.some(keyword => haystack.includes(keyword));
+            })
+            .slice(0, 8)
+            .map((asset: any) => ({
+              id: asset.id,
+              nrBem: asset.nrBem,
+              descricao: asset.descricao,
+              responsavel: asset.responsavel,
+              local: asset.local,
+            }));
+
+          return {
+            answer:
+              filtered.length > 0
+                ? `Encontrei ${filtered.length} bem(ns) no inventário para sua consulta.`
+                : "Não encontrei bens com esse critério no inventário.",
+            module: "inventario",
+            confidence: filtered.length > 0 ? "alta" : "media",
+            actions: [
+              {
+                type: "navigate",
+                label: "Abrir Inventário",
+                path: "/inventory",
+              },
+            ],
+            results: {
+              inventoryAssets: filtered,
+            },
+          };
+        }
+
+        if (
+          detectedModule === "manutencao" ||
+          normalizedQuestion.includes("manutenc") ||
+          normalizedQuestion.includes("chamado")
+        ) {
+          const maintenance = await db.listMaintenanceRequests();
+          const urgent = maintenance
+            .filter((item: any) => item.priority === "urgente" || item.priority === "alta")
+            .slice(0, 8)
+            .map((item: any) => ({
+              id: item.id,
+              title: item.title,
+              status: item.status,
+              priority: item.priority,
+            }));
+
+          return {
+            answer:
+              urgent.length > 0
+                ? `Há ${urgent.length} chamado(s) urgente(s)/alta prioridade em evidência.`
+                : "Não há chamados urgentes no momento.",
+            module: "manutencao",
+            confidence: "media",
+            actions: [
+              {
+                type: "navigate",
+                label: "Abrir Manutenção",
+                path: "/maintenance",
+              },
+            ],
+            results: {
+              maintenanceRequests: urgent,
+            },
+          };
+        }
+
+        return {
+          answer:
+            "Posso te ajudar melhor se você citar o módulo (compras, inventário ou manutenção) e o critério desejado.",
+          module: "geral",
+          confidence: "baixa",
+          actions: [
+            { type: "navigate", label: "Abrir Dashboard", path: "/dashboard" },
+            {
+              type: "navigate",
+              label: "Abrir Solicitação de Compras",
+              path: "/purchase-requests",
+            },
+            { type: "navigate", label: "Abrir Inventário", path: "/inventory" },
+          ],
+          results: {},
+        };
+      }),
   }),
 
   // ============ CONSUMÍVEIS ============

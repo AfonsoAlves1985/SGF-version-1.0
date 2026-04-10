@@ -172,6 +172,8 @@ type RequestDialogEditState = {
 
 const WEBHOOK_URL_KEY = "frz_purchase_webhook_url";
 const RESPONSIBLE_EMAIL_KEY = "frz_purchase_responsible_email";
+const ASSISTANT_PURCHASE_FILTER_EVENT = "assistant:purchase-filters";
+const ASSISTANT_PURCHASE_FILTER_STORAGE_KEY = "assistant:purchase-filters";
 
 const COMPANY_OPTIONS = [
   "GRUPO FRZ MATRIZ",
@@ -491,6 +493,56 @@ export default function PurchaseRequests() {
       setForm(current => ({ ...current, requestDate: `${day}-${month}-${year}` }));
     }
   }, [form.requestDate]);
+
+  useEffect(() => {
+    const applyFilters = (incoming: unknown) => {
+      if (!incoming || typeof incoming !== "object") return;
+      const payload = incoming as {
+        status?: unknown;
+        urgency?: unknown;
+        company?: unknown;
+        search?: unknown;
+      };
+
+      setListFilters(current => ({
+        status:
+          typeof payload.status === "string" && payload.status.length > 0
+            ? (payload.status as "all" | PurchaseRequestStatus)
+            : current.status,
+        urgency:
+          typeof payload.urgency === "string" && payload.urgency.length > 0
+            ? (payload.urgency as "all" | PurchaseRequestUrgency)
+            : current.urgency,
+        company:
+          typeof payload.company === "string" && payload.company.length > 0
+            ? payload.company
+            : current.company,
+        search:
+          typeof payload.search === "string"
+            ? payload.search
+            : current.search,
+      }));
+    };
+
+    const saved = localStorage.getItem(ASSISTANT_PURCHASE_FILTER_STORAGE_KEY);
+    if (saved) {
+      try {
+        applyFilters(JSON.parse(saved));
+      } finally {
+        localStorage.removeItem(ASSISTANT_PURCHASE_FILTER_STORAGE_KEY);
+      }
+    }
+
+    const onAssistantFilters = (event: Event) => {
+      const custom = event as CustomEvent;
+      applyFilters(custom.detail);
+    };
+
+    window.addEventListener(ASSISTANT_PURCHASE_FILTER_EVENT, onAssistantFilters);
+    return () => {
+      window.removeEventListener(ASSISTANT_PURCHASE_FILTER_EVENT, onAssistantFilters);
+    };
+  }, []);
 
   const resetForm = () => {
     setEditingId(null);
