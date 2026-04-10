@@ -1,5 +1,6 @@
 import { eq, and, or, desc, asc, gte, lte, like, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
+import postgres from "postgres";
 import fs from "node:fs";
 import path from "node:path";
 import {
@@ -63,9 +64,12 @@ import {
 import { ENV } from "./_core/env";
 
 let _db: ReturnType<typeof drizzle> | null = null;
+let _sqlClient: ReturnType<typeof postgres> | null = null;
 let usersAuthSchemaEnsured = false;
 let coreSchemaBootstrapAttempted = false;
 let essentialTablesEnsured = false;
+const IS_TEST_ENV = process.env.NODE_ENV === "test";
+const loggedBootstrapWarnings = new Set<string>();
 
 const MIGRATION_FILES = [
   "0000_lonely_luckman.sql",
@@ -85,6 +89,30 @@ const NON_FATAL_MIGRATION_ERROR_CODES = new Set([
   "42701", // duplicate_column
   "23505", // unique_violation (duplicate index names in some cases)
 ]);
+
+function readDbErrorCode(error: unknown): string | undefined {
+  const value = error as any;
+  return value?.code || value?.cause?.code || value?.originalError?.code;
+}
+
+function readDbErrorMessage(error: unknown): string {
+  const value = error as any;
+  return (
+    value?.cause?.message ||
+    value?.originalError?.message ||
+    value?.message ||
+    "Unknown database error"
+  );
+}
+
+function isNonFatalMigrationMessage(message: string) {
+  const normalized = message.toLowerCase();
+  return (
+    normalized.includes("already exists") ||
+    normalized.includes("duplicate") ||
+    normalized.includes("does not exist")
+  );
+}
 
 async function bootstrapCoreSchemaFromMigrations(
   db: ReturnType<typeof drizzle>
@@ -107,16 +135,32 @@ async function bootstrapCoreSchemaFromMigrations(
       try {
         await db.execute(sql.raw(statement));
       } catch (error: any) {
-        const errorCode = error?.code as string | undefined;
-        if (errorCode && NON_FATAL_MIGRATION_ERROR_CODES.has(errorCode)) {
+        const errorCode = readDbErrorCode(error);
+        const errorMessage = readDbErrorMessage(error);
+        const isNonFatalByCode =
+          !!errorCode && NON_FATAL_MIGRATION_ERROR_CODES.has(errorCode);
+        const isNonFatalByMessage = isNonFatalMigrationMessage(errorMessage);
+
+        if (isNonFatalByCode || isNonFatalByMessage) {
           continue;
         }
+
+        const statementKey = statement
+          .replace(/\s+/g, " ")
+          .trim()
+          .slice(0, 160);
+        const warningKey = `${filename}:${errorCode ?? "unknown"}:${statementKey}`;
+
+        if (IS_TEST_ENV && loggedBootstrapWarnings.has(warningKey)) {
+          continue;
+        }
+        loggedBootstrapWarnings.add(warningKey);
 
         console.warn(
           `[Database] Migration statement failed (${filename}). Continuing bootstrap.`,
           {
             code: errorCode,
-            message: error?.message,
+            message: errorMessage,
           }
         );
       }
@@ -467,7 +511,13 @@ async function ensureEssentialModuleTables(db: ReturnType<typeof drizzle>) {
 export async function getDb() {
   if (!_db && process.env.DATABASE_URL) {
     try {
-      _db = drizzle(process.env.DATABASE_URL);
+      if (!_sqlClient) {
+        _sqlClient = postgres(process.env.DATABASE_URL, {
+          onnotice: IS_TEST_ENV ? () => {} : undefined,
+        });
+      }
+
+      _db = drizzle(_sqlClient);
     } catch (error) {
       console.warn("[Database] Failed to connect:", error);
       _db = null;
