@@ -10,7 +10,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { LoaderCircle, MessageSquareText, Sparkles } from "lucide-react";
+import { LoaderCircle, MessageSquareText, RotateCcw, Sparkles } from "lucide-react";
 import { useLocation } from "wouter";
 
 type AssistantSidebarProps = {
@@ -21,6 +21,11 @@ type AssistantResponse = {
   answer: string;
   confidence: "alta" | "media" | "baixa";
   module: string;
+  highlights?: string[];
+  sections?: Array<{
+    title: string;
+    lines: string[];
+  }>;
   actions?: Array<{
     type: string;
     label: string;
@@ -46,12 +51,48 @@ type AssistantResponse = {
       status: string;
       priority: string;
     }>;
+    rooms?: Array<{
+      id: number;
+      name: string;
+      status: string;
+      type: string;
+    }>;
+    suppliers?: Array<{
+      id: number;
+      companyName: string;
+      status: string;
+      spaceName?: string;
+    }>;
+    consumables?: Array<{
+      id: number;
+      name: string;
+      category: string;
+      status: string;
+    }>;
+    users?: Array<{
+      id: number;
+      name: string;
+      role: string;
+      isActive: boolean;
+    }>;
+    auditLogs?: Array<{
+      id: number;
+      module: string;
+      action: string;
+      userName?: string;
+    }>;
+    metrics?: Record<string, number>;
   };
 };
 
 const PURCHASE_FILTER_EVENT = "assistant:purchase-filters";
 const PURCHASE_FILTER_STORAGE_KEY = "assistant:purchase-filters";
 const ASSISTANT_NAME = "Mr. Thinkker";
+const QUICK_PROMPTS = [
+  "Quais solicitações estão no financeiro há mais de 3 dias?",
+  "Mostre itens de inventário sem responsável",
+  "Há chamados urgentes de manutenção?",
+];
 
 const moduleByPath: Record<string, string> = {
   "/purchase-requests": "compras",
@@ -75,7 +116,16 @@ export default function AssistantSidebar({ currentPath }: AssistantSidebarProps)
   }, [currentPath]);
 
   const submitQuestion = async () => {
-    const trimmed = question.trim();
+    await submitQuestionWithText(question);
+  };
+
+  const submitPrompt = async (prompt: string) => {
+    if (askMutation.isPending) return;
+    await submitQuestionWithText(prompt);
+  };
+
+  const submitQuestionWithText = async (text: string) => {
+    const trimmed = text.trim();
     if (!trimmed || askMutation.isPending) return;
 
     setConversation(prev => [...prev, { role: "user", content: trimmed }]);
@@ -124,9 +174,16 @@ export default function AssistantSidebar({ currentPath }: AssistantSidebarProps)
         })
       );
 
-      if (location !== "/purchase-requests") {
-        setLocation("/purchase-requests");
-      }
+      setConversation(prev => [
+        ...prev,
+        {
+          role: "assistant",
+          content:
+            location === "/purchase-requests"
+              ? "Filtro aplicado na tela atual de Solicitação de Compras."
+              : "Filtro salvo com sucesso. Quando você abrir Solicitação de Compras, o filtro será aplicado automaticamente.",
+        },
+      ]);
     }
   };
 
@@ -144,10 +201,22 @@ export default function AssistantSidebar({ currentPath }: AssistantSidebarProps)
           className="w-[95vw] sm:w-[520px] bg-slate-900 border-slate-700 p-0 flex flex-col"
         >
           <SheetHeader className="px-5 py-4 border-b border-slate-700">
-            <SheetTitle className="text-white flex items-center gap-2">
-              <MessageSquareText className="h-4 w-4" />
-              {ASSISTANT_NAME}
-            </SheetTitle>
+            <div className="flex items-center justify-between gap-3">
+              <SheetTitle className="text-white flex items-center gap-2">
+                <MessageSquareText className="h-4 w-4" />
+                {ASSISTANT_NAME}
+              </SheetTitle>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="border-slate-600 text-slate-200 hover:bg-slate-700"
+                onClick={() => setConversation([])}
+              >
+                <RotateCcw className="h-3.5 w-3.5 mr-1" />
+                Limpar
+              </Button>
+            </div>
             <SheetDescription className="text-slate-300">
               Pergunte em linguagem natural para consultar dados e aplicar atalhos por módulo.
             </SheetDescription>
@@ -160,6 +229,22 @@ export default function AssistantSidebar({ currentPath }: AssistantSidebarProps)
               </div>
             )}
 
+            {conversation.length === 0 && (
+              <div className="flex flex-wrap gap-2">
+                {QUICK_PROMPTS.map(prompt => (
+                  <Button
+                    key={prompt}
+                    variant="outline"
+                    size="sm"
+                    className="border-slate-600 text-slate-200 hover:bg-slate-700"
+                    onClick={() => void submitPrompt(prompt)}
+                  >
+                    {prompt}
+                  </Button>
+                ))}
+              </div>
+            )}
+
             {conversation.map((message, index) => (
               <div
                 key={`${message.role}-${index}`}
@@ -169,7 +254,46 @@ export default function AssistantSidebar({ currentPath }: AssistantSidebarProps)
                     : "bg-slate-800 border border-slate-700 text-slate-100"
                 }`}
               >
-                <p>{message.content}</p>
+                <p className="whitespace-pre-wrap leading-relaxed">{message.content}</p>
+
+                {message.role === "assistant" && message.payload?.confidence ? (
+                  <div className="mt-2">
+                    <span className="rounded px-2 py-0.5 text-[11px] bg-slate-700 text-slate-200">
+                      confiança: {message.payload.confidence}
+                    </span>
+                  </div>
+                ) : null}
+
+                {message.role === "assistant" && message.payload?.highlights?.length ? (
+                  <div className="mt-3 space-y-2">
+                    {message.payload.highlights.slice(0, 6).map(item => (
+                      <div
+                        key={item}
+                        className="rounded-md border border-slate-700 px-2 py-1 text-xs text-slate-200"
+                      >
+                        {item}
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+
+                {message.role === "assistant" && message.payload?.sections?.length ? (
+                  <div className="mt-3 space-y-2">
+                    {message.payload.sections.slice(0, 4).map(section => (
+                      <div
+                        key={section.title}
+                        className="rounded-md border border-slate-700 p-2 text-xs text-slate-200"
+                      >
+                        <p className="font-medium mb-1">{section.title}</p>
+                        <div className="space-y-1">
+                          {section.lines.slice(0, 5).map(line => (
+                            <p key={`${section.title}-${line}`}>{line}</p>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
 
                 {message.role === "assistant" && message.payload?.actions?.length ? (
                   <div className="mt-3 flex flex-wrap gap-2">
@@ -223,6 +347,73 @@ export default function AssistantSidebar({ currentPath }: AssistantSidebarProps)
                         className="rounded-md border border-slate-700 px-2 py-1 text-xs text-slate-200"
                       >
                         <span className="font-medium">#{item.id}</span> - {item.priority} - {item.title}
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+
+                {message.role === "assistant" && message.payload?.results?.rooms?.length ? (
+                  <div className="mt-3 space-y-2">
+                    {message.payload.results.rooms.slice(0, 4).map(item => (
+                      <div
+                        key={item.id}
+                        className="rounded-md border border-slate-700 px-2 py-1 text-xs text-slate-200"
+                      >
+                        <span className="font-medium">{item.name}</span> - {item.status} - {item.type}
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+
+                {message.role === "assistant" && message.payload?.results?.suppliers?.length ? (
+                  <div className="mt-3 space-y-2">
+                    {message.payload.results.suppliers.slice(0, 4).map(item => (
+                      <div
+                        key={item.id}
+                        className="rounded-md border border-slate-700 px-2 py-1 text-xs text-slate-200"
+                      >
+                        <span className="font-medium">{item.companyName}</span> - {item.status}
+                        {item.spaceName ? ` - ${item.spaceName}` : ""}
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+
+                {message.role === "assistant" && message.payload?.results?.consumables?.length ? (
+                  <div className="mt-3 space-y-2">
+                    {message.payload.results.consumables.slice(0, 4).map(item => (
+                      <div
+                        key={item.id}
+                        className="rounded-md border border-slate-700 px-2 py-1 text-xs text-slate-200"
+                      >
+                        <span className="font-medium">{item.name}</span> - {item.category} - {item.status}
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+
+                {message.role === "assistant" && message.payload?.results?.users?.length ? (
+                  <div className="mt-3 space-y-2">
+                    {message.payload.results.users.slice(0, 4).map(item => (
+                      <div
+                        key={item.id}
+                        className="rounded-md border border-slate-700 px-2 py-1 text-xs text-slate-200"
+                      >
+                        <span className="font-medium">{item.name}</span> - {item.role} - {item.isActive ? "ativo" : "inativo"}
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+
+                {message.role === "assistant" && message.payload?.results?.auditLogs?.length ? (
+                  <div className="mt-3 space-y-2">
+                    {message.payload.results.auditLogs.slice(0, 4).map(item => (
+                      <div
+                        key={item.id}
+                        className="rounded-md border border-slate-700 px-2 py-1 text-xs text-slate-200"
+                      >
+                        <span className="font-medium">{item.module}</span> - {item.action}
+                        {item.userName ? ` - ${item.userName}` : ""}
                       </div>
                     ))}
                   </div>

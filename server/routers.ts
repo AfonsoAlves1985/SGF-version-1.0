@@ -226,6 +226,14 @@ function extractAssistantKeywords(question: string) {
     .slice(0, 5);
 }
 
+type AssistantSearchEntry = {
+  module: string;
+  path: string;
+  title: string;
+  line: string;
+  searchable: string;
+};
+
 type PurchaseWebhookAction = "created" | "updated";
 
 async function dispatchPurchaseRequestWebhook(input: {
@@ -2109,12 +2117,143 @@ export const appRouter = router({
             .optional(),
         })
       )
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
         const question = input.question.trim();
         const normalizedQuestion = normalizeAssistantText(question);
         const keywords = extractAssistantKeywords(question);
         const detectedModule =
           input.context?.module || inferAssistantModule(input.context?.path);
+        const isOwnerUser =
+          ctx.user.openId === ENV.ownerOpenId ||
+          (ctx.user.role === "superadmin" && !ENV.ownerOpenId);
+
+        const loadGlobalSnapshot = async () => {
+          const [
+            purchaseRequests,
+            assets,
+            maintenance,
+            rooms,
+            suppliers,
+            consumables,
+            users,
+            teams,
+            reservations,
+            logs,
+          ] = await Promise.all([
+            db.listPurchaseRequests(),
+            db.listInventoryAssets(),
+            db.listMaintenanceRequests(),
+            db.listRooms(),
+            db.listSuppliersWithSpace(),
+            db.listConsumables(),
+            db.listUsers(),
+            db.listTeams(),
+            db.listRoomReservations(),
+            db.listAuditLogsDetailed({ limit: 120, offset: 0 }),
+          ]);
+
+          return {
+            purchaseRequests,
+            assets,
+            maintenance,
+            rooms,
+            suppliers,
+            consumables,
+            users,
+            teams,
+            reservations,
+            logs,
+          };
+        };
+
+        const asksSystemOverview =
+          normalizedQuestion.includes("resumo") ||
+          normalizedQuestion.includes("visao geral") ||
+          normalizedQuestion.includes("visao") ||
+          normalizedQuestion.includes("status sistema") ||
+          normalizedQuestion.includes("status geral");
+
+        if (asksSystemOverview) {
+          const snapshot = await loadGlobalSnapshot();
+          const {
+            purchaseRequests,
+            assets,
+            maintenance,
+            rooms,
+            suppliers,
+            consumables,
+          } = snapshot;
+
+          const financialPending = purchaseRequests.filter(
+            (item: any) => item.status === "financeiro"
+          ).length;
+          const approvedCount = purchaseRequests.filter(
+            (item: any) => item.status === "aprovado"
+          ).length;
+          const assetsWithoutResponsible = assets.filter(
+            (item: any) => !item.responsavel
+          ).length;
+          const urgentMaintenance = maintenance.filter(
+            (item: any) => item.priority === "urgente" || item.priority === "alta"
+          ).length;
+          const occupiedRooms = rooms.filter((item: any) => item.status === "em_uso").length;
+          const activeSuppliers = suppliers.filter((item: any) => item.status === "ativo").length;
+
+          const highlights = [
+            `${financialPending} solicitação(ões) em financeiro`,
+            `${approvedCount} solicitação(ões) aprovadas`,
+            `${assetsWithoutResponsible} bens sem responsável`,
+            `${urgentMaintenance} chamados urgentes/alta prioridade`,
+            `${occupiedRooms} sala(s) em uso`,
+            `${activeSuppliers} fornecedor(es) ativos`,
+            `${consumables.length} consumível(is) cadastrado(s)`,
+          ];
+
+          if (isOwnerUser) {
+            highlights.push(`${snapshot.users.length} usuário(s) total`);
+            highlights.push(`${snapshot.teams.length} membro(s) de equipe`);
+            highlights.push(`${snapshot.reservations.length} reserva(s) de sala`);
+          }
+
+          return {
+            answer: [
+              "Aqui está uma visão geral atual do sistema, direto no chat:",
+              "",
+              ...highlights.map((line, index) => `${index + 1}. ${line}`),
+              "",
+              "Se quiser, posso detalhar qualquer item por módulo agora.",
+            ].join("\n"),
+            module: "geral",
+            confidence: "alta",
+            highlights,
+            actions: [
+              {
+                type: "navigate",
+                label: "Abrir Solicitação de Compras",
+                path: "/purchase-requests",
+              },
+              { type: "navigate", label: "Abrir Inventário", path: "/inventory" },
+              { type: "navigate", label: "Abrir Manutenção", path: "/maintenance" },
+            ],
+            results: {
+              metrics: {
+                purchaseRequests: purchaseRequests.length,
+                inventoryAssets: assets.length,
+                maintenanceRequests: maintenance.length,
+                rooms: rooms.length,
+                suppliers: suppliers.length,
+                consumables: consumables.length,
+                ...(isOwnerUser
+                  ? {
+                      users: snapshot.users.length,
+                      teams: snapshot.teams.length,
+                      reservations: snapshot.reservations.length,
+                    }
+                  : {}),
+              },
+            },
+          };
+        }
 
         if (
           detectedModule === "compras" ||
@@ -2230,23 +2369,39 @@ export const appRouter = router({
             search: keywords[0] || "",
           };
 
+          const previewLines = top
+            .slice(0, 5)
+            .map(
+              (record: any, index: number) =>
+                `${index + 1}. ${record.documentNumber} | ${record.status} | ${record.company}`
+            );
+
+          const responseText =
+            top.length > 0
+              ? [
+                  `Encontrei ${filtered.length} solicitação(ões) relacionada(s).`,
+                  "",
+                  "Principais resultados:",
+                  ...previewLines,
+                  "",
+                  "Posso aplicar um filtro agora sem abrir outro módulo.",
+                ].join("\n")
+              : "Não encontrei solicitações com esse critério no momento. Se quiser, tente informar empresa, status ou período (ex: 5 dias).";
+
           return {
-            answer:
-              top.length > 0
-                ? `Encontrei ${filtered.length} solicitação(ões) relacionada(s). Mostrando as mais relevantes.`
-                : "Não encontrei solicitações com esse critério no momento.",
+            answer: responseText,
             module: "compras",
             confidence: top.length > 0 ? "alta" : "media",
             actions: [
               {
-                type: "navigate",
-                label: "Abrir Solicitação de Compras",
-                path: "/purchase-requests",
-              },
-              {
                 type: "apply_purchase_filters",
                 label: "Aplicar filtro sugerido",
                 filters: suggestedFilters,
+              },
+              {
+                type: "navigate",
+                label: "Abrir Solicitação de Compras",
+                path: "/purchase-requests",
               },
             ],
             results: {
@@ -2296,11 +2451,25 @@ export const appRouter = router({
               local: asset.local,
             }));
 
+          const assetLines = filtered
+            .slice(0, 5)
+            .map(
+              (asset: any, index: number) =>
+                `${index + 1}. ${asset.nrBem} | ${asset.descricao} | ${asset.responsavel || "sem responsável"}`
+            );
+
+          const inventoryText =
+            filtered.length > 0
+              ? [
+                  `Encontrei ${filtered.length} bem(ns) no inventário para sua consulta.`,
+                  "",
+                  "Resultados:",
+                  ...assetLines,
+                ].join("\n")
+              : "Não encontrei bens com esse critério no inventário. Tente informar código do bem, descrição ou responsável.";
+
           return {
-            answer:
-              filtered.length > 0
-                ? `Encontrei ${filtered.length} bem(ns) no inventário para sua consulta.`
-                : "Não encontrei bens com esse critério no inventário.",
+            answer: inventoryText,
             module: "inventario",
             confidence: filtered.length > 0 ? "alta" : "media",
             actions: [
@@ -2332,11 +2501,25 @@ export const appRouter = router({
               priority: item.priority,
             }));
 
+          const maintenanceLines = urgent
+            .slice(0, 5)
+            .map(
+              (item: any, index: number) =>
+                `${index + 1}. #${item.id} | ${item.priority} | ${item.status} | ${item.title}`
+            );
+
+          const maintenanceText =
+            urgent.length > 0
+              ? [
+                  `Há ${urgent.length} chamado(s) urgente(s)/alta prioridade em evidência.`,
+                  "",
+                  "Resumo:",
+                  ...maintenanceLines,
+                ].join("\n")
+              : "Não há chamados urgentes no momento.";
+
           return {
-            answer:
-              urgent.length > 0
-                ? `Há ${urgent.length} chamado(s) urgente(s)/alta prioridade em evidência.`
-                : "Não há chamados urgentes no momento.",
+            answer: maintenanceText,
             module: "manutencao",
             confidence: "media",
             actions: [
@@ -2352,9 +2535,357 @@ export const appRouter = router({
           };
         }
 
+        if (
+          detectedModule === "salas" ||
+          normalizedQuestion.includes("sala") ||
+          normalizedQuestion.includes("audit") ||
+          normalizedQuestion.includes("auditorio")
+        ) {
+          const rooms = await db.listRooms();
+          const inUse = rooms.filter((item: any) => item.status === "em_uso");
+          const available = rooms.filter((item: any) => item.status === "disponivel");
+          const maintenanceRooms = rooms.filter((item: any) => item.status === "manutencao");
+
+          const topRooms = rooms.slice(0, 8).map((item: any) => ({
+            id: item.id,
+            name: item.name,
+            status: item.status,
+            type: item.type,
+          }));
+
+          return {
+            answer: [
+              `Salas: ${rooms.length} no total.`,
+              `${inUse.length} em uso, ${available.length} disponíveis e ${maintenanceRooms.length} em manutenção.`,
+              "",
+              "Se quiser, posso filtrar por status específico (ex.: apenas em uso).",
+            ].join("\n"),
+            module: "salas",
+            confidence: "alta",
+            actions: [
+              { type: "navigate", label: "Abrir Salas", path: "/rooms" },
+            ],
+            results: {
+              rooms: topRooms,
+              metrics: {
+                total: rooms.length,
+                inUse: inUse.length,
+                available: available.length,
+                maintenance: maintenanceRooms.length,
+              },
+            },
+          };
+        }
+
+        if (
+          detectedModule === "fornecedores" ||
+          normalizedQuestion.includes("fornecedor") ||
+          normalizedQuestion.includes("servico")
+        ) {
+          const suppliers = await db.listSuppliersWithSpace();
+          const active = suppliers.filter((item: any) => item.status === "ativo");
+          const inactive = suppliers.filter((item: any) => item.status === "inativo");
+
+          const topSuppliers = suppliers.slice(0, 8).map((item: any) => ({
+            id: item.id,
+            companyName: item.companyName,
+            status: item.status,
+            spaceName: item.spaceName,
+          }));
+
+          return {
+            answer: [
+              `Fornecedores por unidade: ${suppliers.length} no total.`,
+              `${active.length} ativo(s) e ${inactive.length} inativo(s).`,
+              "",
+              "Posso detalhar por unidade, status ou tipo de serviço.",
+            ].join("\n"),
+            module: "fornecedores",
+            confidence: "alta",
+            actions: [
+              { type: "navigate", label: "Abrir Fornecedores", path: "/suppliers" },
+            ],
+            results: {
+              suppliers: topSuppliers,
+            },
+          };
+        }
+
+        if (normalizedQuestion.includes("consumivel") || normalizedQuestion.includes("estoque")) {
+          const consumables = await db.listConsumables();
+          const toReplenish = consumables.filter(
+            (item: any) => item.status === "REPOR_ESTOQUE"
+          );
+
+          const topConsumables = consumables.slice(0, 8).map((item: any) => ({
+            id: item.id,
+            name: item.name,
+            category: item.category,
+            status: item.status,
+          }));
+
+          return {
+            answer: [
+              `Consumíveis: ${consumables.length} no total.`,
+              `${toReplenish.length} item(ns) com status de reposição.`,
+              "",
+              "Posso listar apenas os itens críticos se você quiser.",
+            ].join("\n"),
+            module: "consumiveis",
+            confidence: "media",
+            actions: [
+              { type: "navigate", label: "Abrir Consumíveis", path: "/consumables" },
+            ],
+            results: {
+              consumables: topConsumables,
+            },
+          };
+        }
+
+        if (
+          normalizedQuestion.includes("usuario") ||
+          normalizedQuestion.includes("acesso") ||
+          normalizedQuestion.includes("auditoria") ||
+          normalizedQuestion.includes("log")
+        ) {
+          if (!isOwnerUser) {
+            return {
+              answer:
+                "Consultas de segurança (usuários, acessos e auditoria) estão disponíveis somente para o Owner.",
+              module: "acessos",
+              confidence: "alta",
+              actions: [],
+              results: {},
+            };
+          }
+
+          const [users, logs] = await Promise.all([
+            db.listUsers(),
+            db.listAuditLogsDetailed({ limit: 20, offset: 0 }),
+          ]);
+
+          const activeUsers = users.filter((item: any) => item.isActive).length;
+          const adminUsers = users.filter(
+            (item: any) => item.role === "admin" || item.role === "superadmin"
+          ).length;
+
+          const latestLogs = logs.slice(0, 6).map((item: any) => ({
+            id: item.id,
+            module: item.module,
+            action: item.action,
+            userName: item.userName,
+          }));
+
+          return {
+            answer: [
+              `Usuários: ${users.length} total (${activeUsers} ativos).`,
+              `${adminUsers} com perfil admin/superadmin.`,
+              `Últimos logs carregados: ${latestLogs.length}.`,
+            ].join("\n"),
+            module: "acessos",
+            confidence: "alta",
+            actions: [
+              {
+                type: "navigate",
+                label: "Abrir Administração de Acessos",
+                path: "/access-management",
+              },
+              {
+                type: "navigate",
+                label: "Abrir Logs de Auditoria",
+                path: "/logs",
+              },
+            ],
+            results: {
+              users: users.slice(0, 8).map((item: any) => ({
+                id: item.id,
+                name: item.name,
+                role: item.role,
+                isActive: item.isActive,
+              })),
+              auditLogs: latestLogs,
+            },
+          };
+        }
+
+        const snapshot = await loadGlobalSnapshot();
+        const entries: AssistantSearchEntry[] = [];
+
+        snapshot.purchaseRequests.forEach((item: any) => {
+          entries.push({
+            module: "compras",
+            path: "/purchase-requests",
+            title: item.documentNumber,
+            line: `${item.documentNumber} | ${item.status} | ${item.company}`,
+            searchable: normalizeAssistantText(
+              [
+                item.documentNumber,
+                item.status,
+                item.company,
+                item.requesterName,
+                item.justification,
+              ]
+                .filter(Boolean)
+                .join(" ")
+            ),
+          });
+        });
+
+        snapshot.assets.forEach((item: any) => {
+          entries.push({
+            module: "inventario",
+            path: "/inventory",
+            title: item.nrBem,
+            line: `${item.nrBem} | ${item.descricao} | ${item.responsavel || "sem responsável"}`,
+            searchable: normalizeAssistantText(
+              [item.nrBem, item.descricao, item.responsavel, item.fornecedor, item.local]
+                .filter(Boolean)
+                .join(" ")
+            ),
+          });
+        });
+
+        snapshot.maintenance.forEach((item: any) => {
+          entries.push({
+            module: "manutencao",
+            path: "/maintenance",
+            title: `#${item.id}`,
+            line: `#${item.id} | ${item.priority} | ${item.status} | ${item.title}`,
+            searchable: normalizeAssistantText(
+              [item.id, item.priority, item.status, item.title, item.description]
+                .filter(Boolean)
+                .join(" ")
+            ),
+          });
+        });
+
+        snapshot.rooms.forEach((item: any) => {
+          entries.push({
+            module: "salas",
+            path: "/rooms",
+            title: item.name,
+            line: `${item.name} | ${item.status} | ${item.type}`,
+            searchable: normalizeAssistantText(
+              [item.name, item.status, item.type, item.location]
+                .filter(Boolean)
+                .join(" ")
+            ),
+          });
+        });
+
+        snapshot.suppliers.forEach((item: any) => {
+          entries.push({
+            module: "fornecedores",
+            path: "/suppliers",
+            title: item.companyName,
+            line: `${item.companyName} | ${item.status} | ${item.spaceName || "sem unidade"}`,
+            searchable: normalizeAssistantText(
+              [item.companyName, item.status, item.spaceName, item.contactPerson, item.notes]
+                .filter(Boolean)
+                .join(" ")
+            ),
+          });
+        });
+
+        snapshot.consumables.forEach((item: any) => {
+          entries.push({
+            module: "consumiveis",
+            path: "/consumables",
+            title: item.name,
+            line: `${item.name} | ${item.category} | ${item.status}`,
+            searchable: normalizeAssistantText(
+              [item.name, item.category, item.status]
+                .filter(Boolean)
+                .join(" ")
+            ),
+          });
+        });
+
+        if (isOwnerUser) {
+          snapshot.users.forEach((item: any) => {
+            entries.push({
+              module: "acessos",
+              path: "/access-management",
+              title: item.name || item.email,
+              line: `${item.name || "Sem nome"} | ${item.role} | ${item.isActive ? "ativo" : "inativo"}`,
+              searchable: normalizeAssistantText(
+                [item.name, item.email, item.role, item.isActive ? "ativo" : "inativo"]
+                  .filter(Boolean)
+                  .join(" ")
+              ),
+            });
+          });
+
+          snapshot.logs.forEach((item: any) => {
+            entries.push({
+              module: "auditoria",
+              path: "/logs",
+              title: item.module,
+              line: `${item.module} | ${item.action} | ${item.userName || "sistema"}`,
+              searchable: normalizeAssistantText(
+                [item.module, item.action, item.userName, item.userEmail]
+                  .filter(Boolean)
+                  .join(" ")
+              ),
+            });
+          });
+        }
+
+        const normalizedTerms =
+          keywords.length > 0 ? keywords : normalizedQuestion.split(/[^a-z0-9]+/).filter(Boolean);
+
+        const matches = entries.filter(entry =>
+          normalizedTerms.some(term => term.length >= 3 && entry.searchable.includes(term))
+        );
+
+        if (matches.length > 0) {
+          const grouped = new Map<string, AssistantSearchEntry[]>();
+          for (const item of matches.slice(0, 30)) {
+            if (!grouped.has(item.module)) grouped.set(item.module, []);
+            grouped.get(item.module)?.push(item);
+          }
+
+          const sections = Array.from(grouped.entries()).map(([module, items]) => ({
+            title: module,
+            lines: items.slice(0, 5).map(item => item.line),
+          }));
+
+          const highlights = Array.from(grouped.entries()).map(
+            ([module, items]) => `${module}: ${items.length} resultado(s)`
+          );
+
+          const firstPath = matches[0]?.path || "/dashboard";
+
+          return {
+            answer: [
+              `Encontrei ${matches.length} resultado(s) no sistema para sua pergunta.`,
+              "",
+              "Organizei por módulo para facilitar a leitura rápida no chat.",
+            ].join("\n"),
+            module: "geral",
+            confidence: "alta",
+            highlights,
+            sections,
+            actions: [
+              { type: "navigate", label: "Abrir módulo mais relevante", path: firstPath },
+            ],
+            results: {},
+          };
+        }
+
         return {
           answer:
-            "Posso te ajudar melhor se você citar o módulo (compras, inventário ou manutenção) e o critério desejado.",
+            [
+              "Posso responder direto no chat e consultar o banco em todos os módulos principais.",
+              "",
+              "Tente perguntas como:",
+              "- Quais solicitações estão no financeiro há mais de 3 dias?",
+              "- Mostre itens de inventário sem responsável",
+              "- Há chamados urgentes de manutenção?",
+              "- Me dê uma visão geral do sistema",
+              "- Quantas salas estão em uso agora?",
+              "- Como estão os fornecedores por unidade?",
+            ].join("\n"),
           module: "geral",
           confidence: "baixa",
           actions: [
