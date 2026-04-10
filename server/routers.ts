@@ -1509,7 +1509,7 @@ export const appRouter = router({
         })
       )
       .mutation(async ({ input, ctx }) => {
-        return dispatchPurchaseRequestWebhook({
+        const delivery = await dispatchPurchaseRequestWebhook({
           requestId: input.requestId,
           action: input.action,
           webhookUrl: input.webhookUrl,
@@ -1521,6 +1521,15 @@ export const appRouter = router({
             email: ctx.user.email,
           },
         });
+
+        await db.registerPurchaseWebhookDelivery({
+          requestId: input.requestId,
+          delivered: delivery.delivered,
+          statusCode: delivery.statusCode,
+          errorMessage: delivery.errorMessage,
+        });
+
+        return delivery;
       }),
 
     create: editorProcedure

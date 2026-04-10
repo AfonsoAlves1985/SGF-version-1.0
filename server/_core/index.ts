@@ -201,6 +201,8 @@ async function startServer() {
         documentNumber: result.documentNumber,
         status: result.status,
         decision: result.decision,
+        applied: result.applied,
+        idempotent: result.idempotent,
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Erro desconhecido";

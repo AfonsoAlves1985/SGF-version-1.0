@@ -81,6 +81,7 @@ const MIGRATION_FILES = [
   "0006_purchase_requests_module.sql",
   "0007_inventory_assets_responsavel.sql",
   "0008_purchase_requests_external_approval.sql",
+  "0009_purchase_requests_integration_tracking.sql",
 ] as const;
 
 const NON_FATAL_MIGRATION_ERROR_CODES = new Set([
@@ -419,6 +420,17 @@ async function ensureEssentialModuleTables(db: ReturnType<typeof drizzle>) {
       "externalApprovedAt" timestamp,
       "externalApprovalReason" text,
       "externalApprovalPayload" json,
+      "integrationWebhookAttempts" integer DEFAULT 0 NOT NULL,
+      "integrationWebhookLastAttemptAt" timestamp,
+      "integrationWebhookLastDeliveredAt" timestamp,
+      "integrationWebhookLastStatus" varchar(40),
+      "integrationWebhookLastStatusCode" integer,
+      "integrationWebhookLastError" text,
+      "integrationCallbackAttempts" integer DEFAULT 0 NOT NULL,
+      "integrationCallbackLastAt" timestamp,
+      "integrationCallbackLastStatus" varchar(40),
+      "integrationCallbackLastDecision" varchar(20),
+      "integrationCallbackLastError" text,
       "billingCnpj" varchar(18),
       "paymentTerms" varchar(255),
       "createdBy" integer,
@@ -443,6 +455,40 @@ async function ensureEssentialModuleTables(db: ReturnType<typeof drizzle>) {
       "updatedAt" timestamp DEFAULT now() NOT NULL
     );
   `);
+
+  await run(
+    `ALTER TABLE "purchase_requests" ADD COLUMN IF NOT EXISTS "integrationWebhookAttempts" integer DEFAULT 0 NOT NULL;`
+  );
+  await run(
+    `ALTER TABLE "purchase_requests" ADD COLUMN IF NOT EXISTS "integrationWebhookLastAttemptAt" timestamp;`
+  );
+  await run(
+    `ALTER TABLE "purchase_requests" ADD COLUMN IF NOT EXISTS "integrationWebhookLastDeliveredAt" timestamp;`
+  );
+  await run(
+    `ALTER TABLE "purchase_requests" ADD COLUMN IF NOT EXISTS "integrationWebhookLastStatus" varchar(40);`
+  );
+  await run(
+    `ALTER TABLE "purchase_requests" ADD COLUMN IF NOT EXISTS "integrationWebhookLastStatusCode" integer;`
+  );
+  await run(
+    `ALTER TABLE "purchase_requests" ADD COLUMN IF NOT EXISTS "integrationWebhookLastError" text;`
+  );
+  await run(
+    `ALTER TABLE "purchase_requests" ADD COLUMN IF NOT EXISTS "integrationCallbackAttempts" integer DEFAULT 0 NOT NULL;`
+  );
+  await run(
+    `ALTER TABLE "purchase_requests" ADD COLUMN IF NOT EXISTS "integrationCallbackLastAt" timestamp;`
+  );
+  await run(
+    `ALTER TABLE "purchase_requests" ADD COLUMN IF NOT EXISTS "integrationCallbackLastStatus" varchar(40);`
+  );
+  await run(
+    `ALTER TABLE "purchase_requests" ADD COLUMN IF NOT EXISTS "integrationCallbackLastDecision" varchar(20);`
+  );
+  await run(
+    `ALTER TABLE "purchase_requests" ADD COLUMN IF NOT EXISTS "integrationCallbackLastError" text;`
+  );
 
   await run(`
     CREATE INDEX IF NOT EXISTS "purchase_requests_document_idx"
@@ -2532,6 +2578,13 @@ type ExternalPurchaseDecisionInput = {
   payload?: unknown;
 };
 
+type PurchaseWebhookDeliveryInput = {
+  requestId: number;
+  delivered: boolean;
+  statusCode?: number | null;
+  errorMessage?: string | null;
+};
+
 function normalizePurchaseRequestItems(
   items: PurchaseRequestWithItemsInput["items"]
 ) {
@@ -2703,6 +2756,48 @@ export async function applyExternalPurchaseRequestDecision(
     throw new Error("Solicitação de compra não encontrada para callback externo");
   }
 
+  const callbackAttempts = (request.integrationCallbackAttempts ?? 0) + 1;
+  const callbackTimestamp = new Date();
+
+  const incomingDecidedAt = input.decidedAt ? input.decidedAt.toISOString() : null;
+  const storedDecidedAt = request.externalApprovedAt
+    ? new Date(request.externalApprovedAt).toISOString()
+    : null;
+
+  const isDuplicateByExternalId =
+    !!input.externalRequestId &&
+    !!request.externalRequestId &&
+    request.externalRequestId === input.externalRequestId &&
+    request.externalApprovalStatus === input.decision;
+
+  const isDuplicateByDecisionSnapshot =
+    request.externalApprovalStatus === input.decision &&
+    (request.externalApprovedBy || null) === (input.decidedBy || null) &&
+    (request.externalApprovalReason || null) === (input.reason || null) &&
+    (!incomingDecidedAt || incomingDecidedAt === storedDecidedAt);
+
+  if (isDuplicateByExternalId || isDuplicateByDecisionSnapshot) {
+    await updatePurchaseRequest(request.id, {
+      request: {
+        integrationCallbackAttempts: callbackAttempts,
+        integrationCallbackLastAt: callbackTimestamp,
+        integrationCallbackLastStatus: "duplicate",
+        integrationCallbackLastDecision: input.decision,
+        integrationCallbackLastError: null,
+        externalApprovalPayload: (input.payload as any) || null,
+      },
+    });
+
+    return {
+      id: request.id,
+      documentNumber: request.documentNumber,
+      status: request.status,
+      decision: input.decision,
+      applied: false,
+      idempotent: true,
+    };
+  }
+
   const mappedStatus =
     input.decision === "approved"
       ? "aprovado"
@@ -2732,6 +2827,11 @@ export async function applyExternalPurchaseRequestDecision(
       externalApprovedAt: input.decidedAt || new Date(),
       externalApprovalReason: input.reason || null,
       externalApprovalPayload: (input.payload as any) || null,
+      integrationCallbackAttempts: callbackAttempts,
+      integrationCallbackLastAt: callbackTimestamp,
+      integrationCallbackLastStatus: "applied",
+      integrationCallbackLastDecision: input.decision,
+      integrationCallbackLastError: null,
       observations: nextObservations,
       completedAt: null,
     },
@@ -2742,6 +2842,40 @@ export async function applyExternalPurchaseRequestDecision(
     documentNumber: request.documentNumber,
     status: mappedStatus,
     decision: input.decision,
+    applied: true,
+    idempotent: false,
+  };
+}
+
+export async function registerPurchaseWebhookDelivery(
+  input: PurchaseWebhookDeliveryInput
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const request = await getPurchaseRequestById(input.requestId);
+  if (!request) {
+    throw new Error("Solicitação de compra não encontrada para rastreamento webhook");
+  }
+
+  const attempts = (request.integrationWebhookAttempts ?? 0) + 1;
+  const now = new Date();
+
+  await updatePurchaseRequest(request.id, {
+    request: {
+      integrationWebhookAttempts: attempts,
+      integrationWebhookLastAttemptAt: now,
+      integrationWebhookLastDeliveredAt: input.delivered ? now : null,
+      integrationWebhookLastStatus: input.delivered ? "delivered" : "failed",
+      integrationWebhookLastStatusCode: input.statusCode ?? null,
+      integrationWebhookLastError: input.errorMessage || null,
+    },
+  });
+
+  return {
+    requestId: request.id,
+    attempts,
+    status: input.delivered ? "delivered" : "failed",
   };
 }
 
