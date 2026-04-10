@@ -13,6 +13,10 @@
 - [[Acessos e Convites]]
 - [[Inventario por Unidade e Bens]]
 - Home e Sidebar
+- Ajustes no Dashboard apos [[Descontinuacao do Modulo Contratos]]
 
 ## Validacao
 - Typecheck e build ok apos migracao de classes e variaveis de tema.
+
+## Veja tambem
+- [[SGF Brain - Index]]

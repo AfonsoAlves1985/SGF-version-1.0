@@ -14,6 +14,7 @@
 ## Integracoes
 - Depende de [[Regras de Permissao e Seguranca]].
 - Conecta com [[Deploy e Validacao]] para smoke test de ponta a ponta.
+- Em pos-corte, validar junto com [[Pos-migracao Banco e Servidor]].
 
 ## UI e pontos de acesso
 - Tela: Administracao de Acessos.
@@ -25,3 +26,7 @@
 - Convidado cadastra com token valido.
 - Novo usuario faz login normal.
 - Segunda tentativa com mesmo token falha.
+
+## Veja tambem
+- [[Tema Visual Azul]]
+- [[SGF Brain - Index]]

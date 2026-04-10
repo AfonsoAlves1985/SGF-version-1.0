@@ -15,6 +15,7 @@
 ## Dependencias
 - Base para [[Acessos e Convites]].
 - Base para governanca de [[Inventario por Unidade e Bens]] quando houver regras por perfil.
+- Apoia a governanca operacional de [[Compras e Integracao FRZ COUNT]].
 
 ## Pontos de backend
 - Router de acessos com validacoes de papel e alvo.
@@ -25,3 +26,6 @@
 - Owner tentando excluir a si proprio -> deve falhar.
 - Owner tentando excluir outro owner -> deve falhar.
 - Owner excluindo usuario desativado comum -> deve passar.
+
+## Veja tambem
+- [[SGF Brain - Index]]
