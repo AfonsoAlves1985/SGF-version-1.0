@@ -29,6 +29,11 @@
 
 ## Dependencias
 - Impacta leitura de [[SGF Brain - Index]] e reduz ruido no [[Deploy e Validacao]].
+- Nao afeta [[Assistente Mr. Thinkker]] (assistente nao indexa contratos).
 
 ## Veja tambem
 - [[Pos-migracao Banco e Servidor]]
+- [[Tema Visual Azul]]
+- [[Deploy e Validacao]]
+- [[Linha do Tempo de Entregas]]
+- [[SGF Brain - Index]]

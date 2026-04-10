@@ -15,6 +15,7 @@
 - Depende de [[Regras de Permissao e Seguranca]].
 - Conecta com [[Deploy e Validacao]] para smoke test de ponta a ponta.
 - Em pos-corte, validar junto com [[Pos-migracao Banco e Servidor]].
+- [[Assistente Mr. Thinkker]] pode consultar usuarios e logs apenas para Owner.
 
 ## UI e pontos de acesso
 - Tela: Administracao de Acessos.
@@ -29,4 +30,7 @@
 
 ## Veja tambem
 - [[Tema Visual Azul]]
+- [[Compras e Integracao FRZ COUNT]]
+- [[Inventario por Unidade e Bens]]
+- [[Linha do Tempo de Entregas]]
 - [[SGF Brain - Index]]

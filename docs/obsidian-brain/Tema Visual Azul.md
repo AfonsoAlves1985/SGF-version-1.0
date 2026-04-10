@@ -14,9 +14,14 @@
 - [[Inventario por Unidade e Bens]]
 - Home e Sidebar
 - Ajustes no Dashboard apos [[Descontinuacao do Modulo Contratos]]
+- Tambem afeta UI do [[Assistente Mr. Thinkker]] no tema escuro.
 
 ## Validacao
 - Typecheck e build ok apos migracao de classes e variaveis de tema.
 
 ## Veja tambem
+- [[Deploy e Validacao]]
+- [[Pos-migracao Banco e Servidor]]
+- [[Compras e Integracao FRZ COUNT]]
+- [[Linha do Tempo de Entregas]]
 - [[SGF Brain - Index]]

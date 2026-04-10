@@ -21,11 +21,13 @@ type AssistantResponse = {
   answer: string;
   confidence: "alta" | "media" | "baixa";
   module: string;
+  researchDepth?: "inicial" | "media" | "profunda";
   highlights?: string[];
   sections?: Array<{
     title: string;
     lines: string[];
   }>;
+  followUps?: string[];
   actions?: Array<{
     type: string;
     label: string;
@@ -33,6 +35,13 @@ type AssistantResponse = {
     filters?: Record<string, unknown>;
   }>;
   results?: {
+    resultItems?: Array<{
+      module: string;
+      unidade?: string | null;
+      informacao: string;
+      path?: string | null;
+      titulo?: string | null;
+    }>;
     purchaseRequests?: Array<{
       id: number;
       documentNumber: string;
@@ -87,6 +96,7 @@ type AssistantResponse = {
 
 const PURCHASE_FILTER_EVENT = "assistant:purchase-filters";
 const PURCHASE_FILTER_STORAGE_KEY = "assistant:purchase-filters";
+const ASSISTANT_MEMORY_KEY = "assistant:memory:v1";
 const ASSISTANT_NAME = "Mr. Thinkker";
 const QUICK_PROMPTS = [
   "Quais solicitações estão no financeiro há mais de 3 dias?",
@@ -111,6 +121,26 @@ export default function AssistantSidebar({ currentPath }: AssistantSidebarProps)
 
   const askMutation = trpc.assistant.ask.useMutation();
 
+  const loadMemory = () => {
+    try {
+      const raw = localStorage.getItem(ASSISTANT_MEMORY_KEY);
+      if (!raw) return null;
+      return JSON.parse(raw) as {
+        preferredModule?: string;
+        frequentTerms?: string[];
+      };
+    } catch {
+      return null;
+    }
+  };
+
+  const persistMemory = (next: {
+    preferredModule?: string;
+    frequentTerms?: string[];
+  }) => {
+    localStorage.setItem(ASSISTANT_MEMORY_KEY, JSON.stringify(next));
+  };
+
   const moduleHint = useMemo(() => {
     return moduleByPath[currentPath] || "geral";
   }, [currentPath]);
@@ -131,14 +161,36 @@ export default function AssistantSidebar({ currentPath }: AssistantSidebarProps)
     setConversation(prev => [...prev, { role: "user", content: trimmed }]);
     setQuestion("");
 
+    const historyPayload = conversation.slice(-10).map(item => ({
+      role: item.role,
+      content: item.content,
+    }));
+
+    const memory = loadMemory();
+
     try {
       const response = (await askMutation.mutateAsync({
         question: trimmed,
+        history: [...historyPayload, { role: "user", content: trimmed }],
         context: {
           path: currentPath,
           module: moduleHint,
+          memory: memory || undefined,
         },
       })) as AssistantResponse;
+
+      const terms = trimmed
+        .toLowerCase()
+        .split(/[^a-z0-9]+/)
+        .filter(token => token.length >= 4)
+        .slice(0, 5);
+
+      persistMemory({
+        preferredModule: response.module !== "geral" ? response.module : memory?.preferredModule,
+        frequentTerms: Array.from(new Set([...(memory?.frequentTerms || []), ...terms])).slice(
+          -20
+        ),
+      });
 
       setConversation(prev => [
         ...prev,
@@ -257,10 +309,15 @@ export default function AssistantSidebar({ currentPath }: AssistantSidebarProps)
                 <p className="whitespace-pre-wrap leading-relaxed">{message.content}</p>
 
                 {message.role === "assistant" && message.payload?.confidence ? (
-                  <div className="mt-2">
+                  <div className="mt-2 flex flex-wrap gap-2">
                     <span className="rounded px-2 py-0.5 text-[11px] bg-slate-700 text-slate-200">
                       confiança: {message.payload.confidence}
                     </span>
+                    {message.payload.researchDepth ? (
+                      <span className="rounded px-2 py-0.5 text-[11px] bg-sky-800/60 text-sky-100">
+                        análise: {message.payload.researchDepth}
+                      </span>
+                    ) : null}
                   </div>
                 ) : null}
 
@@ -295,6 +352,27 @@ export default function AssistantSidebar({ currentPath }: AssistantSidebarProps)
                   </div>
                 ) : null}
 
+                {message.role === "assistant" && message.payload?.results?.resultItems?.length ? (
+                  <div className="mt-3 space-y-2">
+                    {message.payload.results.resultItems.slice(0, 8).map((item, idx) => (
+                      <div
+                        key={`${item.module}-${item.titulo || item.informacao}-${idx}`}
+                        className="rounded-md border border-slate-700 p-2 text-xs text-slate-200"
+                      >
+                        <div className="flex flex-wrap gap-2 mb-1">
+                          <span className="rounded bg-slate-700 px-1.5 py-0.5">{item.module}</span>
+                          {item.unidade ? (
+                            <span className="rounded bg-sky-900/40 px-1.5 py-0.5">
+                              unidade: {item.unidade}
+                            </span>
+                          ) : null}
+                        </div>
+                        <p>{item.informacao}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+
                 {message.role === "assistant" && message.payload?.actions?.length ? (
                   <div className="mt-3 flex flex-wrap gap-2">
                     {message.payload.actions.slice(0, 3).map(action => (
@@ -306,6 +384,22 @@ export default function AssistantSidebar({ currentPath }: AssistantSidebarProps)
                         onClick={() => runAction(action)}
                       >
                         {action.label}
+                      </Button>
+                    ))}
+                  </div>
+                ) : null}
+
+                {message.role === "assistant" && message.payload?.followUps?.length ? (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {message.payload.followUps.slice(0, 3).map(prompt => (
+                      <Button
+                        key={prompt}
+                        size="sm"
+                        variant="outline"
+                        className="border-sky-700/60 text-sky-100 hover:bg-sky-900/40"
+                        onClick={() => void submitPrompt(prompt)}
+                      >
+                        {prompt}
                       </Button>
                     ))}
                   </div>

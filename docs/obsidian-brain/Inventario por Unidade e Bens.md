@@ -46,7 +46,11 @@
 ## Dependencias cruzadas
 - Herda regras de acesso de [[Regras de Permissao e Seguranca]] para futuras restricoes finas.
 - Em producao, validar junto com [[Pos-migracao Banco e Servidor]].
+- [[Assistente Mr. Thinkker]] pode consultar inventario completo via busca por nr bem, descricao ou responsavel.
 
 ## Veja tambem
 - [[Tema Visual Azul]]
+- [[Compras e Integracao FRZ COUNT]]
+- [[Acessos e Convites]]
+- [[Linha do Tempo de Entregas]]
 - [[SGF Brain - Index]]

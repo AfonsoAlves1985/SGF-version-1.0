@@ -231,7 +231,16 @@ type AssistantSearchEntry = {
   path: string;
   title: string;
   line: string;
+  unit?: string | null;
   searchable: string;
+};
+
+type AssistantResultItem = {
+  module: string;
+  unidade?: string | null;
+  informacao: string;
+  path?: string | null;
+  titulo?: string | null;
 };
 
 type PurchaseWebhookAction = "created" | "updated";
@@ -2109,10 +2118,25 @@ export const appRouter = router({
       .input(
         z.object({
           question: z.string().min(2),
+          history: z
+            .array(
+              z.object({
+                role: z.enum(["user", "assistant"]),
+                content: z.string().min(1),
+              })
+            )
+            .max(20)
+            .optional(),
           context: z
             .object({
               path: z.string().optional(),
               module: z.string().optional(),
+              memory: z
+                .object({
+                  preferredModule: z.string().optional(),
+                  frequentTerms: z.array(z.string()).optional(),
+                })
+                .optional(),
             })
             .optional(),
         })
@@ -2120,12 +2144,55 @@ export const appRouter = router({
       .mutation(async ({ input, ctx }) => {
         const question = input.question.trim();
         const normalizedQuestion = normalizeAssistantText(question);
-        const keywords = extractAssistantKeywords(question);
+        const memoryTerms = (input.context?.memory?.frequentTerms || [])
+          .map(term => normalizeAssistantText(term))
+          .filter(Boolean)
+          .slice(0, 6);
+        const keywords = Array.from(
+          new Set([...extractAssistantKeywords(question), ...memoryTerms])
+        ).slice(0, 8);
         const detectedModule =
           input.context?.module || inferAssistantModule(input.context?.path);
+        const history = input.history || [];
+        const latestUserTurn = [...history]
+          .reverse()
+          .find(turn => turn.role === "user" && turn.content.trim().length > 0);
+        const normalizedLatestUser = latestUserTurn
+          ? normalizeAssistantText(latestUserTurn.content)
+          : "";
+        const preferredModule = input.context?.memory?.preferredModule;
+        const asksFollowUp =
+          normalizedQuestion.includes("esses") ||
+          normalizedQuestion.includes("desses") ||
+          normalizedQuestion.includes("isso") ||
+          normalizedQuestion.includes("detalhe") ||
+          normalizedQuestion.includes("aprofunde");
+
+        let effectiveModule = detectedModule;
+        if (effectiveModule === "geral" && preferredModule) {
+          effectiveModule = preferredModule;
+        }
+        if (effectiveModule === "geral" && asksFollowUp) {
+          effectiveModule = inferAssistantModule(normalizedLatestUser);
+        }
+
         const isOwnerUser =
           ctx.user.openId === ENV.ownerOpenId ||
           (ctx.user.role === "superadmin" && !ENV.ownerOpenId);
+
+        const toResultItem = (
+          module: string,
+          informacao: string,
+          unidade?: string | null,
+          path?: string | null,
+          titulo?: string | null
+        ): AssistantResultItem => ({
+          module,
+          unidade: unidade || null,
+          informacao,
+          path: path || null,
+          titulo: titulo || null,
+        });
 
         const loadGlobalSnapshot = async () => {
           const [
@@ -2225,7 +2292,13 @@ export const appRouter = router({
             ].join("\n"),
             module: "geral",
             confidence: "alta",
+            researchDepth: "profunda",
             highlights,
+            followUps: [
+              "Detalhe apenas compras com risco de atraso",
+              "Mostre inventário sem responsável por unidade",
+              "Quais chamados urgentes estão sem responsável?",
+            ],
             actions: [
               {
                 type: "navigate",
@@ -2251,12 +2324,67 @@ export const appRouter = router({
                     }
                   : {}),
               },
+              resultItems: [
+                toResultItem(
+                  "compras",
+                  `${financialPending} em financeiro / ${approvedCount} aprovadas`,
+                  null,
+                  "/purchase-requests",
+                  "Solicitações de compras"
+                ),
+                toResultItem(
+                  "inventario",
+                  `${assetsWithoutResponsible} sem responsável de ${assets.length} bens`,
+                  null,
+                  "/inventory",
+                  "Inventário"
+                ),
+                toResultItem(
+                  "manutencao",
+                  `${urgentMaintenance} urgentes/alta prioridade`,
+                  null,
+                  "/maintenance",
+                  "Manutenção"
+                ),
+                toResultItem(
+                  "salas",
+                  `${occupiedRooms} em uso de ${rooms.length}`,
+                  null,
+                  "/rooms",
+                  "Salas"
+                ),
+                toResultItem(
+                  "fornecedores",
+                  `${activeSuppliers} ativos de ${suppliers.length}`,
+                  null,
+                  "/suppliers",
+                  "Fornecedores"
+                ),
+                toResultItem(
+                  "consumiveis",
+                  `${consumables.length} itens cadastrados`,
+                  null,
+                  "/consumables",
+                  "Consumíveis"
+                ),
+                ...(isOwnerUser
+                  ? [
+                      toResultItem(
+                        "acessos",
+                        `${snapshot.users.length} usuários total`,
+                        null,
+                        "/access-management",
+                        "Acessos"
+                      ),
+                    ]
+                  : []),
+              ],
             },
           };
         }
 
         if (
-          detectedModule === "compras" ||
+          effectiveModule === "compras" ||
           normalizedQuestion.includes("compra") ||
           normalizedQuestion.includes("solicit") ||
           normalizedQuestion.includes("financeiro")
@@ -2392,6 +2520,12 @@ export const appRouter = router({
             answer: responseText,
             module: "compras",
             confidence: top.length > 0 ? "alta" : "media",
+            researchDepth: "profunda",
+            followUps: [
+              "Mostre apenas as pendentes há mais de 7 dias",
+              "Quais são de urgência alta?",
+              "Filtrar por empresa",
+            ],
             actions: [
               {
                 type: "apply_purchase_filters",
@@ -2406,12 +2540,21 @@ export const appRouter = router({
             ],
             results: {
               purchaseRequests: top,
+              resultItems: top.map((record: any) =>
+                toResultItem(
+                  "compras",
+                  `${record.documentNumber} | ${record.status} | ${record.requesterName}`,
+                  record.company,
+                  "/purchase-requests",
+                  record.documentNumber
+                )
+              ),
             },
           };
         }
 
         if (
-          detectedModule === "inventario" ||
+          effectiveModule === "inventario" ||
           normalizedQuestion.includes("inventario") ||
           normalizedQuestion.includes("bem") ||
           normalizedQuestion.includes("responsavel")
@@ -2481,12 +2624,21 @@ export const appRouter = router({
             ],
             results: {
               inventoryAssets: filtered,
+              resultItems: filtered.map((asset: any) =>
+                toResultItem(
+                  "inventario",
+                  `${asset.nrBem} | ${asset.descricao} | ${asset.responsavel || "sem responsável"}`,
+                  asset.local || null,
+                  "/inventory",
+                  asset.nrBem
+                )
+              ),
             },
           };
         }
 
         if (
-          detectedModule === "manutencao" ||
+          effectiveModule === "manutencao" ||
           normalizedQuestion.includes("manutenc") ||
           normalizedQuestion.includes("chamado")
         ) {
@@ -2499,6 +2651,7 @@ export const appRouter = router({
               title: item.title,
               status: item.status,
               priority: item.priority,
+              spaceId: item.spaceId,
             }));
 
           const maintenanceLines = urgent
@@ -2531,12 +2684,21 @@ export const appRouter = router({
             ],
             results: {
               maintenanceRequests: urgent,
+              resultItems: urgent.map((item: any) =>
+                toResultItem(
+                  "manutencao",
+                  `#${item.id} | ${item.priority} | ${item.status} | ${item.title}`,
+                  item.spaceId ? `unidade ${item.spaceId}` : null,
+                  "/maintenance",
+                  `#${item.id}`
+                )
+              ),
             },
           };
         }
 
         if (
-          detectedModule === "salas" ||
+          effectiveModule === "salas" ||
           normalizedQuestion.includes("sala") ||
           normalizedQuestion.includes("audit") ||
           normalizedQuestion.includes("auditorio")
@@ -2551,6 +2713,7 @@ export const appRouter = router({
             name: item.name,
             status: item.status,
             type: item.type,
+            location: item.location,
           }));
 
           return {
@@ -2573,12 +2736,21 @@ export const appRouter = router({
                 available: available.length,
                 maintenance: maintenanceRooms.length,
               },
+              resultItems: topRooms.map((item: any) =>
+                toResultItem(
+                  "salas",
+                  `${item.name} | ${item.status} | ${item.type}`,
+                  item.location || null,
+                  "/rooms",
+                  item.name
+                )
+              ),
             },
           };
         }
 
         if (
-          detectedModule === "fornecedores" ||
+          effectiveModule === "fornecedores" ||
           normalizedQuestion.includes("fornecedor") ||
           normalizedQuestion.includes("servico")
         ) {
@@ -2602,11 +2774,26 @@ export const appRouter = router({
             ].join("\n"),
             module: "fornecedores",
             confidence: "alta",
+            researchDepth: "media",
+            followUps: [
+              "Liste só os inativos",
+              "Detalhe por unidade",
+              "Quais serviços mais recorrentes?",
+            ],
             actions: [
               { type: "navigate", label: "Abrir Fornecedores", path: "/suppliers" },
             ],
             results: {
               suppliers: topSuppliers,
+              resultItems: topSuppliers.map((item: any) =>
+                toResultItem(
+                  "fornecedores",
+                  `${item.companyName} | ${item.status}`,
+                  item.spaceName || null,
+                  "/suppliers",
+                  item.companyName
+                )
+              ),
             },
           };
         }
@@ -2633,11 +2820,26 @@ export const appRouter = router({
             ].join("\n"),
             module: "consumiveis",
             confidence: "media",
+            researchDepth: "media",
+            followUps: [
+              "Mostre apenas itens para reposição",
+              "Quais categorias estão críticas?",
+              "Detalhar estoque por item",
+            ],
             actions: [
               { type: "navigate", label: "Abrir Consumíveis", path: "/consumables" },
             ],
             results: {
               consumables: topConsumables,
+              resultItems: topConsumables.map((item: any) =>
+                toResultItem(
+                  "consumiveis",
+                  `${item.name} | ${item.status}`,
+                  item.category || null,
+                  "/consumables",
+                  item.name
+                )
+              ),
             },
           };
         }
@@ -2655,7 +2857,7 @@ export const appRouter = router({
               module: "acessos",
               confidence: "alta",
               actions: [],
-              results: {},
+              results: { resultItems: [] },
             };
           }
 
@@ -2704,6 +2906,26 @@ export const appRouter = router({
                 isActive: item.isActive,
               })),
               auditLogs: latestLogs,
+              resultItems: [
+                ...users.slice(0, 8).map((item: any) =>
+                  toResultItem(
+                    "acessos",
+                    `${item.name || "Sem nome"} | ${item.isActive ? "ativo" : "inativo"}`,
+                    item.role,
+                    "/access-management",
+                    item.name || item.email
+                  )
+                ),
+                ...latestLogs.slice(0, 6).map((item: any) =>
+                  toResultItem(
+                    "auditoria",
+                    `${item.module} | ${item.action} | ${item.userName || "sistema"}`,
+                    null,
+                    "/logs",
+                    item.module
+                  )
+                ),
+              ],
             },
           };
         }
@@ -2717,6 +2939,7 @@ export const appRouter = router({
             path: "/purchase-requests",
             title: item.documentNumber,
             line: `${item.documentNumber} | ${item.status} | ${item.company}`,
+            unit: item.company || null,
             searchable: normalizeAssistantText(
               [
                 item.documentNumber,
@@ -2737,6 +2960,7 @@ export const appRouter = router({
             path: "/inventory",
             title: item.nrBem,
             line: `${item.nrBem} | ${item.descricao} | ${item.responsavel || "sem responsável"}`,
+            unit: item.local || null,
             searchable: normalizeAssistantText(
               [item.nrBem, item.descricao, item.responsavel, item.fornecedor, item.local]
                 .filter(Boolean)
@@ -2751,6 +2975,7 @@ export const appRouter = router({
             path: "/maintenance",
             title: `#${item.id}`,
             line: `#${item.id} | ${item.priority} | ${item.status} | ${item.title}`,
+            unit: item.spaceId ? `unidade ${item.spaceId}` : null,
             searchable: normalizeAssistantText(
               [item.id, item.priority, item.status, item.title, item.description]
                 .filter(Boolean)
@@ -2765,6 +2990,7 @@ export const appRouter = router({
             path: "/rooms",
             title: item.name,
             line: `${item.name} | ${item.status} | ${item.type}`,
+            unit: item.location || null,
             searchable: normalizeAssistantText(
               [item.name, item.status, item.type, item.location]
                 .filter(Boolean)
@@ -2779,6 +3005,7 @@ export const appRouter = router({
             path: "/suppliers",
             title: item.companyName,
             line: `${item.companyName} | ${item.status} | ${item.spaceName || "sem unidade"}`,
+            unit: item.spaceName || null,
             searchable: normalizeAssistantText(
               [item.companyName, item.status, item.spaceName, item.contactPerson, item.notes]
                 .filter(Boolean)
@@ -2793,6 +3020,7 @@ export const appRouter = router({
             path: "/consumables",
             title: item.name,
             line: `${item.name} | ${item.category} | ${item.status}`,
+            unit: item.category || null,
             searchable: normalizeAssistantText(
               [item.name, item.category, item.status]
                 .filter(Boolean)
@@ -2808,6 +3036,7 @@ export const appRouter = router({
               path: "/access-management",
               title: item.name || item.email,
               line: `${item.name || "Sem nome"} | ${item.role} | ${item.isActive ? "ativo" : "inativo"}`,
+              unit: item.role || null,
               searchable: normalizeAssistantText(
                 [item.name, item.email, item.role, item.isActive ? "ativo" : "inativo"]
                   .filter(Boolean)
@@ -2822,6 +3051,7 @@ export const appRouter = router({
               path: "/logs",
               title: item.module,
               line: `${item.module} | ${item.action} | ${item.userName || "sistema"}`,
+              unit: null,
               searchable: normalizeAssistantText(
                 [item.module, item.action, item.userName, item.userEmail]
                   .filter(Boolean)
@@ -2864,12 +3094,22 @@ export const appRouter = router({
             ].join("\n"),
             module: "geral",
             confidence: "alta",
+            researchDepth: "profunda",
             highlights,
             sections,
+            followUps: [
+              "Aprofunde no módulo mais relevante",
+              "Quero ver só os resultados críticos",
+              "Transforme isso em plano de ação rápido",
+            ],
             actions: [
               { type: "navigate", label: "Abrir módulo mais relevante", path: firstPath },
             ],
-            results: {},
+            results: {
+              resultItems: matches.slice(0, 15).map(item =>
+                toResultItem(item.module, item.line, item.unit || null, item.path, item.title)
+              ),
+            },
           };
         }
 
@@ -2888,6 +3128,12 @@ export const appRouter = router({
             ].join("\n"),
           module: "geral",
           confidence: "baixa",
+          researchDepth: "inicial",
+          followUps: [
+            "Me dê uma visão geral do sistema",
+            "Detalhe compras com pendências",
+            "Mostre inventário sem responsável",
+          ],
           actions: [
             { type: "navigate", label: "Abrir Dashboard", path: "/dashboard" },
             {
@@ -2897,7 +3143,7 @@ export const appRouter = router({
             },
             { type: "navigate", label: "Abrir Inventário", path: "/inventory" },
           ],
-          results: {},
+          results: { resultItems: [] },
         };
       }),
   }),

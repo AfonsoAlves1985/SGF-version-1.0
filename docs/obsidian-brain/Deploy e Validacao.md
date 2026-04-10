@@ -36,11 +36,24 @@
   - validar recebimento no FRZ COUNT
   - simular callback `approved` e confirmar status `aprovado`
   - simular callback `rejected` e confirmar status `cancelado`
+- Assistente Mr. Thinkker:
+  - perguntar "visao geral do sistema" e validar resposta com metricas no chat
+  - validar resposta por modulo sem navegacao forcada
+  - validar acao "Aplicar filtro sugerido" em compras
+  - validar botao "Limpar" para reiniciar conversa
+  - validar bloqueio de consultas sensiveis para nao-owner
 
 ## Variaveis de ambiente de integracao
 - `FRZ_PURCHASE_CALLBACK_TOKEN` (obrigatoria)
 - `FRZ_PURCHASE_CALLBACK_PATH` (opcional)
 - `FRZ_PURCHASE_CALLBACK_URL` (opcional, recomendada)
+
+## Status atual (aguardando deploy)
+- Bloco recente de compras enviado para `main` com:
+  - Blindagem de callback FRZ COUNT com idempotencia e telemetria operacional
+  - Retry de webhook de saida e visibilidade de integracao no frontend
+- Protecao anti-teste em banco operacional ja enviada.
+- Aguardar deploy e executar smoke completo deste documento.
 
 ## Servidor / Deploy
 - Render: validar `render.yaml` com `healthCheckPath: /healthz` e `startCommand: pnpm start`.
@@ -51,5 +64,13 @@
 - Garante funcionamento de [[Acessos e Convites]].
 - Garante funcionamento de [[Inventario por Unidade e Bens]].
 - Garante funcionamento de [[Compras e Integracao FRZ COUNT]].
+- Garante funcionamento de [[Assistente Mr. Thinkker]].
 - Considerar [[Descontinuacao do Modulo Contratos]] para nao validar fluxos removidos.
 - Complementa [[Pos-migracao Banco e Servidor]].
+
+## Veja tambem
+- [[Regras de Permissao e Seguranca]]
+- [[Tema Visual Azul]]
+- [[Assistente Mr. Thinkker]]
+- [[Linha do Tempo de Entregas]]
+- [[SGF Brain - Index]]

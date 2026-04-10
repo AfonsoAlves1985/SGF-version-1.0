@@ -42,6 +42,15 @@
   - callback FRZ COUNT (`approved/rejected`)
   - logs de auditoria
 
+## Janela atual
+- Entregas de integracao/compras aguardando deploy:
+  - Blindagem de callback FRZ COUNT com idempotencia e telemetria operacional
+  - Retry de webhook de saida e visibilidade de integracao na interface de compras
+- Validar no deploy:
+  - coluna "Integracao" na lista de solicitacoes
+  - card "Integracao FRZ COUNT" no modal de detalhes
+  - incremento de tentativas e registro de ultimo erro
+
 ## Rollback rapido
 - Reapontar `DATABASE_URL` para o banco anterior.
 - Reimplantar servico backend.
@@ -52,3 +61,8 @@
 - [[Compras e Integracao FRZ COUNT]]
 - [[Acessos e Convites]]
 - [[Inventario por Unidade e Bens]]
+- [[Regras de Permissao e Seguranca]]
+- [[Descontinuacao do Modulo Contratos]]
+- [[Assistente Mr. Thinkker]]
+- [[Linha do Tempo de Entregas]]
+- [[SGF Brain - Index]]
