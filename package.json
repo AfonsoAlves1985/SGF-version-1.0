@@ -11,6 +11,8 @@
     "format": "prettier --write .",
     "test": "vitest run",
     "smoke:modules": "tsx scripts/smoke-modules.ts",
+    "deploy:check-env": "tsx scripts/validate-deploy-env.ts",
+    "deploy:postcheck": "pnpm deploy:check-env && pnpm smoke:modules",
     "health:daily": "pnpm smoke:modules",
     "db:push": "drizzle-kit generate && drizzle-kit migrate",
     "db:migrate:supabase": "bash scripts/migrate-supabase-maintenance.sh",

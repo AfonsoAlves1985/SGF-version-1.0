@@ -4,6 +4,7 @@
 - Banco com `DATABASE_URL` valido.
 - Build passando (`pnpm check` e `pnpm build`).
 - Servico de servidor em producao com `NODE_ENV=production`.
+- Validar env critico antes do deploy: `pnpm deploy:check-env`.
 
 ## Banco de dados
 - Aplicar mudancas de schema/migracao.
@@ -59,6 +60,12 @@
 - Render: validar `render.yaml` com `healthCheckPath: /healthz` e `startCommand: pnpm start`.
 - Docker: imagem multi-stage com runtime em `NODE_ENV=production`.
 - Sempre confirmar `GET /healthz` apos deploy.
+- Pos-deploy automatizado: `pnpm deploy:postcheck`.
+
+## Automacao de validacao
+- Script de hardening de env: `scripts/validate-deploy-env.ts`.
+- Script de smoke: `scripts/smoke-modules.ts`.
+- `deploy:postcheck` combina validacao de env + smoke dos modulos principais.
 
 ## Dependencias
 - Garante funcionamento de [[Acessos e Convites]].

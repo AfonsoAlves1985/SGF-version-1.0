@@ -250,16 +250,22 @@ async function run() {
       input: {},
     },
     {
-      module: "contractSpaces.list",
+      module: "purchaseRequests.list",
       kind: "query",
-      path: "contractSpaces.list",
-      input: null,
+      path: "purchaseRequests.list",
+      input: {},
     },
     {
-      module: "contractsWithSpace.list",
-      kind: "query",
-      path: "contractsWithSpace.list",
-      input: {},
+      module: "assistant.ask",
+      kind: "mutation",
+      path: "assistant.ask",
+      input: {
+        question: "Me dê uma visão geral do sistema",
+        context: {
+          path: "/dashboard",
+          module: "geral",
+        },
+      },
     },
   ];
 
