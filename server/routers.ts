@@ -2214,6 +2214,10 @@ export const appRouter = router({
           normalizedQuestion.includes("esses") ||
           normalizedQuestion.includes("desses") ||
           normalizedQuestion.includes("isso") ||
+          normalizedQuestion.includes("qual unidade") ||
+          normalizedQuestion.includes("qual local") ||
+          normalizedQuestion.includes("em qual") ||
+          normalizedQuestion.includes("qual empresa") ||
           normalizedQuestion.includes("detalhe") ||
           normalizedQuestion.includes("aprofunde");
 
@@ -2478,6 +2482,11 @@ export const appRouter = router({
 
           const companyMatch = normalizedQuestion.match(/empresa\s+([a-z0-9\s]+)/);
           const companyTerm = companyMatch?.[1]?.trim() || null;
+          const asksCompanyDetail =
+            normalizedQuestion.includes("unidade") ||
+            normalizedQuestion.includes("empresa") ||
+            normalizedQuestion.includes("qual local") ||
+            normalizedQuestion.includes("onde");
 
           let filtered = records.filter((record: any) => {
             if (statusTokens.length > 0 && !statusTokens.includes(record.status)) {
@@ -2556,10 +2565,29 @@ export const appRouter = router({
                 `${index + 1}. ${record.documentNumber} | ${record.status} | ${record.company}`
             );
 
+          const companySummaryMap = top.reduce((acc: Map<string, number>, item: any) => {
+            const key = item.company || "Sem empresa";
+            acc.set(key, (acc.get(key) || 0) + 1);
+            return acc;
+          }, new Map<string, number>());
+          const companySummary: string[] = [];
+          companySummaryMap.forEach((count, company) => {
+            if (companySummary.length < 6) {
+              companySummary.push(`- ${company}: ${count} solicitação(ões)`);
+            }
+          });
+
           const responseText =
             top.length > 0
               ? [
                   `Encontrei ${filtered.length} solicitação(ões) relacionada(s).`,
+                  ...(asksCompanyDetail
+                    ? [
+                        "",
+                        "Distribuição por unidade/empresa:",
+                        ...companySummary,
+                      ]
+                    : []),
                   "",
                   "Principais resultados:",
                   ...previewLines,
@@ -2646,6 +2674,23 @@ export const appRouter = router({
               local: asset.local,
             }));
 
+          const asksLocalDetail =
+            normalizedQuestion.includes("unidade") ||
+            normalizedQuestion.includes("local") ||
+            normalizedQuestion.includes("onde") ||
+            normalizedQuestion.includes("qual unidade");
+
+          const localSummaryMap = filtered.reduce((acc: Map<string, number>, item: any) => {
+            const key = item.local || "Sem local";
+            acc.set(key, (acc.get(key) || 0) + 1);
+            return acc;
+          }, new Map<string, number>());
+          const localSummary: string[] = [];
+          for (const [local, count] of localSummaryMap) {
+            localSummary.push(`- ${local}: ${count} bem(ns)`);
+            if (localSummary.length >= 6) break;
+          }
+
           const assetLines = filtered
             .slice(0, 5)
             .map(
@@ -2657,6 +2702,13 @@ export const appRouter = router({
             filtered.length > 0
               ? [
                   `Encontrei ${filtered.length} bem(ns) no inventário para sua consulta.`,
+                  ...(asksLocalDetail
+                    ? [
+                        "",
+                        "Distribuição por unidade/local:",
+                        ...localSummary,
+                      ]
+                    : []),
                   "",
                   "Resultados:",
                   ...assetLines,
@@ -2799,10 +2851,34 @@ export const appRouter = router({
             location: item.location,
           }));
 
+          const asksLocationDetail =
+            normalizedQuestion.includes("unidade") ||
+            normalizedQuestion.includes("local") ||
+            normalizedQuestion.includes("onde") ||
+            normalizedQuestion.includes("qual sala");
+
+          const roomLocationSummaryMap = rooms.reduce((acc: Map<string, number>, item: any) => {
+            const key = item.location || "Sem local";
+            acc.set(key, (acc.get(key) || 0) + 1);
+            return acc;
+          }, new Map<string, number>());
+          const roomLocationSummary: string[] = [];
+          for (const [local, count] of roomLocationSummaryMap) {
+            roomLocationSummary.push(`- ${local}: ${count} sala(s)`);
+            if (roomLocationSummary.length >= 6) break;
+          }
+
           return {
             answer: [
               `Salas: ${rooms.length} no total.`,
               `${inUse.length} em uso, ${available.length} disponíveis e ${maintenanceRooms.length} em manutenção.`,
+              ...(asksLocationDetail
+                ? [
+                    "",
+                    "Distribuição por local:",
+                    ...roomLocationSummary,
+                  ]
+                : []),
               "",
               "Se quiser, posso filtrar por status específico (ex.: apenas em uso).",
             ].join("\n"),
@@ -2848,10 +2924,38 @@ export const appRouter = router({
             spaceName: item.spaceName,
           }));
 
+          const asksSupplierUnitDetail =
+            normalizedQuestion.includes("unidade") ||
+            normalizedQuestion.includes("onde") ||
+            normalizedQuestion.includes("qual unidade") ||
+            normalizedQuestion.includes("local");
+
+          const supplierUnitSummaryMap = suppliers.reduce(
+            (acc: Map<string, number>, item: any) => {
+              const key = item.spaceName || "Sem unidade";
+              acc.set(key, (acc.get(key) || 0) + 1);
+              return acc;
+            },
+            new Map<string, number>()
+          );
+          const supplierUnitSummary: string[] = [];
+          supplierUnitSummaryMap.forEach((count, unit) => {
+            if (supplierUnitSummary.length < 6) {
+              supplierUnitSummary.push(`- ${unit}: ${count} fornecedor(es)`);
+            }
+          });
+
           return {
             answer: [
               `Fornecedores por unidade: ${suppliers.length} no total.`,
               `${active.length} ativo(s) e ${inactive.length} inativo(s).`,
+              ...(asksSupplierUnitDetail
+                ? [
+                    "",
+                    "Distribuição por unidade:",
+                    ...supplierUnitSummary,
+                  ]
+                : []),
               "",
               "Posso detalhar por unidade, status ou tipo de serviço.",
             ].join("\n"),
@@ -2894,10 +2998,37 @@ export const appRouter = router({
             status: item.status,
           }));
 
+          const asksCategoryDetail =
+            normalizedQuestion.includes("categoria") ||
+            normalizedQuestion.includes("grupo") ||
+            normalizedQuestion.includes("tipo") ||
+            normalizedQuestion.includes("qual categoria");
+
+          const categorySummaryMap = consumables.reduce(
+            (acc: Map<string, number>, item: any) => {
+              const key = item.category || "Sem categoria";
+              acc.set(key, (acc.get(key) || 0) + 1);
+              return acc;
+            },
+            new Map<string, number>()
+          );
+          const categorySummary: string[] = [];
+          for (const [category, count] of categorySummaryMap) {
+            categorySummary.push(`- ${category}: ${count} item(ns)`);
+            if (categorySummary.length >= 6) break;
+          }
+
           return {
             answer: [
               `Consumíveis: ${consumables.length} no total.`,
               `${toReplenish.length} item(ns) com status de reposição.`,
+              ...(asksCategoryDetail
+                ? [
+                    "",
+                    "Distribuição por categoria:",
+                    ...categorySummary,
+                  ]
+                : []),
               "",
               "Posso listar apenas os itens críticos se você quiser.",
             ].join("\n"),
@@ -2961,11 +3092,29 @@ export const appRouter = router({
             userName: item.userName,
           }));
 
+          const asksRoleDetail =
+            normalizedQuestion.includes("perfil") ||
+            normalizedQuestion.includes("papel") ||
+            normalizedQuestion.includes("role") ||
+            normalizedQuestion.includes("admin");
+
+          const roleSummaryMap = users.reduce((acc: Map<string, number>, item: any) => {
+            const key = item.role || "sem papel";
+            acc.set(key, (acc.get(key) || 0) + 1);
+            return acc;
+          }, new Map<string, number>());
+          const roleSummary: string[] = [];
+          for (const [role, count] of roleSummaryMap) {
+            roleSummary.push(`- ${role}: ${count} usuário(s)`);
+            if (roleSummary.length >= 6) break;
+          }
+
           return {
             answer: [
               `Usuários: ${users.length} total (${activeUsers} ativos).`,
               `${adminUsers} com perfil admin/superadmin.`,
               `Últimos logs carregados: ${latestLogs.length}.`,
+              ...(asksRoleDetail ? ["", "Distribuição por perfil:", ...roleSummary] : []),
             ].join("\n"),
             module: "acessos",
             confidence: "alta",
