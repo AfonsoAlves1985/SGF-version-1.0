@@ -182,6 +182,55 @@ function inferAssistantModule(path?: string) {
   return "geral";
 }
 
+function inferAssistantModuleFromText(normalizedText: string) {
+  if (
+    normalizedText.includes("compra") ||
+    normalizedText.includes("solicit") ||
+    normalizedText.includes("financeiro")
+  ) {
+    return "compras";
+  }
+
+  if (
+    normalizedText.includes("inventario") ||
+    normalizedText.includes("bem") ||
+    normalizedText.includes("responsavel")
+  ) {
+    return "inventario";
+  }
+
+  if (normalizedText.includes("manutenc") || normalizedText.includes("chamado")) {
+    return "manutencao";
+  }
+
+  if (
+    normalizedText.includes("sala") ||
+    normalizedText.includes("auditorio") ||
+    normalizedText.includes("audit")
+  ) {
+    return "salas";
+  }
+
+  if (normalizedText.includes("fornecedor") || normalizedText.includes("servico")) {
+    return "fornecedores";
+  }
+
+  if (normalizedText.includes("consumivel") || normalizedText.includes("estoque")) {
+    return "consumiveis";
+  }
+
+  if (
+    normalizedText.includes("usuario") ||
+    normalizedText.includes("acesso") ||
+    normalizedText.includes("auditoria") ||
+    normalizedText.includes("log")
+  ) {
+    return "acessos";
+  }
+
+  return "geral";
+}
+
 const ASSISTANT_STOPWORDS = new Set([
   "como",
   "qual",
@@ -2169,11 +2218,14 @@ export const appRouter = router({
           normalizedQuestion.includes("aprofunde");
 
         let effectiveModule = detectedModule;
+        if (effectiveModule === "geral" && asksFollowUp) {
+          effectiveModule = inferAssistantModuleFromText(normalizedLatestUser);
+        }
+        if (effectiveModule === "geral") {
+          effectiveModule = inferAssistantModuleFromText(normalizedQuestion);
+        }
         if (effectiveModule === "geral" && preferredModule) {
           effectiveModule = preferredModule;
-        }
-        if (effectiveModule === "geral" && asksFollowUp) {
-          effectiveModule = inferAssistantModule(normalizedLatestUser);
         }
 
         const isOwnerUser =
@@ -2642,7 +2694,21 @@ export const appRouter = router({
           normalizedQuestion.includes("manutenc") ||
           normalizedQuestion.includes("chamado")
         ) {
-          const maintenance = await db.listMaintenanceRequests();
+          const [maintenance, maintenanceSpaces] = await Promise.all([
+            db.listMaintenanceRequests(),
+            db.listMaintenanceSpaces(),
+          ]);
+          const spaceNameById = new Map<number, string>();
+          for (const space of maintenanceSpaces) {
+            spaceNameById.set(space.id, space.name);
+          }
+
+          const asksUnitDetail =
+            normalizedQuestion.includes("qual unidade") ||
+            normalizedQuestion.includes("unidade") ||
+            normalizedQuestion.includes("onde") ||
+            normalizedQuestion.includes("local");
+
           const urgent = maintenance
             .filter((item: any) => item.priority === "urgente" || item.priority === "alta")
             .slice(0, 8)
@@ -2652,21 +2718,38 @@ export const appRouter = router({
               status: item.status,
               priority: item.priority,
               spaceId: item.spaceId,
+              unitName: item.spaceId
+                ? spaceNameById.get(item.spaceId) || `Unidade ${item.spaceId}`
+                : "Sem unidade",
             }));
 
           const maintenanceLines = urgent
             .slice(0, 5)
             .map(
               (item: any, index: number) =>
-                `${index + 1}. #${item.id} | ${item.priority} | ${item.status} | ${item.title}`
+                `${index + 1}. #${item.id} | ${item.priority} | ${item.status} | ${item.unitName} | ${item.title}`
             );
+
+          const unitSummaryMap = urgent.reduce((acc: Map<string, number>, item: any) => {
+            const key = item.unitName || "Sem unidade";
+            acc.set(key, (acc.get(key) || 0) + 1);
+            return acc;
+          }, new Map<string, number>());
+
+          const unitSummary: string[] = [];
+          for (const [unit, count] of unitSummaryMap) {
+            unitSummary.push(`- ${unit}: ${count} chamado(s)`);
+            if (unitSummary.length >= 6) break;
+          }
 
           const maintenanceText =
             urgent.length > 0
               ? [
                   `Há ${urgent.length} chamado(s) urgente(s)/alta prioridade em evidência.`,
                   "",
-                  "Resumo:",
+                  asksUnitDetail ? "Distribuição por unidade:" : "Resumo:",
+                  ...(asksUnitDetail ? unitSummary : []),
+                  ...(asksUnitDetail ? ["", "Chamados:"] : []),
                   ...maintenanceLines,
                 ].join("\n")
               : "Não há chamados urgentes no momento.";
@@ -2688,7 +2771,7 @@ export const appRouter = router({
                 toResultItem(
                   "manutencao",
                   `#${item.id} | ${item.priority} | ${item.status} | ${item.title}`,
-                  item.spaceId ? `unidade ${item.spaceId}` : null,
+                  item.unitName || (item.spaceId ? `unidade ${item.spaceId}` : null),
                   "/maintenance",
                   `#${item.id}`
                 )

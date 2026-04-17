@@ -48,10 +48,10 @@
 - Integracao de compras com idempotencia de callback e telemetria operacional.
 - Retry de webhook (ate 3 tentativas) e visibilidade de integracao no frontend.
 - Mr. Thinkker com conversa interativa, leitura ampla de dados e restricao de seguranca para Owner em consultas sensiveis.
+- Mr. Thinkker com memoria operacional, follow-ups e retorno estruturado por modulo/unidade/informacao.
 - Modulo de contratos removido de rotas, menu, dashboard e API tRPC.
 - Operacao pos-migracao documentada para novo banco e novo servico backend.
+- Hardening de deploy com validacao automatica de env e pos-check consolidado.
 
 ## Backlog enxuto (restante)
-- Hardening de deploy (check automatico de envs criticas).
-- Validacao funcional completa pos-deploy das ultimas entregas.
 - Opcional (por ultimo): varredura ampla de codigo morto/legado.

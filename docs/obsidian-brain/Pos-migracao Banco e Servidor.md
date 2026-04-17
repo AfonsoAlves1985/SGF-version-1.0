@@ -34,19 +34,22 @@
 - Health:
   - `GET /healthz` retorna 200.
 - Smoke:
-  - `pnpm smoke:modules`
+  - `pnpm deploy:postcheck`
 - Fluxo funcional:
   - login e convites
   - inventario (com responsavel)
   - solicitacao de compras + webhook
   - callback FRZ COUNT (`approved/rejected`)
   - logs de auditoria
+  - assistente Mr. Thinkker (resposta por modulo/unidade/informacao)
 
 ## Janela atual
-- Entregas de integracao/compras aguardando deploy:
-  - Blindagem de callback FRZ COUNT com idempotencia e telemetria operacional
-  - Retry de webhook de saida e visibilidade de integracao na interface de compras
+- Entregas aguardando deploy:
+  - Hardening de ambiente de deploy (validacao automatica de env)
+  - Pos-deploy com check consolidado (env + smoke de modulos)
 - Validar no deploy:
+  - `pnpm deploy:check-env` sem falhas
+  - `pnpm deploy:postcheck` sem falhas
   - coluna "Integracao" na lista de solicitacoes
   - card "Integracao FRZ COUNT" no modal de detalhes
   - incremento de tentativas e registro de ultimo erro

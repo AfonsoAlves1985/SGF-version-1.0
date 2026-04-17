@@ -24,6 +24,8 @@
 - Prompts rapidos para perguntas frequentes.
 - Botao "Limpar" para iniciar nova conversa na mesma tela.
 - Quando possivel, responde no chat sem obrigar abrir modulo.
+- Mantem memoria operacional local (modulo preferido + termos frequentes) para melhorar follow-ups.
+- Exibe profundidade da analise (`inicial`, `media`, `profunda`).
 
 ## Comportamento por modulo
 - Compras:
@@ -43,6 +45,12 @@
   - identifica itens com reposicao necessaria
 - Busca global:
   - faz varredura de leitura no sistema e agrupa resultados por modulo
+  - devolve itens estruturados com `modulo`, `unidade` e `informacao` quando disponivel
+
+## Capacidade de pesquisa
+- Pesquisa profunda em multiplos modulos com consolidacao por relevancia.
+- Usa historico curto da conversa para interpretar perguntas de continuidade.
+- Sugere proximos passos em `followUps` para guiar a investigacao.
 
 ## Regra de seguranca
 - Consultas de seguranca (usuarios, acessos e auditoria) sao restritas ao Owner.
@@ -53,11 +61,13 @@
 - `client/src/components/DashboardLayout.tsx`
 - `server/routers.ts` (`assistant.ask`)
 - `client/src/pages/PurchaseRequests.tsx` (recebe e aplica filtro do assistente)
+- `scripts/smoke-modules.ts` (inclui validacao do `assistant.ask` no pos-deploy)
 
 ## Limites atuais
 - Nao executa alteracoes destrutivas automaticamente.
 - Nao substitui logs/auditoria formal; atua como copiloto de consulta.
 - Acesso do assistente e de leitura para resposta rapida; sem escrita automatica em dados.
+- Aprendizado e contextual (memoria local de uso), sem treino global do modelo.
 
 ## Proximas evolucoes sugeridas
 - Persistir historico de perguntas e respostas por usuario.

@@ -50,11 +50,11 @@
 - `FRZ_PURCHASE_CALLBACK_URL` (opcional, recomendada)
 
 ## Status atual (aguardando deploy)
-- Bloco recente de compras enviado para `main` com:
-  - Blindagem de callback FRZ COUNT com idempotencia e telemetria operacional
-  - Retry de webhook de saida e visibilidade de integracao no frontend
-- Protecao anti-teste em banco operacional ja enviada.
-- Aguardar deploy e executar smoke completo deste documento.
+- Bloco recente enviado para `main` com:
+  - Hardening de env em deploy (`deploy:check-env`)
+  - Fluxo pos-deploy automatizado (`deploy:postcheck`)
+  - Smoke atualizado para modulos ativos e `assistant.ask`
+- Aguardar deploy e executar `pnpm deploy:postcheck`.
 
 ## Servidor / Deploy
 - Render: validar `render.yaml` com `healthCheckPath: /healthz` e `startCommand: pnpm start`.

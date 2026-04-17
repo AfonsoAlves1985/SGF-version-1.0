@@ -58,6 +58,12 @@
 - Botao "Limpar" para reiniciar conversa.
 - Prompts rapidos para perguntas frequentes.
 
+## Fase 11 - Hardening de deploy e validacao operacional
+- Check automatizado de env critico (`deploy:check-env`).
+- Pos-deploy consolidado com `deploy:postcheck`.
+- Smoke atualizado para modulos ativos e consulta do `assistant.ask`.
+- Documento operacional dedicado: `docs/VALIDACAO_POS_DEPLOY.md`.
+
 ## Como usar este no
 - Use este historico para contextualizar qualquer no tematico.
 - Nos tematicos devem conter link para esta linha do tempo.
