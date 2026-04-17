@@ -22,6 +22,7 @@ type AssistantResponse = {
   confidence: "alta" | "media" | "baixa";
   module: string;
   researchDepth?: "inicial" | "media" | "profunda";
+  agentPlan?: string[];
   highlights?: string[];
   sections?: Array<{
     title: string;
@@ -331,6 +332,17 @@ export default function AssistantSidebar({ currentPath }: AssistantSidebarProps)
                         {item}
                       </div>
                     ))}
+                  </div>
+                ) : null}
+
+                {message.role === "assistant" && message.payload?.agentPlan?.length ? (
+                  <div className="mt-3 rounded-md border border-sky-800/40 bg-sky-900/10 p-2 text-xs text-sky-100">
+                    <p className="font-medium mb-1">Plano do agente</p>
+                    <div className="space-y-1">
+                      {message.payload.agentPlan.slice(0, 4).map(step => (
+                        <p key={step}>- {step}</p>
+                      ))}
+                    </div>
                   </div>
                 ) : null}
 

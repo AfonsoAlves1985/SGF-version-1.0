@@ -205,8 +205,7 @@ function inferAssistantModuleFromText(normalizedText: string) {
 
   if (
     normalizedText.includes("sala") ||
-    normalizedText.includes("auditorio") ||
-    normalizedText.includes("audit")
+    normalizedText.includes("auditorio")
   ) {
     return "salas";
   }
@@ -2296,6 +2295,477 @@ export const appRouter = router({
           normalizedQuestion.includes("status sistema") ||
           normalizedQuestion.includes("status geral");
 
+        const runAutonomousAgent = async () => {
+          const snapshot = await loadGlobalSnapshot();
+
+          const targetModules = new Set<string>();
+          const moduleFromQuestion = inferAssistantModuleFromText(normalizedQuestion);
+          const moduleFromHistory = inferAssistantModuleFromText(normalizedLatestUser);
+          if (moduleFromQuestion !== "geral") targetModules.add(moduleFromQuestion);
+          if (moduleFromHistory !== "geral") targetModules.add(moduleFromHistory);
+          if (effectiveModule !== "geral") targetModules.add(effectiveModule);
+
+          const wantsUnitDetails =
+            normalizedQuestion.includes("unidade") ||
+            normalizedQuestion.includes("local") ||
+            normalizedQuestion.includes("onde") ||
+            normalizedQuestion.includes("qual empresa") ||
+            normalizedQuestion.includes("qual categoria") ||
+            normalizedQuestion.includes("qual perfil");
+
+          const wantsUrgent =
+            normalizedQuestion.includes("urgente") ||
+            normalizedQuestion.includes("alta prioridade") ||
+            normalizedQuestion.includes("prioridade alta");
+          const wantsFinanceiro = normalizedQuestion.includes("financeiro");
+          const wantsMissingResponsible = normalizedQuestion.includes("sem responsavel");
+          const asksSecurity =
+            normalizedQuestion.includes("usuario") ||
+            normalizedQuestion.includes("acesso") ||
+            normalizedQuestion.includes("auditoria") ||
+            normalizedQuestion.includes("log");
+          const wantsActive = normalizedQuestion.includes(" ativo") ||
+            normalizedQuestion.endsWith("ativo") ||
+            normalizedQuestion.includes("ativos");
+          const wantsInactive = normalizedQuestion.includes("inativo") || normalizedQuestion.includes("inativos");
+
+          if (asksSecurity && !isOwnerUser) {
+            return {
+              answer:
+                "Consultas de segurança (usuários, acessos e auditoria) estão disponíveis somente para o Owner.",
+              module: "acessos",
+              confidence: "alta" as const,
+              researchDepth: "profunda" as const,
+              agentPlan: [
+                "Identificar intenção de segurança",
+                "Aplicar política de acesso por perfil",
+                "Bloquear consulta sensível para não-owner",
+              ],
+              actions: [],
+              results: { resultItems: [] },
+            };
+          }
+
+          if (asksSecurity && isOwnerUser) {
+            const roleSummaryMap = snapshot.users.reduce((acc: Map<string, number>, item: any) => {
+              const key = item.role || "sem papel";
+              acc.set(key, (acc.get(key) || 0) + 1);
+              return acc;
+            }, new Map<string, number>());
+            const roleSummary: string[] = [];
+            roleSummaryMap.forEach((count: number, role: string) => {
+              if (roleSummary.length < 6) {
+                roleSummary.push(`- ${role}: ${count} usuário(s)`);
+              }
+            });
+
+            return {
+              answer: [
+                `Usuários: ${snapshot.users.length} total.`,
+                `Logs de auditoria considerados: ${snapshot.logs.length}.`,
+                ...(roleSummary.length > 0 ? ["", "Distribuição por perfil:", ...roleSummary] : []),
+              ].join("\n"),
+              module: "acessos",
+              confidence: "alta" as const,
+              researchDepth: "profunda" as const,
+              agentPlan: [
+                "Identificar intenção de segurança",
+                "Consultar usuários e auditoria com escopo Owner",
+                "Consolidar resultado por perfil",
+              ],
+              followUps: [
+                "Detalhar apenas admins/superadmins",
+                "Mostrar últimas ações de auditoria",
+                "Filtrar usuários inativos",
+              ],
+              actions: [
+                {
+                  type: "navigate",
+                  label: "Abrir Administração de Acessos",
+                  path: "/access-management",
+                },
+                { type: "navigate", label: "Abrir Logs", path: "/logs" },
+              ],
+              results: {
+                resultItems: [
+                  ...snapshot.users.slice(0, 10).map((item: any) =>
+                    toResultItem(
+                      "acessos",
+                      `${item.name || "Sem nome"} | ${item.isActive ? "ativo" : "inativo"}`,
+                      item.role || null,
+                      "/access-management",
+                      item.name || item.email
+                    )
+                  ),
+                  ...snapshot.logs.slice(0, 10).map((item: any) =>
+                    toResultItem(
+                      "auditoria",
+                      `${item.module} | ${item.action} | ${item.userName || "sistema"}`,
+                      null,
+                      "/logs",
+                      item.module
+                    )
+                  ),
+                ],
+              },
+            };
+          }
+
+          const entries: Array<
+            AssistantSearchEntry & {
+              status?: string | null;
+              priority?: string | null;
+              tags?: string[];
+            }
+          > = [];
+
+          snapshot.purchaseRequests.forEach((item: any) => {
+            entries.push({
+              module: "compras",
+              path: "/purchase-requests",
+              title: item.documentNumber,
+              line: `${item.documentNumber} | ${item.status} | ${item.company} | ${item.requesterName}`,
+              unit: item.company || null,
+              status: item.status || null,
+              tags: ["compra", "solicitacao", "financeiro", "pedido"],
+              searchable: normalizeAssistantText(
+                [item.documentNumber, item.status, item.company, item.requesterName, item.justification]
+                  .filter(Boolean)
+                  .join(" ")
+              ),
+            });
+          });
+
+          snapshot.assets.forEach((item: any) => {
+            entries.push({
+              module: "inventario",
+              path: "/inventory",
+              title: item.nrBem,
+              line: `${item.nrBem} | ${item.descricao} | ${item.responsavel || "sem responsável"}`,
+              unit: item.local || null,
+              tags: ["inventario", "bem", "responsavel", "patrimonio"],
+              searchable: normalizeAssistantText(
+                [item.nrBem, item.descricao, item.responsavel, item.fornecedor, item.local]
+                  .filter(Boolean)
+                  .join(" ")
+              ),
+            });
+          });
+
+          snapshot.maintenance.forEach((item: any) => {
+            entries.push({
+              module: "manutencao",
+              path: "/maintenance",
+              title: `#${item.id}`,
+              line: `#${item.id} | ${item.priority} | ${item.status} | ${item.title}`,
+              unit: item.spaceId ? `unidade ${item.spaceId}` : null,
+              status: item.status || null,
+              priority: item.priority || null,
+              tags: ["manutencao", "chamado", "prioridade"],
+              searchable: normalizeAssistantText(
+                [item.id, item.priority, item.status, item.title, item.description]
+                  .filter(Boolean)
+                  .join(" ")
+              ),
+            });
+          });
+
+          snapshot.rooms.forEach((item: any) => {
+            entries.push({
+              module: "salas",
+              path: "/rooms",
+              title: item.name,
+              line: `${item.name} | ${item.status} | ${item.type}`,
+              unit: item.location || null,
+              status: item.status || null,
+              tags: ["sala", "auditorio", "reserva"],
+              searchable: normalizeAssistantText(
+                [item.name, item.status, item.type, item.location]
+                  .filter(Boolean)
+                  .join(" ")
+              ),
+            });
+          });
+
+          snapshot.suppliers.forEach((item: any) => {
+            entries.push({
+              module: "fornecedores",
+              path: "/suppliers",
+              title: item.companyName,
+              line: `${item.companyName} | ${item.status} | ${item.spaceName || "sem unidade"}`,
+              unit: item.spaceName || null,
+              status: item.status || null,
+              tags: ["fornecedor", "servico", "terceiro"],
+              searchable: normalizeAssistantText(
+                [item.companyName, item.status, item.spaceName, item.contactPerson, item.notes]
+                  .filter(Boolean)
+                  .join(" ")
+              ),
+            });
+          });
+
+          snapshot.consumables.forEach((item: any) => {
+            entries.push({
+              module: "consumiveis",
+              path: "/consumables",
+              title: item.name,
+              line: `${item.name} | ${item.category} | ${item.status}`,
+              unit: item.category || null,
+              status: item.status || null,
+              tags: ["consumivel", "estoque", "categoria"],
+              searchable: normalizeAssistantText(
+                [item.name, item.category, item.status]
+                  .filter(Boolean)
+                  .join(" ")
+              ),
+            });
+          });
+
+          if (isOwnerUser) {
+            snapshot.users.forEach((item: any) => {
+              entries.push({
+                module: "acessos",
+                path: "/access-management",
+                title: item.name || item.email,
+                line: `${item.name || "Sem nome"} | ${item.role} | ${item.isActive ? "ativo" : "inativo"}`,
+                unit: item.role || null,
+                tags: ["usuario", "acesso", "perfil"],
+                searchable: normalizeAssistantText(
+                  [item.name, item.email, item.role, item.isActive ? "ativo" : "inativo"]
+                    .filter(Boolean)
+                    .join(" ")
+                ),
+              });
+            });
+
+            snapshot.logs.forEach((item: any) => {
+              entries.push({
+                module: "auditoria",
+                path: "/logs",
+                title: item.module,
+                line: `${item.module} | ${item.action} | ${item.userName || "sistema"}`,
+                unit: null,
+                tags: ["auditoria", "log", "seguranca"],
+                searchable: normalizeAssistantText(
+                  [item.module, item.action, item.userName, item.userEmail]
+                    .filter(Boolean)
+                    .join(" ")
+                ),
+              });
+            });
+          }
+
+          const searchTerms =
+            keywords.length > 0
+              ? keywords
+              : normalizedQuestion.split(/[^a-z0-9]+/).filter(term => term.length >= 3);
+
+          const candidateEntries = entries.filter(entry => {
+            if (targetModules.size > 0 && !targetModules.has(entry.module) && !asksSystemOverview) {
+              return false;
+            }
+
+            if (wantsFinanceiro && !(entry.module === "compras" && entry.status === "financeiro")) {
+              return false;
+            }
+
+            if (wantsUrgent && !(
+              (entry.module === "manutencao" && (entry.priority === "urgente" || entry.priority === "alta")) ||
+              (entry.module === "compras" && entry.status === "financeiro")
+            )) {
+              return false;
+            }
+
+            if (wantsMissingResponsible && !(entry.module === "inventario" && entry.searchable.includes("sem responsavel"))) {
+              return false;
+            }
+
+            if (wantsActive && entry.status && entry.status !== "ativo") {
+              return false;
+            }
+
+            if (wantsInactive && entry.status && entry.status !== "inativo") {
+              return false;
+            }
+
+            if (searchTerms.length === 0) return true;
+            return searchTerms.some(term => entry.searchable.includes(term));
+          });
+
+          const selected = candidateEntries.slice(0, 20);
+          const groupedCounts = new Map<string, number>();
+          const unitCounts = new Map<string, number>();
+
+          selected.forEach(item => {
+            groupedCounts.set(item.module, (groupedCounts.get(item.module) || 0) + 1);
+            if (item.unit) {
+              unitCounts.set(item.unit, (unitCounts.get(item.unit) || 0) + 1);
+            }
+          });
+
+          if (asksSystemOverview) {
+            return null;
+          }
+
+          if (selected.length === 0) {
+            if (effectiveModule === "manutencao" && wantsUrgent) {
+              return {
+                answer:
+                  "Não encontrei chamados urgentes/alta prioridade no momento.",
+                module: "manutencao",
+                confidence: "alta" as const,
+                researchDepth: "profunda" as const,
+                agentPlan: [
+                  "Filtrar chamados por prioridade urgente/alta",
+                  "Cruzar com contexto da conversa",
+                  "Retornar ausência de ocorrências com segurança",
+                ],
+                followUps: [
+                  "Mostre chamados abertos por unidade",
+                  "Detalhe chamados em andamento",
+                  "Quais foram os últimos chamados fechados?",
+                ],
+                actions: [
+                  { type: "navigate", label: "Abrir Manutenção", path: "/maintenance" },
+                ],
+                results: { resultItems: [] },
+              };
+            }
+
+            if (effectiveModule === "compras" && wantsFinanceiro) {
+              return {
+                answer:
+                  "Não encontrei solicitações em financeiro com o critério informado.",
+                module: "compras",
+                confidence: "alta" as const,
+                researchDepth: "profunda" as const,
+                agentPlan: [
+                  "Filtrar solicitações por status financeiro",
+                  "Aplicar critérios adicionais (prazo/empresa)",
+                  "Retornar ausência de ocorrências",
+                ],
+                followUps: [
+                  "Mostre as aprovadas mais recentes",
+                  "Liste as pendentes por empresa",
+                  "Filtrar por urgência alta",
+                ],
+                actions: [
+                  { type: "navigate", label: "Abrir Solicitação de Compras", path: "/purchase-requests" },
+                ],
+                results: { resultItems: [] },
+              };
+            }
+
+            if (effectiveModule === "inventario" && wantsMissingResponsible) {
+              return {
+                answer:
+                  "Não encontrei bens sem responsável no inventário com os dados atuais.",
+                module: "inventario",
+                confidence: "alta" as const,
+                researchDepth: "profunda" as const,
+                agentPlan: [
+                  "Filtrar inventário por responsável vazio",
+                  "Conferir variações de local/unidade",
+                  "Retornar ausência de ocorrências",
+                ],
+                followUps: [
+                  "Mostre bens por unidade",
+                  "Liste bens por responsável",
+                  "Detalhe bens sem local",
+                ],
+                actions: [
+                  { type: "navigate", label: "Abrir Inventário", path: "/inventory" },
+                ],
+                results: { resultItems: [] },
+              };
+            }
+
+            return {
+              answer:
+                "Não encontrei resultado suficiente com esse critério no momento. Se quiser, posso ampliar a busca por módulo, período ou unidade.",
+              module: effectiveModule === "geral" ? moduleFromQuestion : effectiveModule,
+              confidence: "media" as const,
+              researchDepth: "profunda" as const,
+              agentPlan: [
+                "Analisar intenção principal da pergunta",
+                "Pesquisar módulos relacionados no banco",
+                "Refinar por unidade/status/local",
+              ],
+              followUps: [
+                "Ampliar para os últimos 30 dias",
+                "Buscar por unidade específica",
+                "Listar apenas itens críticos",
+              ],
+              actions: [
+                { type: "navigate", label: "Abrir Dashboard", path: "/dashboard" },
+              ],
+              results: { resultItems: [] },
+            };
+          }
+
+          const moduleHighlights: string[] = [];
+          groupedCounts.forEach((count, module) => {
+            moduleHighlights.push(`${module}: ${count} resultado(s)`);
+          });
+
+          const unitHighlights: string[] = [];
+          unitCounts.forEach((count, unit) => {
+            if (unitHighlights.length < 6) {
+              unitHighlights.push(`- ${unit}: ${count} ocorrência(s)`);
+            }
+          });
+
+          const dominantModule = selected[0]?.module || effectiveModule || "geral";
+          const agentAnswerLines = [
+            `Encontrei ${selected.length} resultado(s) com pesquisa aprofundada no sistema.`,
+            "",
+            "Módulos impactados:",
+            ...moduleHighlights,
+          ];
+
+          if (wantsUnitDetails && unitHighlights.length > 0) {
+            agentAnswerLines.push("", "Distribuição por unidade/local:", ...unitHighlights);
+          }
+
+          agentAnswerLines.push("", "Posso continuar investigando com um recorte mais específico se você quiser.");
+
+          return {
+            answer: agentAnswerLines.join("\n"),
+            module: dominantModule,
+            confidence: "alta" as const,
+            researchDepth: "profunda" as const,
+            agentPlan: [
+              "Interpretar intenção e contexto da conversa",
+              "Cruzar dados entre módulos relacionados",
+              "Aplicar filtros por status, prioridade e unidade",
+              "Retornar síntese + trilha de aprofundamento",
+            ],
+            highlights: moduleHighlights,
+            followUps: [
+              "Aprofunde apenas no módulo dominante",
+              "Filtre por unidade específica",
+              "Mostre somente casos críticos",
+            ],
+            actions: [
+              {
+                type: "navigate",
+                label: "Abrir módulo dominante",
+                path: selected[0]?.path || "/dashboard",
+              },
+            ],
+            results: {
+              resultItems: selected.map(item =>
+                toResultItem(item.module, item.line, item.unit || null, item.path, item.title)
+              ),
+            },
+          };
+        };
+
+        const autonomousResponse = await runAutonomousAgent();
+        if (autonomousResponse) {
+          return autonomousResponse;
+        }
+
         if (asksSystemOverview) {
           const snapshot = await loadGlobalSnapshot();
           const {
@@ -2835,7 +3305,6 @@ export const appRouter = router({
         if (
           effectiveModule === "salas" ||
           normalizedQuestion.includes("sala") ||
-          normalizedQuestion.includes("audit") ||
           normalizedQuestion.includes("auditorio")
         ) {
           const rooms = await db.listRooms();
