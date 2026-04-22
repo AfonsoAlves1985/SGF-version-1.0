@@ -2050,9 +2050,13 @@ export async function listConsumablesWithWeeklyData(filters?: {
     const maxStock = Number(consumable.maxStock ?? 0);
     const projectedTarget = Math.max(minStock, dailyConsumption * coverageDays);
     const cappedTarget = maxStock > 0 ? Math.min(projectedTarget, maxStock) : projectedTarget;
-    const recommendedReplenish = Math.max(
+    const grossRecommendedReplenish = Math.max(
       0,
       Math.ceil(cappedTarget - Number(resolvedCurrentStock ?? 0))
+    );
+    const recommendedReplenish = Math.max(
+      0,
+      grossRecommendedReplenish - Number(monthlyPurchased || 0)
     );
     const coverageInDays =
       dailyConsumption > 0
@@ -2066,6 +2070,7 @@ export async function listConsumablesWithWeeklyData(filters?: {
       averageWeeklyConsumption: Number(averageWeeklyConsumption.toFixed(2)),
       dailyConsumption: Number(dailyConsumption.toFixed(3)),
       recommendedReplenish,
+      grossRecommendedReplenish,
       projectedCoverageDays: coverageDays,
       currentCoverageDays: coverageInDays,
       weeklyData: resolvedWeeklyData,
