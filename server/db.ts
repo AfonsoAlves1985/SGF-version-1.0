@@ -2185,6 +2185,178 @@ export async function listConsumablesWithMonthlyConsumption(data: {
   return result;
 }
 
+export async function listMonthlyPurchasedGrid(filters: {
+  month: number;
+  year: number;
+  search?: string;
+  category?: string;
+}) {
+  const db = await getDb();
+  if (!db) return { spaces: [], rows: [] };
+
+  const spaces = (await db
+    .select({
+      id: consumableSpaces.id,
+      name: consumableSpaces.name,
+    })
+    .from(consumableSpaces)
+    .orderBy(asc(consumableSpaces.name))) as Array<{
+    id: number;
+    name: string;
+  }>;
+
+  const consumableConditions = [];
+  if (filters.search) {
+    consumableConditions.push(
+      like(consumablesWithSpace.name, `%${filters.search}%`)
+    );
+  }
+  if (filters.category) {
+    consumableConditions.push(
+      eq(consumablesWithSpace.category, filters.category)
+    );
+  }
+
+  let consumablesQuery = db.select().from(consumablesWithSpace);
+  if (consumableConditions.length > 0) {
+    // @ts-ignore - Drizzle ORM type inference issue
+    consumablesQuery = consumablesQuery.where(and(...consumableConditions));
+  }
+
+  const consumables = (await consumablesQuery.orderBy(
+    asc(consumablesWithSpace.name)
+  )) as any[];
+
+  const monthlyMovements = (await db
+    .select()
+    .from(consumableMonthlyMovements)
+    .where(
+      and(
+        eq(consumableMonthlyMovements.month, filters.month),
+        eq(consumableMonthlyMovements.year, filters.year)
+      )
+    )) as any[];
+
+  const monthlyByConsumableId = new Map<number, any>();
+  for (const movement of monthlyMovements) {
+    monthlyByConsumableId.set(movement.consumableId, movement);
+  }
+
+  const rowsByKey = new Map<string, any>();
+
+  for (const consumable of consumables) {
+    const rowKey = `${String(consumable.name).trim().toLowerCase()}::${String(consumable.category)
+      .trim()
+      .toLowerCase()}::${String(consumable.unit).trim().toLowerCase()}`;
+
+    if (!rowsByKey.has(rowKey)) {
+      rowsByKey.set(rowKey, {
+        rowKey,
+        name: consumable.name,
+        category: consumable.category,
+        unit: consumable.unit,
+        purchasedBySpace: {},
+      });
+    }
+
+    const row = rowsByKey.get(rowKey);
+    const movement = monthlyByConsumableId.get(consumable.id);
+    row.purchasedBySpace[consumable.spaceId] = {
+      consumableId: consumable.id,
+      value: Number(movement?.totalMovement ?? 0),
+    };
+  }
+
+  for (const row of Array.from(rowsByKey.values())) {
+    for (const space of spaces) {
+      if (!row.purchasedBySpace[space.id]) {
+        row.purchasedBySpace[space.id] = {
+          consumableId: null,
+          value: 0,
+        };
+      }
+    }
+  }
+
+  const rows = Array.from(rowsByKey.values()).sort((a, b) =>
+    a.name.localeCompare(b.name, "pt-BR")
+  );
+
+  return {
+    spaces,
+    month: filters.month,
+    year: filters.year,
+    rows,
+  };
+}
+
+export async function upsertConsumableMonthlyPurchased(data: {
+  consumableId: number;
+  spaceId: number;
+  month: number;
+  year: number;
+  purchasedAmount: number;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const [consumable] = (await db
+    .select()
+    .from(consumablesWithSpace)
+    .where(eq(consumablesWithSpace.id, data.consumableId))
+    .limit(1)) as any[];
+
+  if (!consumable) {
+    throw new Error("Consumível não encontrado");
+  }
+
+  if (consumable.spaceId !== data.spaceId) {
+    throw new Error("Consumível não pertence à unidade informada");
+  }
+
+  const existing = (await db
+    .select()
+    .from(consumableMonthlyMovements)
+    .where(
+      and(
+        eq(consumableMonthlyMovements.consumableId, data.consumableId),
+        eq(consumableMonthlyMovements.spaceId, data.spaceId),
+        eq(consumableMonthlyMovements.month, data.month),
+        eq(consumableMonthlyMovements.year, data.year)
+      )
+    )
+    .limit(1)) as any[];
+
+  if (existing.length > 0) {
+    return db
+      .update(consumableMonthlyMovements)
+      .set({
+        totalMovement: data.purchasedAmount,
+        averageStock: data.purchasedAmount,
+        updatedAt: new Date(),
+      })
+      .where(eq(consumableMonthlyMovements.id, existing[0].id));
+  }
+
+  const monthStartDate = `${data.year}-${String(data.month).padStart(2, "0")}-01`;
+
+  return db.insert(consumableMonthlyMovements).values({
+    consumableId: data.consumableId,
+    spaceId: data.spaceId,
+    monthStartDate,
+    month: data.month,
+    year: data.year,
+    week1Stock: 0,
+    week2Stock: 0,
+    week3Stock: 0,
+    week4Stock: 0,
+    week5Stock: 0,
+    totalMovement: data.purchasedAmount,
+    averageStock: data.purchasedAmount,
+    status: "ESTOQUE_OK",
+  });
+}
+
 // Calcular consumo mensal baseado no histórico semanal
 export async function calculateMonthlyConsumption(data: {
   consumableId: number;

@@ -68,6 +68,11 @@ export default function Consumables() {
   const [showCalendar, setShowCalendar] = useState(false);
   const [editingStockCell, setEditingStockCell] = useState<number | null>(null);
   const [editingStockValue, setEditingStockValue] = useState<number>(0);
+  const [editingPurchasedCell, setEditingPurchasedCell] = useState<{
+    rowKey: string;
+    spaceId: number;
+  } | null>(null);
+  const [editingPurchasedValue, setEditingPurchasedValue] = useState<number>(0);
   const [showAuditLog, setShowAuditLog] = useState(false);
   const [selectedConsumableForAudit, setSelectedConsumableForAudit] = useState<
     number | null
@@ -123,6 +128,17 @@ export default function Consumables() {
     }
   );
 
+  const currentMonth = selectedDate.getMonth() + 1;
+  const currentYear = selectedDate.getFullYear();
+
+  const { data: monthlyPurchasedGrid, isLoading: monthlyPurchasedLoading } =
+    trpc.consumablesWithSpace.listMonthlyPurchasedGrid.useQuery({
+      month: currentMonth,
+      year: currentYear,
+      search: filters.search || undefined,
+      category: filters.category || undefined,
+    });
+
   // Query para histórico de alterações
   const { data: auditLog = [], isLoading: auditLoading } =
     trpc.consumableStockAuditLog.list.useQuery(
@@ -170,6 +186,17 @@ export default function Consumables() {
       },
     });
 
+  const updateMonthlyPurchasedMutation =
+    trpc.consumablesWithSpace.updateMonthlyPurchased.useMutation({
+      onSuccess: () => {
+        toast.success("Comprados no mês atualizado!");
+        utils.consumablesWithSpace.listMonthlyPurchasedGrid.invalidate();
+      },
+      onError: error => {
+        toast.error(error.message);
+      },
+    });
+
   // Reset editing state on mutation
   const handleUpdateStock = async (consumableId: number, newStock: number) => {
     if (!selectedSpace) return;
@@ -189,6 +216,23 @@ export default function Consumables() {
     });
 
     setEditingStockCell(null);
+  };
+
+  const handleUpdateMonthlyPurchased = async (input: {
+    rowKey: string;
+    spaceId: number;
+    consumableId: number;
+    purchasedAmount: number;
+  }) => {
+    updateMonthlyPurchasedMutation.mutate({
+      consumableId: input.consumableId,
+      spaceId: input.spaceId,
+      month: currentMonth,
+      year: currentYear,
+      purchasedAmount: input.purchasedAmount,
+    });
+
+    setEditingPurchasedCell(null);
   };
 
   // Mutations for Consumables
@@ -840,6 +884,134 @@ export default function Consumables() {
                       </TableRow>
                     );
                   })}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="bg-slate-800/50 border-slate-700">
+        <CardHeader>
+          <CardTitle className="text-white">Comprados no Mês</CardTitle>
+          <CardDescription className="text-gray-400">
+            Edite por produto e unidade ({String(currentMonth).padStart(2, "0")}/
+            {currentYear})
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {monthlyPurchasedLoading ? (
+            <div className="text-center text-gray-400 py-8">Carregando...</div>
+          ) : !monthlyPurchasedGrid || monthlyPurchasedGrid.rows.length === 0 ? (
+            <div className="text-center text-gray-400 py-8">
+              Nenhum consumível encontrado para o período
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="border-slate-700">
+                    <TableHead className="text-gray-300">Produto</TableHead>
+                    <TableHead className="text-gray-300">Categoria</TableHead>
+                    <TableHead className="text-gray-300">Und.</TableHead>
+                    {monthlyPurchasedGrid.spaces.map((space: any) => (
+                      <TableHead
+                        key={space.id}
+                        className="text-gray-300 text-center"
+                      >
+                        {space.name}
+                      </TableHead>
+                    ))}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {monthlyPurchasedGrid.rows.map((row: any) => (
+                    <TableRow
+                      key={row.rowKey}
+                      className="border-slate-700 hover:bg-slate-700/50"
+                    >
+                      <TableCell className="text-white font-medium">
+                        {row.name}
+                      </TableCell>
+                      <TableCell className="text-gray-300">
+                        {row.category}
+                      </TableCell>
+                      <TableCell className="text-gray-300">{row.unit}</TableCell>
+                      {monthlyPurchasedGrid.spaces.map((space: any) => {
+                        const cell = row.purchasedBySpace?.[space.id];
+                        const isEditing =
+                          editingPurchasedCell?.rowKey === row.rowKey &&
+                          editingPurchasedCell?.spaceId === space.id;
+
+                        if (!cell || !cell.consumableId) {
+                          return (
+                            <TableCell
+                              key={`${row.rowKey}-${space.id}`}
+                              className="text-center text-gray-500"
+                            >
+                              —
+                            </TableCell>
+                          );
+                        }
+
+                        return (
+                          <TableCell
+                            key={`${row.rowKey}-${space.id}`}
+                            className="text-center"
+                          >
+                            {isEditing ? (
+                              <div className="flex items-center justify-center gap-1">
+                                <input
+                                  type="number"
+                                  min={0}
+                                  value={editingPurchasedValue}
+                                  onChange={e =>
+                                    setEditingPurchasedValue(
+                                      parseInt(e.target.value) || 0
+                                    )
+                                  }
+                                  className="w-20 px-2 py-1 bg-slate-700 border border-slate-600 text-white rounded text-sm"
+                                  autoFocus
+                                />
+                                <button
+                                  onClick={() =>
+                                    handleUpdateMonthlyPurchased({
+                                      rowKey: row.rowKey,
+                                      spaceId: space.id,
+                                      consumableId: cell.consumableId,
+                                      purchasedAmount: editingPurchasedValue,
+                                    })
+                                  }
+                                  className="px-2 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-sm"
+                                >
+                                  ✓
+                                </button>
+                                <button
+                                  onClick={() => setEditingPurchasedCell(null)}
+                                  className="px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-sm"
+                                >
+                                  ✕
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => {
+                                  setEditingPurchasedCell({
+                                    rowKey: row.rowKey,
+                                    spaceId: space.id,
+                                  });
+                                  setEditingPurchasedValue(Number(cell.value || 0));
+                                }}
+                                className="text-sky-400 font-semibold hover:text-sky-300 cursor-pointer"
+                              >
+                                {cell.value}
+                              </button>
+                            )}
+                          </TableCell>
+                        );
+                      })}
+                    </TableRow>
+                  ))}
                 </TableBody>
               </Table>
             </div>

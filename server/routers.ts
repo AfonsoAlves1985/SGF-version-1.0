@@ -4219,6 +4219,33 @@ export const appRouter = router({
       .query(async ({ input }) => {
         return db.listConsumablesWithMonthlyConsumption(input);
       }),
+
+    listMonthlyPurchasedGrid: protectedProcedure
+      .input(
+        z.object({
+          month: z.number().min(1).max(12),
+          year: z.number().min(2000).max(9999),
+          search: z.string().optional(),
+          category: z.string().optional(),
+        })
+      )
+      .query(async ({ input }) => {
+        return db.listMonthlyPurchasedGrid(input);
+      }),
+
+    updateMonthlyPurchased: editorProcedure
+      .input(
+        z.object({
+          consumableId: z.number(),
+          spaceId: z.number(),
+          month: z.number().min(1).max(12),
+          year: z.number().min(2000).max(9999),
+          purchasedAmount: z.number().min(0),
+        })
+      )
+      .mutation(async ({ input }) => {
+        return db.upsertConsumableMonthlyPurchased(input);
+      }),
   }),
 
   consumableWeeklyMovements: router({
