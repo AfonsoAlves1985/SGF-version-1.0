@@ -33,6 +33,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DateInputWithCalendar } from "@/components/DateInputWithCalendar";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import {
   Plus,
   Building2,
@@ -121,6 +122,10 @@ function parseRoomDateTime(dateValue?: string, timeValue?: string, end = false) 
   return parsed;
 }
 
+function overlapsDayRange(start: Date, end: Date, dayStart: Date, dayEnd: Date) {
+  return start.getTime() <= dayEnd.getTime() && end.getTime() >= dayStart.getTime();
+}
+
 function isDateRangeValid(startDate?: string, endDate?: string) {
   if (!startDate || !endDate) return true;
 
@@ -188,30 +193,82 @@ export default function Rooms() {
 
   const roomsById = new Map<number, any>(rooms.map((room: any) => [room.id, room]));
 
-  const upcomingReservations = [...(reservations as any[])]
-    .filter(reservation => {
-      if (reservation.status === "cancelada") return false;
-      const start = parseReservationDate(reservation.startTime);
-      return !!start && start.getTime() >= selectedScheduleStart.getTime();
-    })
-    .sort((a, b) => {
-      const aStart = parseReservationDate(a.startTime)?.getTime() || 0;
-      const bStart = parseReservationDate(b.startTime)?.getTime() || 0;
-      return aStart - bStart;
-    });
+  const scheduleItems = [
+    ...(reservations as any[])
+      .filter(reservation => reservation.status !== "cancelada")
+      .map(reservation => {
+        const start = parseReservationDate(reservation.startTime);
+        const end = parseReservationDate(reservation.endTime);
+        if (!start || !end) return null;
+
+        const roomName =
+          roomsById.get(reservation.roomId)?.name || `Sala #${reservation.roomId}`;
+
+        return {
+          id: `reservation-${reservation.id}`,
+          roomId: reservation.roomId,
+          roomName,
+          start,
+          end,
+          source: "reserva" as const,
+        };
+      })
+      .filter(Boolean),
+    ...(rooms as any[])
+      .map(room => {
+        const start = parseRoomDateTime(room.startDate, room.startTime);
+        const end = parseRoomDateTime(room.endDate, room.endTime, true);
+        if (!start || !end) return null;
+
+        return {
+          id: `room-usage-${room.id}`,
+          roomId: room.id,
+          roomName: room.name,
+          start,
+          end,
+          source: "uso" as const,
+        };
+      })
+      .filter(Boolean),
+  ] as Array<{
+    id: string;
+    roomId: number;
+    roomName: string;
+    start: Date;
+    end: Date;
+    source: "reserva" | "uso";
+  }>;
+
+  const hasScheduleOnDate = (date: Date) => {
+    const dayStart = new Date(date);
+    dayStart.setHours(0, 0, 0, 0);
+    const dayEnd = new Date(date);
+    dayEnd.setHours(23, 59, 59, 999);
+
+    return scheduleItems.some(item =>
+      overlapsDayRange(item.start, item.end, dayStart, dayEnd)
+    );
+  };
+
+  const scheduleItemsOnSelectedDate = scheduleItems
+    .filter(item =>
+      overlapsDayRange(
+        item.start,
+        item.end,
+        selectedScheduleStart,
+        selectedScheduleEnd
+      )
+    )
+    .sort((a, b) => a.start.getTime() - b.start.getTime());
 
   const hasReservationOnSelectedDate = (roomId: number) => {
-    return (reservations as any[]).some(reservation => {
-      if (reservation.status === "cancelada") return false;
-      if (reservation.roomId !== roomId) return false;
-
-      const start = parseReservationDate(reservation.startTime);
-      const end = parseReservationDate(reservation.endTime);
-      if (!start || !end) return false;
-
-      return (
-        start.getTime() <= selectedScheduleEnd.getTime() &&
-        end.getTime() >= selectedScheduleStart.getTime()
+    return scheduleItems.some(item => {
+      if (item.roomId !== roomId) return false;
+      return overlapsDayRange(
+        item.start,
+        item.end,
+        selectedScheduleStart,
+        selectedScheduleEnd
       );
     });
   };
@@ -560,57 +617,6 @@ export default function Rooms() {
                 calendarClassName="[&_.rdp-cell]:text-white [&_.rdp-button]:text-white"
               />
             </div>
-          </div>
-
-          <div className="mt-6 rounded-lg border border-slate-700 bg-slate-900/40 p-4">
-            <p className="text-sm font-medium text-gray-200">
-              Agendamentos a partir de {scheduleDate || "data selecionada"}
-            </p>
-            {upcomingReservations.length === 0 ? (
-              <p className="mt-2 text-sm text-gray-400">
-                Nenhum agendamento atual ou futuro encontrado para esta data.
-              </p>
-            ) : (
-              <div className="mt-3 space-y-2">
-                {upcomingReservations.slice(0, 6).map((reservation: any) => {
-                  const start = parseReservationDate(reservation.startTime);
-                  const end = parseReservationDate(reservation.endTime);
-                  const roomName =
-                    roomsById.get(reservation.roomId)?.name ||
-                    `Sala #${reservation.roomId}`;
-
-                  return (
-                    <div
-                      key={reservation.id}
-                      className="flex flex-col gap-1 rounded-md border border-slate-700/70 bg-slate-800/50 p-2 text-sm sm:flex-row sm:items-center sm:justify-between"
-                    >
-                      <span className="text-gray-200">{roomName}</span>
-                      <span className="text-gray-400">
-                        {start
-                          ? start.toLocaleString("pt-BR", {
-                              day: "2-digit",
-                              month: "2-digit",
-                              year: "numeric",
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })
-                          : "Sem início"}
-                        {" - "}
-                        {end
-                          ? end.toLocaleString("pt-BR", {
-                              day: "2-digit",
-                              month: "2-digit",
-                              year: "numeric",
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })
-                          : "Sem término"}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
           </div>
         </CardContent>
       </Card>
@@ -1284,6 +1290,86 @@ export default function Rooms() {
               <p className="text-gray-400">Nenhuma sala cadastrada</p>
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      <Card className="bg-slate-800/50 border-sky-700/30">
+        <CardHeader>
+          <CardTitle className="text-white">
+            Calendário de Agendamentos de Salas
+          </CardTitle>
+          <CardDescription className="text-gray-400">
+            Datas com agendamento ficam marcadas. Selecione um dia para ver qual
+            sala será utilizada.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-[420px_1fr]">
+            <div className="rounded-lg border border-slate-700 bg-slate-900/40 p-3">
+              <CalendarComponent
+                mode="single"
+                selected={selectedScheduleDate}
+                onSelect={date => {
+                  if (!date) return;
+                  setScheduleDate(formatDateToMask(date));
+                }}
+                modifiers={{
+                  hasSchedule: date => hasScheduleOnDate(date),
+                }}
+                modifiersClassNames={{
+                  hasSchedule:
+                    "bg-sky-900/40 text-sky-200 font-semibold ring-1 ring-sky-500/40",
+                }}
+                className="w-full [&_.rdp-cell]:text-white [&_.rdp-button]:text-white [&_.rdp-month]:w-full"
+              />
+            </div>
+
+            <div className="rounded-lg border border-slate-700 bg-slate-900/40 p-4">
+              <p className="text-sm font-medium text-gray-200">
+                Salas agendadas em {scheduleDate}
+              </p>
+              {scheduleItemsOnSelectedDate.length === 0 ? (
+                <p className="mt-3 text-sm text-gray-400">
+                  Nenhum agendamento para esta data.
+                </p>
+              ) : (
+                <div className="mt-3 space-y-2">
+                  {scheduleItemsOnSelectedDate.map(item => (
+                    <div
+                      key={item.id}
+                      className="flex flex-col gap-1 rounded-md border border-slate-700/70 bg-slate-800/50 p-3 text-sm"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-medium text-white">
+                          {item.roomName}
+                        </span>
+                        <span className="text-xs text-sky-300">
+                          {item.source === "reserva" ? "Reserva" : "Uso"}
+                        </span>
+                      </div>
+                      <span className="text-gray-400">
+                        {item.start.toLocaleString("pt-BR", {
+                          day: "2-digit",
+                          month: "2-digit",
+                          year: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                        {" - "}
+                        {item.end.toLocaleString("pt-BR", {
+                          day: "2-digit",
+                          month: "2-digit",
+                          year: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
         </CardContent>
       </Card>
 
