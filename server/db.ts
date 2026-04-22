@@ -1861,6 +1861,32 @@ function getDaysToNextPurchaseCycle(today: Date, purchaseDay = 20) {
   return remainingInMonth + purchaseDay;
 }
 
+function buildConsumableWeeklyHistory(records: any[]) {
+  const sorted = [...records].sort(
+    (a, b) =>
+      parseMaskedDateToTimestamp(a.weekStartDate) -
+      parseMaskedDateToTimestamp(b.weekStartDate)
+  );
+
+  return sorted.map((record, index) => {
+    if (index === 0) {
+      return {
+        ...record,
+        consumption: 0,
+      };
+    }
+
+    const previousRecord = sorted[index - 1];
+    const previousStock = Number(previousRecord?.totalMovement ?? 0);
+    const currentStock = Number(record?.totalMovement ?? 0);
+
+    return {
+      ...record,
+      consumption: Math.max(0, previousStock - currentStock),
+    };
+  });
+}
+
 export async function listConsumablesWithWeeklyData(filters?: {
   spaceId?: number;
   search?: string;
@@ -2023,20 +2049,11 @@ export async function listConsumablesWithWeeklyData(filters?: {
       }
     }
 
-    const movementHistory = (
+    const movementHistory = buildConsumableWeeklyHistory(
       weeklyMovementsByConsumableId.get(consumable.id) || []
-    ).sort(
-      (a, b) =>
-        parseMaskedDateToTimestamp(a.weekStartDate) -
-        parseMaskedDateToTimestamp(b.weekStartDate)
     );
 
-    const weeklyConsumptions: number[] = [];
-    for (let i = 1; i < movementHistory.length; i += 1) {
-      const previousValue = Number(movementHistory[i - 1]?.totalMovement ?? 0);
-      const currentValue = Number(movementHistory[i]?.totalMovement ?? 0);
-      weeklyConsumptions.push(Math.max(0, previousValue - currentValue));
-    }
+    const weeklyConsumptions = movementHistory.map(item => item.consumption);
 
     const recentConsumptions = weeklyConsumptions.slice(-8);
     const averageWeeklyConsumption =
@@ -2504,8 +2521,7 @@ export async function getConsumableStockHistory(data: {
 
   const weeksToFetch = data.weeks || 12;
 
-  // Buscar registros das últimas N semanas
-  const history = await db
+  const allHistory = await db
     .select({
       weekStartDate: consumableWeeklyMovements.weekStartDate,
       weekNumber: consumableWeeklyMovements.weekNumber,
@@ -2519,24 +2535,12 @@ export async function getConsumableStockHistory(data: {
         eq(consumableWeeklyMovements.consumableId, data.consumableId),
         eq(consumableWeeklyMovements.spaceId, data.spaceId)
       )
-    )
-    .orderBy(consumableWeeklyMovements.weekStartDate)
-    .limit(weeksToFetch);
+    );
 
-  // Calcular consumo semanal (diferença entre semanas consecutivas)
-  // O consumo é calculado como: estoque anterior - estoque atual
-  const historyWithConsumption = history.map((record, index) => {
-    let consumption = 0;
+  const normalizedHistory = buildConsumableWeeklyHistory(allHistory as any[]);
+  const history = normalizedHistory.slice(-weeksToFetch);
 
-    if (index > 0) {
-      const previousRecord = history[index - 1];
-      // Se o estoque anterior é maior que o atual, houve consumo
-      consumption = Math.max(
-        0,
-        previousRecord.totalMovement - record.totalMovement
-      );
-    }
-
+  const historyWithConsumption = history.map(record => {
     const weekStartStr =
       typeof record.weekStartDate === "string"
         ? record.weekStartDate
@@ -2547,7 +2551,7 @@ export async function getConsumableStockHistory(data: {
       weekNumber: record.weekNumber,
       year: record.year,
       stock: record.totalMovement, // Estoque atual da semana
-      consumption: consumption, // Consumo calculado pela diferença
+      consumption: Number(record.consumption ?? 0), // Consumo semanal normalizado
       status: record.status,
       label: `Sem ${record.weekNumber}/${record.year}`, // ex: "Sem 12/2026"
     };
