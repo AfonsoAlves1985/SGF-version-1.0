@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import {
@@ -81,6 +81,46 @@ function normalizeDateToMask(value?: string) {
   return value;
 }
 
+function formatDateToMask(date: Date) {
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const year = date.getFullYear();
+  return `${day}-${month}-${year}`;
+}
+
+function parseReservationDate(value?: string | Date | null) {
+  if (!value) return null;
+  const parsed = value instanceof Date ? new Date(value) : new Date(String(value));
+  if (Number.isNaN(parsed.getTime())) return null;
+  return parsed;
+}
+
+function parseRoomDateTime(dateValue?: string, timeValue?: string, end = false) {
+  if (!dateValue) return null;
+
+  const normalizedDate = normalizeDateToMask(dateValue);
+  const maskedDate = parseMaskedDate(normalizedDate);
+  if (!maskedDate) return null;
+
+  const parsed = new Date(maskedDate);
+
+  if (timeValue) {
+    const [h, m] = timeValue.split(":").map(Number);
+    if (!Number.isNaN(h) && !Number.isNaN(m)) {
+      parsed.setHours(h, m, 0, 0);
+      return parsed;
+    }
+  }
+
+  if (end) {
+    parsed.setHours(23, 59, 59, 999);
+  } else {
+    parsed.setHours(0, 0, 0, 0);
+  }
+
+  return parsed;
+}
+
 function isDateRangeValid(startDate?: string, endDate?: string) {
   if (!startDate || !endDate) return true;
 
@@ -97,14 +137,9 @@ function isDateRangeValid(startDate?: string, endDate?: string) {
 
 export default function Rooms() {
   const [status, setStatus] = useState("all");
-  const [now, setNow] = useState(() => new Date());
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setNow(new Date());
-    }, 1000);
-    return () => clearInterval(interval);
-  }, []);
+  const [scheduleDate, setScheduleDate] = useState(() =>
+    formatDateToMask(new Date())
+  );
   const [editingRoom, setEditingRoom] = useState<any>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [inlineEditingId, setInlineEditingId] = useState<number | null>(null);
@@ -144,6 +179,42 @@ export default function Rooms() {
   });
 
   const { data: reservations = [] } = trpc.roomReservations.list.useQuery();
+
+  const selectedScheduleDate = parseMaskedDate(scheduleDate) || new Date();
+  const selectedScheduleStart = new Date(selectedScheduleDate);
+  selectedScheduleStart.setHours(0, 0, 0, 0);
+  const selectedScheduleEnd = new Date(selectedScheduleDate);
+  selectedScheduleEnd.setHours(23, 59, 59, 999);
+
+  const roomsById = new Map<number, any>(rooms.map((room: any) => [room.id, room]));
+
+  const upcomingReservations = [...(reservations as any[])]
+    .filter(reservation => {
+      if (reservation.status === "cancelada") return false;
+      const start = parseReservationDate(reservation.startTime);
+      return !!start && start.getTime() >= selectedScheduleStart.getTime();
+    })
+    .sort((a, b) => {
+      const aStart = parseReservationDate(a.startTime)?.getTime() || 0;
+      const bStart = parseReservationDate(b.startTime)?.getTime() || 0;
+      return aStart - bStart;
+    });
+
+  const hasReservationOnSelectedDate = (roomId: number) => {
+    return (reservations as any[]).some(reservation => {
+      if (reservation.status === "cancelada") return false;
+      if (reservation.roomId !== roomId) return false;
+
+      const start = parseReservationDate(reservation.startTime);
+      const end = parseReservationDate(reservation.endTime);
+      if (!start || !end) return false;
+
+      return (
+        start.getTime() <= selectedScheduleEnd.getTime() &&
+        end.getTime() >= selectedScheduleStart.getTime()
+      );
+    });
+  };
 
   const createMutation = trpc.rooms.create.useMutation({
     onSuccess: () => {
@@ -458,23 +529,88 @@ export default function Rooms() {
         <CardHeader>
           <CardTitle className="text-white">Filtros</CardTitle>
           <CardDescription className="text-gray-400">
-            Filtre salas por status
+            Filtre salas por status e consulte agendamentos por data
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="max-w-xs">
-            <label className="text-sm font-medium text-gray-300">Status</label>
-            <Select value={status} onValueChange={setStatus}>
-              <SelectTrigger className="mt-1 bg-slate-700 border-slate-600 text-white">
-                <SelectValue placeholder="Selecione um status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas</SelectItem>
-                <SelectItem value="disponivel">Disponível</SelectItem>
-                <SelectItem value="ocupada">Ocupada</SelectItem>
-                <SelectItem value="manutencao">Manutenção</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div className="max-w-xs">
+              <label className="text-sm font-medium text-gray-300">Status</label>
+              <Select value={status} onValueChange={setStatus}>
+                <SelectTrigger className="mt-1 bg-slate-700 border-slate-600 text-white">
+                  <SelectValue placeholder="Selecione um status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas</SelectItem>
+                  <SelectItem value="disponivel">Disponível</SelectItem>
+                  <SelectItem value="ocupada">Ocupada</SelectItem>
+                  <SelectItem value="manutencao">Manutenção</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="max-w-xs">
+              <label className="text-sm font-medium text-gray-300">
+                Data para consulta de disponibilidade
+              </label>
+              <DateInputWithCalendar
+                value={scheduleDate}
+                onChange={setScheduleDate}
+                className="mt-1 bg-slate-700 border-slate-600 text-white"
+                calendarClassName="[&_.rdp-cell]:text-white [&_.rdp-button]:text-white"
+              />
+            </div>
+          </div>
+
+          <div className="mt-6 rounded-lg border border-slate-700 bg-slate-900/40 p-4">
+            <p className="text-sm font-medium text-gray-200">
+              Agendamentos a partir de {scheduleDate || "data selecionada"}
+            </p>
+            {upcomingReservations.length === 0 ? (
+              <p className="mt-2 text-sm text-gray-400">
+                Nenhum agendamento atual ou futuro encontrado para esta data.
+              </p>
+            ) : (
+              <div className="mt-3 space-y-2">
+                {upcomingReservations.slice(0, 6).map((reservation: any) => {
+                  const start = parseReservationDate(reservation.startTime);
+                  const end = parseReservationDate(reservation.endTime);
+                  const roomName =
+                    roomsById.get(reservation.roomId)?.name ||
+                    `Sala #${reservation.roomId}`;
+
+                  return (
+                    <div
+                      key={reservation.id}
+                      className="flex flex-col gap-1 rounded-md border border-slate-700/70 bg-slate-800/50 p-2 text-sm sm:flex-row sm:items-center sm:justify-between"
+                    >
+                      <span className="text-gray-200">{roomName}</span>
+                      <span className="text-gray-400">
+                        {start
+                          ? start.toLocaleString("pt-BR", {
+                              day: "2-digit",
+                              month: "2-digit",
+                              year: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })
+                          : "Sem início"}
+                        {" - "}
+                        {end
+                          ? end.toLocaleString("pt-BR", {
+                              day: "2-digit",
+                              month: "2-digit",
+                              year: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })
+                          : "Sem término"}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -860,6 +996,15 @@ export default function Rooms() {
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {rooms.map((room: any) => {
+              const roomStart = parseRoomDateTime(room.startDate, room.startTime);
+              const roomEnd = parseRoomDateTime(room.endDate, room.endTime, true);
+              const reservedOnSelectedDate = hasReservationOnSelectedDate(room.id);
+              const occupiedByRoomPeriod =
+                !!roomStart &&
+                !!roomEnd &&
+                roomStart.getTime() <= selectedScheduleEnd.getTime() &&
+                roomEnd.getTime() >= selectedScheduleStart.getTime();
+
               // Sala em manutenção: sempre destacar em amarelo
               if (room.status === "manutencao") {
                 return (
@@ -918,11 +1063,7 @@ export default function Rooms() {
               }
 
               // Sala sem datas = disponível para uso
-              if (
-                !room.startDate ||
-                !room.endDate ||
-                room.status === "disponivel"
-              ) {
+              if (!occupiedByRoomPeriod && !reservedOnSelectedDate) {
                 return (
                   <Card
                     key={room.id}
@@ -964,7 +1105,7 @@ export default function Rooms() {
                             </span>
                           </p>
                           <p className="text-xs text-gray-400">
-                            Pronta para nova solicitação
+                            Disponível para a data consultada
                           </p>
                           <Button
                             onClick={() => handleOpenUseRoom(room)}
@@ -980,29 +1121,10 @@ export default function Rooms() {
                 );
               }
 
-              // Combinar data + hora para cálculo preciso
-              // Usar horário local (navegador) que deve estar em Brasília
-              const parseDateTime = (dateVal: any, timeStr?: string) => {
-                const normalizedDate =
-                  typeof dateVal === "string"
-                    ? normalizeDateToMask(dateVal)
-                    : "";
-                const maskedDate = parseMaskedDate(normalizedDate);
-                const d = maskedDate ? new Date(maskedDate) : new Date(dateVal);
+              const startDate = roomStart || selectedScheduleStart;
+              const endDate = roomEnd || selectedScheduleEnd;
 
-                if (timeStr) {
-                  const [h, m] = timeStr.split(":").map(Number);
-                  d.setHours(h, m, 0, 0);
-                } else {
-                  d.setHours(0, 0, 0, 0);
-                }
-                return d;
-              };
-              const startDate = parseDateTime(room.startDate, room.startTime);
-              const endDate = parseDateTime(room.endDate, room.endTime);
-
-              // Usar data atual local
-              const nowBrasilia = now;
+              const nowBrasilia = selectedScheduleDate;
 
               const totalDuration = endDate.getTime() - startDate.getTime();
               // Calcular tempo decorrido considerando os limites [startDate, endDate]
@@ -1047,7 +1169,9 @@ export default function Rooms() {
               }
 
               const cardStatusLabel =
-                room.status === "ocupada" ? "Ocupada" : alertText;
+                reservedOnSelectedDate || room.status === "ocupada"
+                  ? "Ocupada"
+                  : alertText;
 
               return (
                 <Card key={room.id} className={`${alertColor} border relative`}>
@@ -1130,8 +1254,8 @@ export default function Rooms() {
                           <span className="text-sky-400">{cardStatusLabel}</span>
                         </p>
                         <p className="text-xs text-gray-400">
-                          {now < startDate
-                            ? `Inicia em ${Math.ceil((startDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))} dia(s)`
+                          {selectedScheduleDate < startDate
+                            ? `Inicia em ${Math.ceil((startDate.getTime() - selectedScheduleDate.getTime()) / (1000 * 60 * 60 * 24))} dia(s)`
                             : remainingTime > 0
                               ? `Faltam ${Math.ceil(remainingTime / (1000 * 60 * 60 * 24))} dias`
                               : "Prazo expirado"}
