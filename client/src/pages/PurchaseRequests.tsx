@@ -11,6 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { DateInputWithCalendar } from "@/components/DateInputWithCalendar";
 import {
   Select,
@@ -282,6 +283,35 @@ function formatDateTime(value?: string | Date | null) {
   return parsed.toLocaleString("pt-BR");
 }
 
+function parseMaskedDate(value?: string | null) {
+  if (!value || !/^\d{2}-\d{2}-\d{4}$/.test(value)) return null;
+  const [day, month, year] = value.split("-").map(Number);
+  const parsed = new Date(year, month - 1, day);
+  if (Number.isNaN(parsed.getTime())) return null;
+  parsed.setHours(0, 0, 0, 0);
+  return parsed;
+}
+
+function isDateInCurrentWeek(date: Date) {
+  const target = new Date(date);
+  target.setHours(0, 0, 0, 0);
+
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+
+  const day = now.getDay();
+  const mondayOffset = day === 0 ? -6 : 1 - day;
+  const weekStart = new Date(now);
+  weekStart.setDate(now.getDate() + mondayOffset);
+  weekStart.setHours(0, 0, 0, 0);
+
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekStart.getDate() + 6);
+  weekEnd.setHours(23, 59, 59, 999);
+
+  return target >= weekStart && target <= weekEnd;
+}
+
 function getStatusBadgeClass(status: PurchaseRequestStatus) {
   if (status === "recebido") return "bg-green-600/20 text-green-300";
   if (status === "cancelado") return "bg-red-600/20 text-red-300";
@@ -354,11 +384,13 @@ export default function PurchaseRequests() {
     urgency: "all" | PurchaseRequestUrgency;
     company: string;
     search: string;
+    materialPurchaseWeek: boolean;
   }>({
     status: "all",
     urgency: "all",
     company: "all",
     search: "",
+    materialPurchaseWeek: false,
   });
 
   const requestsQueryInput = useMemo(() => {
@@ -390,6 +422,21 @@ export default function PurchaseRequests() {
   }, [listFilters]);
 
   const requestsQuery = trpc.purchaseRequests.list.useQuery(requestsQueryInput);
+  const displayedRequests = useMemo(() => {
+    const base = (requestsQuery.data || []) as PurchaseRequestDetail[];
+    if (!listFilters.materialPurchaseWeek) return base;
+
+    return base.filter(request => {
+      const requestDateParsed = parseMaskedDate(request.requestDate);
+      if (requestDateParsed) {
+        return isDateInCurrentWeek(requestDateParsed);
+      }
+
+      const createdAt = request.createdAt ? new Date(request.createdAt) : null;
+      if (!createdAt || Number.isNaN(createdAt.getTime())) return false;
+      return isDateInCurrentWeek(createdAt);
+    });
+  }, [requestsQuery.data, listFilters.materialPurchaseWeek]);
   const lookupQuery = trpc.purchaseRequests.lookupValues.useQuery();
   const nextDocQuery = trpc.purchaseRequests.getNextDocumentNumber.useQuery(
     undefined,
@@ -502,6 +549,7 @@ export default function PurchaseRequests() {
         urgency?: unknown;
         company?: unknown;
         search?: unknown;
+        materialPurchaseWeek?: unknown;
       };
 
       setListFilters(current => ({
@@ -521,6 +569,10 @@ export default function PurchaseRequests() {
           typeof payload.search === "string"
             ? payload.search
             : current.search,
+        materialPurchaseWeek:
+          typeof payload.materialPurchaseWeek === "boolean"
+            ? payload.materialPurchaseWeek
+            : current.materialPurchaseWeek,
       }));
     };
 
@@ -2186,7 +2238,7 @@ export default function PurchaseRequests() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="mb-5 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3">
+          <div className="mb-5 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-3">
             <div>
               <Label className="text-gray-300">Buscar</Label>
               <Input
@@ -2272,6 +2324,26 @@ export default function PurchaseRequests() {
               </Select>
             </div>
             <div className="flex items-end">
+              <div className="w-full rounded-md border border-slate-700 bg-slate-800/70 px-3 py-2">
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="material-week"
+                    checked={listFilters.materialPurchaseWeek}
+                    onCheckedChange={checked =>
+                      setListFilters(current => ({
+                        ...current,
+                        materialPurchaseWeek: checked === true,
+                      }))
+                    }
+                    className="border-slate-500 data-[state=checked]:bg-sky-600 data-[state=checked]:border-sky-500"
+                  />
+                  <Label htmlFor="material-week" className="text-gray-200 cursor-pointer">
+                    Semana de compra de material
+                  </Label>
+                </div>
+              </div>
+            </div>
+            <div className="flex items-end">
               <Button
                 type="button"
                 variant="outline"
@@ -2282,6 +2354,7 @@ export default function PurchaseRequests() {
                     urgency: "all",
                     company: "all",
                     search: "",
+                    materialPurchaseWeek: false,
                   })
                 }
               >
@@ -2292,7 +2365,7 @@ export default function PurchaseRequests() {
 
           {requestsQuery.isLoading ? (
             <div className="text-center py-8 text-gray-400">Carregando solicitações...</div>
-          ) : (requestsQuery.data || []).length === 0 ? (
+          ) : displayedRequests.length === 0 ? (
             <div className="text-center py-8 text-gray-400">Nenhuma solicitação registrada.</div>
           ) : (
             <div className="overflow-x-auto">
@@ -2310,7 +2383,7 @@ export default function PurchaseRequests() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {(requestsQuery.data || []).map((request: any) => (
+                  {displayedRequests.map((request: any) => (
                     <TableRow
                       key={request.id}
                       className="border-slate-700 hover:bg-slate-700/30 cursor-pointer"
