@@ -4144,6 +4144,8 @@ export const appRouter = router({
           .object({
             spaceId: z.number().optional(),
             weekStartDate: z.string().optional(),
+            month: z.number().min(1).max(12).optional(),
+            year: z.number().min(2000).max(9999).optional(),
             category: z.string().optional(),
             search: z.string().optional(),
           })
@@ -4218,19 +4220,6 @@ export const appRouter = router({
       )
       .query(async ({ input }) => {
         return db.listConsumablesWithMonthlyConsumption(input);
-      }),
-
-    listMonthlyPurchasedGrid: protectedProcedure
-      .input(
-        z.object({
-          month: z.number().min(1).max(12),
-          year: z.number().min(2000).max(9999),
-          search: z.string().optional(),
-          category: z.string().optional(),
-        })
-      )
-      .query(async ({ input }) => {
-        return db.listMonthlyPurchasedGrid(input);
       }),
 
     updateMonthlyPurchased: editorProcedure
