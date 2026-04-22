@@ -754,7 +754,9 @@ export default function Consumables() {
                     );
                     const StatusIcon = status.icon;
                     const replenishStock =
-                      consumable.maxStock - consumable.currentStock;
+                      typeof consumable.recommendedReplenish === "number"
+                        ? consumable.recommendedReplenish
+                        : Math.max(0, consumable.maxStock - consumable.currentStock);
 
                     return (
                       <TableRow

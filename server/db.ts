@@ -1,4 +1,15 @@
-import { eq, and, or, desc, asc, gte, lte, like, sql } from "drizzle-orm";
+import {
+  eq,
+  and,
+  or,
+  desc,
+  asc,
+  gte,
+  lte,
+  like,
+  sql,
+  inArray,
+} from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import fs from "node:fs";
@@ -1821,6 +1832,35 @@ export async function deleteConsumableMonthlyMovement(id: number) {
 }
 
 // Carregar consumíveis com dados semanais específicos
+function parseMaskedDateToTimestamp(value?: string | null) {
+  if (!value) return 0;
+
+  if (/^\d{2}-\d{2}-\d{4}$/.test(value)) {
+    const [day, month, year] = value.split("-").map(Number);
+    return new Date(year, month - 1, day).getTime();
+  }
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const [year, month, day] = value.split("-").map(Number);
+    return new Date(year, month - 1, day).getTime();
+  }
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return 0;
+  return parsed.getTime();
+}
+
+function getDaysToNextPurchaseCycle(today: Date, purchaseDay = 20) {
+  const currentDay = today.getDate();
+  if (currentDay <= purchaseDay) {
+    return purchaseDay - currentDay;
+  }
+
+  const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+  const remainingInMonth = endOfMonth.getDate() - currentDay;
+  return remainingInMonth + purchaseDay;
+}
+
 export async function listConsumablesWithWeeklyData(filters?: {
   spaceId?: number;
   search?: string;
@@ -1924,6 +1964,33 @@ export async function listConsumablesWithWeeklyData(filters?: {
     monthlyByConsumableId.set(movement.consumableId, movement);
   }
 
+  const consumableIds = consumables.map((item: any) => item.id);
+  const recentWeeklyMovements =
+    filters.spaceId && consumableIds.length > 0
+      ? await db
+          .select()
+          .from(consumableWeeklyMovements)
+          .where(
+            and(
+              eq(consumableWeeklyMovements.spaceId, filters.spaceId),
+              inArray(consumableWeeklyMovements.consumableId, consumableIds)
+            )
+          )
+      : [];
+
+  const weeklyMovementsByConsumableId = new Map<number, any[]>();
+  for (const movement of recentWeeklyMovements as any[]) {
+    const current = weeklyMovementsByConsumableId.get(movement.consumableId) || [];
+    current.push(movement);
+    weeklyMovementsByConsumableId.set(movement.consumableId, current);
+  }
+
+  const LEAD_TIME_DAYS = 7;
+  const SAFETY_DAYS = 7;
+  const today = new Date();
+  const daysToNextPurchase = getDaysToNextPurchaseCycle(today, 20);
+  const coverageDays = daysToNextPurchase + LEAD_TIME_DAYS + SAFETY_DAYS;
+
   // Mapear dados semanais aos consumiveis com estoque cumulativo
   return consumables.map((consumable: any) => {
     const monthlyRecord = monthlyByConsumableId.get(consumable.id);
@@ -1932,42 +1999,76 @@ export async function listConsumablesWithWeeklyData(filters?: {
       (w: any) => w.consumableId === consumable.id
     );
 
-    if (weeklyRecord) {
-      // Se houver registro da semana, usar seu valor (permitir 0)
-      return {
-        ...consumable,
-        currentStock:
-          weeklyRecord.totalMovement !== null &&
-          weeklyRecord.totalMovement !== undefined
-            ? weeklyRecord.totalMovement
-            : consumable.currentStock,
-        monthlyPurchased,
-        weeklyData: weeklyRecord,
-      };
-    }
+    let resolvedCurrentStock = consumable.currentStock;
+    let resolvedWeeklyData = null;
 
-    // Se não houver registro da semana, buscar da semana anterior
-    const previousRecord = previousWeekData.find(
-      (w: any) => w.consumableId === consumable.id
-    );
-    if (previousRecord) {
-      return {
-        ...consumable,
-        currentStock:
+    if (weeklyRecord) {
+      resolvedCurrentStock =
+        weeklyRecord.totalMovement !== null &&
+        weeklyRecord.totalMovement !== undefined
+          ? weeklyRecord.totalMovement
+          : consumable.currentStock;
+      resolvedWeeklyData = weeklyRecord;
+    } else {
+      const previousRecord = previousWeekData.find(
+        (w: any) => w.consumableId === consumable.id
+      );
+
+      if (previousRecord) {
+        resolvedCurrentStock =
           previousRecord.totalMovement !== null &&
           previousRecord.totalMovement !== undefined
             ? previousRecord.totalMovement
-            : consumable.currentStock,
-        monthlyPurchased,
-        weeklyData: null,
-      };
+            : consumable.currentStock;
+      }
     }
 
-    // Se não houver em nenhuma semana, usar estoque atual do consumível
+    const movementHistory = (
+      weeklyMovementsByConsumableId.get(consumable.id) || []
+    ).sort(
+      (a, b) =>
+        parseMaskedDateToTimestamp(a.weekStartDate) -
+        parseMaskedDateToTimestamp(b.weekStartDate)
+    );
+
+    const weeklyConsumptions: number[] = [];
+    for (let i = 1; i < movementHistory.length; i += 1) {
+      const previousValue = Number(movementHistory[i - 1]?.totalMovement ?? 0);
+      const currentValue = Number(movementHistory[i]?.totalMovement ?? 0);
+      weeklyConsumptions.push(Math.max(0, previousValue - currentValue));
+    }
+
+    const recentConsumptions = weeklyConsumptions.slice(-8);
+    const averageWeeklyConsumption =
+      recentConsumptions.length > 0
+        ? recentConsumptions.reduce((sum, value) => sum + value, 0) /
+          recentConsumptions.length
+        : 0;
+    const dailyConsumption = averageWeeklyConsumption / 7;
+
+    const minStock = Number(consumable.minStock ?? 0);
+    const maxStock = Number(consumable.maxStock ?? 0);
+    const projectedTarget = Math.max(minStock, dailyConsumption * coverageDays);
+    const cappedTarget = maxStock > 0 ? Math.min(projectedTarget, maxStock) : projectedTarget;
+    const recommendedReplenish = Math.max(
+      0,
+      Math.ceil(cappedTarget - Number(resolvedCurrentStock ?? 0))
+    );
+    const coverageInDays =
+      dailyConsumption > 0
+        ? Number((Number(resolvedCurrentStock ?? 0) / dailyConsumption).toFixed(1))
+        : null;
+
     return {
       ...consumable,
-      currentStock: consumable.currentStock,
+      currentStock: resolvedCurrentStock,
       monthlyPurchased,
+      averageWeeklyConsumption: Number(averageWeeklyConsumption.toFixed(2)),
+      dailyConsumption: Number(dailyConsumption.toFixed(3)),
+      recommendedReplenish,
+      projectedCoverageDays: coverageDays,
+      currentCoverageDays: coverageInDays,
+      weeklyData: resolvedWeeklyData,
     };
   });
 }
