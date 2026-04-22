@@ -41,7 +41,7 @@ import {
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from "./DashboardLayoutSkeleton";
-import AssistantSidebar from "./AssistantSidebar";
+// import AssistantSidebar from "./AssistantSidebar";
 import { Button } from "./ui/button";
 import { Switch } from "./ui/switch";
 
@@ -327,7 +327,8 @@ function DashboardLayoutContent({
           </div>
         )}
         <main className="flex-1 p-4">{children}</main>
-        <AssistantSidebar currentPath={location} />
+        {/* Mr. Thinkker desativado temporariamente */}
+        {/* <AssistantSidebar currentPath={location} /> */}
       </SidebarInset>
     </>
   );
