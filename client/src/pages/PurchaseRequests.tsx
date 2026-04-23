@@ -1,6 +1,7 @@
 import { type ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
+import { useAuth } from "@/_core/hooks/useAuth";
 import {
   Card,
   CardContent,
@@ -157,18 +158,9 @@ type PurchaseRequestDetail = {
   }>;
 };
 
-type RequestDialogEditState = {
-  status: PurchaseRequestStatus;
-  neededDate: string;
-  urgency: PurchaseRequestUrgency;
-  supplierName: string;
-  supplierContact: string;
-  supplierDeliveryEstimate: string;
-  justification: string;
-  observations: string;
-  financeApproved: boolean;
-  billingCnpj: string;
-  paymentTerms: string;
+type RequestDialogEditState = RequestFormState & {
+  items: RequestItemForm[];
+  attachments: AttachmentMeta[];
 };
 
 const WEBHOOK_URL_KEY = "frz_purchase_webhook_url";
@@ -448,6 +440,7 @@ function toAttachmentMeta(files: FileList | null): AttachmentMeta[] {
 }
 
 export default function PurchaseRequests() {
+  const { user } = useAuth();
   const utils = trpc.useUtils();
   const importInputRef = useRef<HTMLInputElement | null>(null);
   const [isWebhookDialogOpen, setIsWebhookDialogOpen] = useState(false);
@@ -564,6 +557,8 @@ export default function PurchaseRequests() {
 
   const isSaving =
     createMutation.isPending || updateMutation.isPending || webhookMutation.isPending;
+  const canFullyEditRequestInModal =
+    user?.role === "superadmin" || user?.role === "admin";
 
   const mergedCompanies = useMemo(
     () =>
@@ -825,10 +820,21 @@ export default function PurchaseRequests() {
   };
 
   const buildDialogEditState = (request: PurchaseRequestDetail): RequestDialogEditState => ({
+    documentNumber: request.documentNumber || "",
+    requestDate: request.requestDate || "",
     status: request.status,
     neededDate: request.neededDate || "",
     urgency: request.urgency,
+    company: request.company || "",
+    costCenter: request.costCenter || "",
+    purchaseType: request.purchaseType || "",
+    requesterName: request.requesterName || "",
+    requesterRegistration: request.requesterRegistration || "",
+    requesterRole: request.requesterRole || "",
+    requesterEmail: request.requesterEmail || "",
+    requesterPhone: request.requesterPhone || "",
     supplierName: request.supplierName || "",
+    supplierDocument: request.supplierDocument || "",
     supplierContact: request.supplierContact || "",
     supplierDeliveryEstimate: request.supplierDeliveryEstimate || "",
     justification: request.justification || "",
@@ -836,6 +842,19 @@ export default function PurchaseRequests() {
     financeApproved: Boolean(request.financeApproved),
     billingCnpj: request.billingCnpj || "",
     paymentTerms: request.paymentTerms || "",
+    items:
+      Array.isArray(request.items) && request.items.length > 0
+        ? request.items.map(item => ({
+            description: item.description || "",
+            unit: item.unit || "UN",
+            quantity: Number(item.quantity || 0),
+            unitPrice: Number(item.unitPrice || 0),
+            supplierSuggestion: item.supplierSuggestion || "",
+          }))
+        : [{ ...INITIAL_ITEM }],
+    attachments: Array.isArray(request.attachments)
+      ? (request.attachments as AttachmentMeta[])
+      : [],
   });
 
   const openRequestDialog = async (requestId: number) => {
@@ -870,19 +889,79 @@ export default function PurchaseRequests() {
 
   const saveDialogEdit = async () => {
     if (!selectedRequest || !dialogEdit) return;
+    if (!canFullyEditRequestInModal) {
+      toast.error("Somente owner/admin pode editar no modal");
+      return;
+    }
+
+    if (!dialogEdit.documentNumber.trim()) {
+      toast.error("Documento é obrigatório");
+      return;
+    }
+
+    if (dialogEdit.status !== "rascunho") {
+      if (!dialogEdit.requestDate.trim() || !dialogEdit.neededDate.trim()) {
+        toast.error("Data da solicitação e data necessária são obrigatórias");
+        return;
+      }
+
+      if (!dialogEdit.company.trim() || !dialogEdit.costCenter.trim()) {
+        toast.error("Empresa e centro de custo são obrigatórios");
+        return;
+      }
+
+      if (!dialogEdit.purchaseType.trim()) {
+        toast.error("Tipo de compra é obrigatório");
+        return;
+      }
+
+      if (!dialogEdit.requesterName.trim() || !dialogEdit.requesterEmail.trim()) {
+        toast.error("Nome e e-mail do solicitante são obrigatórios");
+        return;
+      }
+    }
 
     if (dialogEdit.status !== "rascunho" && !dialogEdit.justification.trim()) {
       toast.error("Justificativa é obrigatória");
       return;
     }
 
+    if (dialogEdit.items.length === 0) {
+      toast.error("Adicione ao menos um item na solicitação");
+      return;
+    }
+
+    const hasInvalidItem = dialogEdit.items.some(
+      item =>
+        !item.description.trim() ||
+        !item.unit.trim() ||
+        item.quantity <= 0 ||
+        item.unitPrice < 0
+    );
+
+    if (hasInvalidItem) {
+      toast.error("Preencha todos os itens corretamente");
+      return;
+    }
+
     try {
       await updateMutation.mutateAsync({
         id: selectedRequest.id,
+        documentNumber: dialogEdit.documentNumber,
+        requestDate: dialogEdit.requestDate,
         status: dialogEdit.status,
         neededDate: dialogEdit.neededDate,
         urgency: dialogEdit.urgency,
+        company: dialogEdit.company,
+        costCenter: dialogEdit.costCenter,
+        purchaseType: dialogEdit.purchaseType,
+        requesterName: dialogEdit.requesterName,
+        requesterRegistration: dialogEdit.requesterRegistration || undefined,
+        requesterRole: dialogEdit.requesterRole || undefined,
+        requesterEmail: dialogEdit.requesterEmail,
+        requesterPhone: dialogEdit.requesterPhone || undefined,
         supplierName: dialogEdit.supplierName || undefined,
+        supplierDocument: dialogEdit.supplierDocument || undefined,
         supplierContact: dialogEdit.supplierContact || undefined,
         supplierDeliveryEstimate: dialogEdit.supplierDeliveryEstimate || undefined,
         justification: dialogEdit.justification,
@@ -890,7 +969,12 @@ export default function PurchaseRequests() {
         financeApproved: dialogEdit.financeApproved,
         billingCnpj: dialogEdit.billingCnpj || undefined,
         paymentTerms: dialogEdit.paymentTerms || undefined,
-        items: selectedRequestItems.map((item, index) => ({
+        attachments: dialogEdit.attachments.map(attachment => ({
+          name: attachment.name,
+          size: attachment.size,
+          type: attachment.type,
+        })),
+        items: dialogEdit.items.map((item, index) => ({
           itemOrder: index + 1,
           description: item.description,
           unit: item.unit,
@@ -915,6 +999,82 @@ export default function PurchaseRequests() {
       toast.error("Falha ao salvar alterações no modal");
     }
   };
+
+  const setDialogField = <K extends keyof RequestDialogEditState>(
+    field: K,
+    value: RequestDialogEditState[K]
+  ) => {
+    setDialogEdit(current =>
+      current
+        ? {
+            ...current,
+            [field]: value,
+          }
+        : current
+    );
+  };
+
+  const updateDialogItem = <K extends keyof RequestItemForm>(
+    index: number,
+    field: K,
+    value: RequestItemForm[K]
+  ) => {
+    setDialogEdit(current =>
+      current
+        ? {
+            ...current,
+            items: current.items.map((item, itemIndex) =>
+              itemIndex === index ? { ...item, [field]: value } : item
+            ),
+          }
+        : current
+    );
+  };
+
+  const addDialogItem = () => {
+    setDialogEdit(current =>
+      current
+        ? {
+            ...current,
+            items: [...current.items, { ...INITIAL_ITEM }],
+          }
+        : current
+    );
+  };
+
+  const removeDialogItem = (index: number) => {
+    setDialogEdit(current => {
+      if (!current || current.items.length <= 1) return current;
+      return {
+        ...current,
+        items: current.items.filter((_, itemIndex) => itemIndex !== index),
+      };
+    });
+  };
+
+  const dialogTotals = useMemo(() => {
+    if (!dialogEdit) {
+      return {
+        totalQuantity: 0,
+        totalAmount: 0,
+      };
+    }
+
+    const totalQuantity = dialogEdit.items.reduce(
+      (sum, item) => sum + Number(item.quantity || 0),
+      0
+    );
+    const totalAmount = dialogEdit.items.reduce(
+      (sum, item) =>
+        sum + Number(item.quantity || 0) * Number(item.unitPrice || 0),
+      0
+    );
+
+    return {
+      totalQuantity,
+      totalAmount,
+    };
+  }, [dialogEdit]);
 
   const openAttachment = (attachment: AttachmentMeta) => {
     if (!attachment.url) {
@@ -1578,7 +1738,7 @@ export default function PurchaseRequests() {
                         Salvar no modal
                       </Button>
                     </>
-                  ) : (
+                  ) : canFullyEditRequestInModal ? (
                     <Button
                       type="button"
                       variant="outline"
@@ -1587,203 +1747,243 @@ export default function PurchaseRequests() {
                     >
                       Editar solicitação
                     </Button>
+                  ) : (
+                    <p className="text-xs text-slate-400">
+                      Somente owner/admin pode editar no modal
+                    </p>
                   )}
                 </div>
               </div>
 
               {isRequestDialogEditing && dialogEdit && (
                 <div className="rounded-md border border-sky-700/40 bg-sky-950/20 p-3 space-y-3">
-                  <p className="text-sm font-medium text-sky-200">Edição rápida no modal</p>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <div>
-                      <Label className="text-gray-300">Status</Label>
-                      <Select
-                        value={dialogEdit.status}
-                        onValueChange={value =>
-                          setDialogEdit(current =>
-                            current
-                              ? {
-                                  ...current,
-                                  status: value as PurchaseRequestStatus,
-                                }
-                              : current
-                          )
-                        }
-                      >
-                        <SelectTrigger className="mt-1 bg-slate-800 border-slate-600 text-white">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {(Object.keys(STATUS_LABELS) as PurchaseRequestStatus[]).map(status => (
-                            <SelectItem key={status} value={status}>
-                              {STATUS_LABELS[status]}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                  <p className="text-sm font-medium text-sky-200">Edição completa no modal</p>
+
+                  <div className="rounded-md border border-slate-700 bg-slate-900/50 p-3 space-y-3">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-300">
+                      Dados gerais
+                    </p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                      <div>
+                        <Label className="text-gray-300">Documento</Label>
+                        <Input
+                          value={dialogEdit.documentNumber}
+                          onChange={event =>
+                            setDialogField("documentNumber", event.target.value)
+                          }
+                          className="mt-1 bg-slate-800 border-slate-600 text-white"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-gray-300">Data da solicitação</Label>
+                        <DateInputWithCalendar
+                          value={dialogEdit.requestDate}
+                          onChange={value => setDialogField("requestDate", value)}
+                          className="mt-1 bg-slate-800 border-slate-600 text-white"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-gray-300">Data necessária</Label>
+                        <DateInputWithCalendar
+                          value={dialogEdit.neededDate}
+                          onChange={value => setDialogField("neededDate", value)}
+                          className="mt-1 bg-slate-800 border-slate-600 text-white"
+                        />
+                      </div>
                     </div>
-                    <div>
-                      <Label className="text-gray-300">Data necessária</Label>
-                      <DateInputWithCalendar
-                        value={dialogEdit.neededDate}
-                        onChange={value =>
-                          setDialogEdit(current =>
-                            current
-                              ? {
-                                  ...current,
-                                  neededDate: value,
-                                }
-                              : current
-                          )
-                        }
-                        className="mt-1 bg-slate-800 border-slate-600 text-white"
-                      />
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                      <div>
+                        <Label className="text-gray-300">Status</Label>
+                        <Select
+                          value={dialogEdit.status}
+                          onValueChange={value =>
+                            setDialogField("status", value as PurchaseRequestStatus)
+                          }
+                        >
+                          <SelectTrigger className="mt-1 bg-slate-800 border-slate-600 text-white">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {(Object.keys(STATUS_LABELS) as PurchaseRequestStatus[]).map(
+                              status => (
+                                <SelectItem key={status} value={status}>
+                                  {STATUS_LABELS[status]}
+                                </SelectItem>
+                              )
+                            )}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label className="text-gray-300">Urgência</Label>
+                        <Select
+                          value={dialogEdit.urgency}
+                          onValueChange={value =>
+                            setDialogField("urgency", value as PurchaseRequestUrgency)
+                          }
+                        >
+                          <SelectTrigger className="mt-1 bg-slate-800 border-slate-600 text-white">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="baixa">Baixa</SelectItem>
+                            <SelectItem value="normal">Normal</SelectItem>
+                            <SelectItem value="alta">Alta</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label className="text-gray-300">Empresa</Label>
+                        <Input
+                          value={dialogEdit.company}
+                          onChange={event => setDialogField("company", event.target.value)}
+                          className="mt-1 bg-slate-800 border-slate-600 text-white"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-gray-300">Centro de custo</Label>
+                        <Input
+                          value={dialogEdit.costCenter}
+                          onChange={event => setDialogField("costCenter", event.target.value)}
+                          className="mt-1 bg-slate-800 border-slate-600 text-white"
+                        />
+                      </div>
                     </div>
+
                     <div>
-                      <Label className="text-gray-300">Urgência</Label>
-                      <Select
-                        value={dialogEdit.urgency}
-                        onValueChange={value =>
-                          setDialogEdit(current =>
-                            current
-                              ? {
-                                  ...current,
-                                  urgency: value as PurchaseRequestUrgency,
-                                }
-                              : current
-                          )
-                        }
-                      >
-                        <SelectTrigger className="mt-1 bg-slate-800 border-slate-600 text-white">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="baixa">Baixa</SelectItem>
-                          <SelectItem value="normal">Normal</SelectItem>
-                          <SelectItem value="alta">Alta</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label className="text-gray-300">Fornecedor sugerido</Label>
+                      <Label className="text-gray-300">Tipo de compra</Label>
                       <Input
-                        value={dialogEdit.supplierName}
-                        onChange={event =>
-                          setDialogEdit(current =>
-                            current
-                              ? {
-                                  ...current,
-                                  supplierName: event.target.value,
-                                }
-                              : current
-                          )
-                        }
+                        value={dialogEdit.purchaseType}
+                        onChange={event => setDialogField("purchaseType", event.target.value)}
                         className="mt-1 bg-slate-800 border-slate-600 text-white"
                       />
                     </div>
-                    <div>
-                      <Label className="text-gray-300">Contato fornecedor</Label>
-                      <Input
-                        value={dialogEdit.supplierContact}
-                        onChange={event =>
-                          setDialogEdit(current =>
-                            current
-                              ? {
-                                  ...current,
-                                  supplierContact: event.target.value,
-                                }
-                              : current
-                          )
-                        }
-                        className="mt-1 bg-slate-800 border-slate-600 text-white"
-                      />
+                  </div>
+
+                  <div className="rounded-md border border-slate-700 bg-slate-900/50 p-3 space-y-3">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-300">
+                      Solicitante
+                    </p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                      <div className="md:col-span-2">
+                        <Label className="text-gray-300">Nome</Label>
+                        <Input
+                          value={dialogEdit.requesterName}
+                          onChange={event =>
+                            setDialogField("requesterName", event.target.value)
+                          }
+                          className="mt-1 bg-slate-800 border-slate-600 text-white"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-gray-300">Matrícula/ID</Label>
+                        <Input
+                          value={dialogEdit.requesterRegistration}
+                          onChange={event =>
+                            setDialogField("requesterRegistration", event.target.value)
+                          }
+                          className="mt-1 bg-slate-800 border-slate-600 text-white"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-gray-300">Cargo</Label>
+                        <Input
+                          value={dialogEdit.requesterRole}
+                          onChange={event =>
+                            setDialogField("requesterRole", event.target.value)
+                          }
+                          className="mt-1 bg-slate-800 border-slate-600 text-white"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-gray-300">E-mail</Label>
+                        <Input
+                          type="email"
+                          value={dialogEdit.requesterEmail}
+                          onChange={event =>
+                            setDialogField("requesterEmail", event.target.value)
+                          }
+                          className="mt-1 bg-slate-800 border-slate-600 text-white"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-gray-300">Telefone</Label>
+                        <Input
+                          value={dialogEdit.requesterPhone}
+                          onChange={event =>
+                            setDialogField("requesterPhone", event.target.value)
+                          }
+                          className="mt-1 bg-slate-800 border-slate-600 text-white"
+                        />
+                      </div>
                     </div>
-                    <div>
-                      <Label className="text-gray-300">Previsão de entrega</Label>
-                      <Input
-                        value={dialogEdit.supplierDeliveryEstimate}
-                        onChange={event =>
-                          setDialogEdit(current =>
-                            current
-                              ? {
-                                  ...current,
-                                  supplierDeliveryEstimate: event.target.value,
-                                }
-                              : current
-                          )
-                        }
-                        className="mt-1 bg-slate-800 border-slate-600 text-white"
-                      />
+                  </div>
+
+                  <div className="rounded-md border border-slate-700 bg-slate-900/50 p-3 space-y-3">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-300">
+                      Fornecedor e financeiro
+                    </p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                      <div className="md:col-span-2">
+                        <Label className="text-gray-300">Fornecedor</Label>
+                        <Input
+                          value={dialogEdit.supplierName}
+                          onChange={event =>
+                            setDialogField("supplierName", event.target.value)
+                          }
+                          className="mt-1 bg-slate-800 border-slate-600 text-white"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-gray-300">CNPJ/CPF</Label>
+                        <Input
+                          value={dialogEdit.supplierDocument}
+                          onChange={event =>
+                            setDialogField("supplierDocument", event.target.value)
+                          }
+                          className="mt-1 bg-slate-800 border-slate-600 text-white"
+                        />
+                      </div>
+                      <div className="md:col-span-2">
+                        <Label className="text-gray-300">Contato fornecedor</Label>
+                        <Input
+                          value={dialogEdit.supplierContact}
+                          onChange={event =>
+                            setDialogField("supplierContact", event.target.value)
+                          }
+                          className="mt-1 bg-slate-800 border-slate-600 text-white"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-gray-300">Previsão de entrega</Label>
+                        <Input
+                          value={dialogEdit.supplierDeliveryEstimate}
+                          onChange={event =>
+                            setDialogField("supplierDeliveryEstimate", event.target.value)
+                          }
+                          className="mt-1 bg-slate-800 border-slate-600 text-white"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-gray-300">CNPJ faturamento</Label>
+                        <Input
+                          value={dialogEdit.billingCnpj}
+                          onChange={event => setDialogField("billingCnpj", event.target.value)}
+                          className="mt-1 bg-slate-800 border-slate-600 text-white"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-gray-300">Condição de pagamento</Label>
+                        <Input
+                          value={dialogEdit.paymentTerms}
+                          onChange={event => setDialogField("paymentTerms", event.target.value)}
+                          className="mt-1 bg-slate-800 border-slate-600 text-white"
+                        />
+                      </div>
                     </div>
-                    <div>
-                      <Label className="text-gray-300">CNPJ faturamento</Label>
-                      <Input
-                        value={dialogEdit.billingCnpj}
-                        onChange={event =>
-                          setDialogEdit(current =>
-                            current
-                              ? {
-                                  ...current,
-                                  billingCnpj: event.target.value,
-                                }
-                              : current
-                          )
-                        }
-                        className="mt-1 bg-slate-800 border-slate-600 text-white"
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-gray-300">Condição de pagamento</Label>
-                      <Input
-                        value={dialogEdit.paymentTerms}
-                        onChange={event =>
-                          setDialogEdit(current =>
-                            current
-                              ? {
-                                  ...current,
-                                  paymentTerms: event.target.value,
-                                }
-                              : current
-                          )
-                        }
-                        className="mt-1 bg-slate-800 border-slate-600 text-white"
-                      />
-                    </div>
-                    <div className="md:col-span-2">
-                      <Label className="text-gray-300">Justificativa</Label>
-                      <textarea
-                        value={dialogEdit.justification}
-                        onChange={event =>
-                          setDialogEdit(current =>
-                            current
-                              ? {
-                                  ...current,
-                                  justification: event.target.value,
-                                }
-                              : current
-                          )
-                        }
-                        className="mt-1 min-h-20 w-full rounded-md border border-slate-600 bg-slate-800 px-3 py-2 text-white"
-                      />
-                    </div>
-                    <div className="md:col-span-2">
-                      <Label className="text-gray-300">Observações</Label>
-                      <textarea
-                        value={dialogEdit.observations}
-                        onChange={event =>
-                          setDialogEdit(current =>
-                            current
-                              ? {
-                                  ...current,
-                                  observations: event.target.value,
-                                }
-                              : current
-                          )
-                        }
-                        className="mt-1 min-h-16 w-full rounded-md border border-slate-600 bg-slate-800 px-3 py-2 text-white"
-                      />
-                    </div>
-                    <div className="md:col-span-2 flex items-center justify-between rounded-md border border-slate-700 bg-slate-900/60 px-3 py-2">
+
+                    <div className="flex items-center justify-between rounded-md border border-slate-700 bg-slate-900/60 px-3 py-2">
                       <p className="text-sm text-gray-300">Aprovado no financeiro</p>
                       <Button
                         type="button"
@@ -1794,19 +1994,211 @@ export default function PurchaseRequests() {
                             : "text-gray-300"
                         }`}
                         onClick={() =>
-                          setDialogEdit(current =>
-                            current
-                              ? {
-                                  ...current,
-                                  financeApproved: !current.financeApproved,
-                                }
-                              : current
-                          )
+                          setDialogField("financeApproved", !dialogEdit.financeApproved)
                         }
                       >
                         {dialogEdit.financeApproved ? "Sim" : "Não"}
                       </Button>
                     </div>
+                  </div>
+
+                  <div className="rounded-md border border-slate-700 bg-slate-900/50 p-3 space-y-3">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-300">
+                      Itens da solicitação
+                    </p>
+                    <div className="space-y-3">
+                      {dialogEdit.items.map((item, index) => (
+                        <div
+                          key={`dialog-item-${index}`}
+                          className="rounded-md border border-slate-700 bg-slate-900/60 p-3"
+                        >
+                          <div className="mb-3 flex items-center justify-between">
+                            <p className="text-xs text-slate-300">Item #{index + 1}</p>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="border-red-500/40 text-red-300 hover:bg-red-900/20"
+                              onClick={() => removeDialogItem(index)}
+                              disabled={dialogEdit.items.length === 1}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-3">
+                            <div className="lg:col-span-2">
+                              <Label className="text-gray-300">Descrição</Label>
+                              <Input
+                                value={item.description}
+                                onChange={event =>
+                                  updateDialogItem(index, "description", event.target.value)
+                                }
+                                className="mt-1 bg-slate-800 border-slate-600 text-white"
+                              />
+                            </div>
+                            <div>
+                              <Label className="text-gray-300">Unidade</Label>
+                              <Input
+                                value={item.unit}
+                                onChange={event =>
+                                  updateDialogItem(index, "unit", event.target.value)
+                                }
+                                className="mt-1 bg-slate-800 border-slate-600 text-white"
+                              />
+                            </div>
+                            <div>
+                              <Label className="text-gray-300">Qtd</Label>
+                              <Input
+                                type="number"
+                                min={0}
+                                value={item.quantity}
+                                onChange={event =>
+                                  updateDialogItem(
+                                    index,
+                                    "quantity",
+                                    Number(event.target.value || 0)
+                                  )
+                                }
+                                className="mt-1 bg-slate-800 border-slate-600 text-white"
+                              />
+                            </div>
+                            <div>
+                              <Label className="text-gray-300">Valor unit.</Label>
+                              <Input
+                                type="number"
+                                min={0}
+                                step="0.01"
+                                value={item.unitPrice}
+                                onChange={event =>
+                                  updateDialogItem(
+                                    index,
+                                    "unitPrice",
+                                    Number(event.target.value || 0)
+                                  )
+                                }
+                                className="mt-1 bg-slate-800 border-slate-600 text-white"
+                              />
+                            </div>
+                            <div>
+                              <Label className="text-gray-300">Fornecedor sugerido</Label>
+                              <Input
+                                value={item.supplierSuggestion}
+                                onChange={event =>
+                                  updateDialogItem(
+                                    index,
+                                    "supplierSuggestion",
+                                    event.target.value
+                                  )
+                                }
+                                className="mt-1 bg-slate-800 border-slate-600 text-white"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="border-slate-600 text-gray-300 hover:bg-slate-800"
+                        onClick={addDialogItem}
+                      >
+                        <Plus className="mr-2 h-4 w-4" />
+                        Adicionar item
+                      </Button>
+                      <div className="text-right">
+                        <p className="text-xs text-slate-400">
+                          Qtd total: {dialogTotals.totalQuantity}
+                        </p>
+                        <p className="text-sm font-semibold text-sky-300">
+                          Valor total: {formatMoney(dialogTotals.totalAmount)}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-md border border-slate-700 bg-slate-900/50 p-3 space-y-3">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-300">
+                      Justificativa e observações
+                    </p>
+                    <div>
+                      <Label className="text-gray-300">Justificativa</Label>
+                      <textarea
+                        value={dialogEdit.justification}
+                        onChange={event =>
+                          setDialogField("justification", event.target.value)
+                        }
+                        className="mt-1 min-h-20 w-full rounded-md border border-slate-600 bg-slate-800 px-3 py-2 text-white"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-gray-300">Observações</Label>
+                      <textarea
+                        value={dialogEdit.observations}
+                        onChange={event => setDialogField("observations", event.target.value)}
+                        className="mt-1 min-h-16 w-full rounded-md border border-slate-600 bg-slate-800 px-3 py-2 text-white"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="rounded-md border border-slate-700 bg-slate-900/50 p-3 space-y-3">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-300">
+                      Anexos
+                    </p>
+                    <label className="block cursor-pointer rounded-md border-2 border-dashed border-slate-600 bg-slate-900/60 p-4 text-center text-sm text-slate-300 hover:border-sky-500">
+                      Clique para anexar arquivos
+                      <input
+                        type="file"
+                        multiple
+                        className="hidden"
+                        onChange={event => {
+                          const metadata = toAttachmentMeta(event.target.files);
+                          setDialogEdit(current =>
+                            current
+                              ? {
+                                  ...current,
+                                  attachments: [...current.attachments, ...metadata],
+                                }
+                              : current
+                          );
+                        }}
+                      />
+                    </label>
+
+                    {dialogEdit.attachments.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {dialogEdit.attachments.map((file, index) => (
+                          <span
+                            key={`${file.name}-${index}`}
+                            className="inline-flex items-center gap-2 rounded bg-slate-700 px-2 py-1 text-xs text-gray-200"
+                          >
+                            <button type="button" onClick={() => openAttachment(file)}>
+                              {file.name}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setDialogEdit(current =>
+                                  current
+                                    ? {
+                                        ...current,
+                                        attachments: current.attachments.filter(
+                                          (_, currentIndex) => currentIndex !== index
+                                        ),
+                                      }
+                                    : current
+                                )
+                              }
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
