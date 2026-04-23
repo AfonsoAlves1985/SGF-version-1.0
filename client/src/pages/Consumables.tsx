@@ -96,6 +96,26 @@ export default function Consumables() {
     const day = date.getDay();
     const diff = date.getDate() - day + (day === 0 ? -6 : 1);
     const monday = new Date(date.setDate(diff));
+    const sunday = new Date(monday);
+    sunday.setDate(sunday.getDate() + 6);
+
+    const cycleStart = new Date(
+      selectedDate.getFullYear(),
+      selectedDate.getMonth(),
+      20
+    );
+    const shouldMoveCycleStartWeek =
+      selectedDate.getDate() >= 20 &&
+      monday.getTime() <= cycleStart.getTime() &&
+      sunday.getTime() >= cycleStart.getTime();
+
+    if (shouldMoveCycleStartWeek) {
+      const shiftedMonday = new Date(monday);
+      shiftedMonday.setDate(shiftedMonday.getDate() + 7);
+      setWeekStartDate(shiftedMonday);
+      return;
+    }
+
     setWeekStartDate(monday);
   }, [selectedDate]);
 
