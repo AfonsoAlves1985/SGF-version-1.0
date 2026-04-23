@@ -4085,19 +4085,39 @@ export async function deleteUserById(userId: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
-  await db.update(auditLog).set({ userId: null }).where(eq(auditLog.userId, userId));
+  return db.transaction(async tx => {
+    await tx
+      .update(auditLog)
+      .set({ userId: null })
+      .where(eq(auditLog.userId, userId));
 
-  await db
-    .update(userInvitations)
-    .set({ invitedByUserId: null, updatedAt: new Date() })
-    .where(eq(userInvitations.invitedByUserId, userId));
+    await tx
+      .update(inventoryMovements)
+      .set({ userId: null })
+      .where(eq(inventoryMovements.userId, userId));
 
-  await db
-    .update(purchaseRequests)
-    .set({ createdBy: null, updatedAt: new Date() })
-    .where(eq(purchaseRequests.createdBy, userId));
+    await tx
+      .update(maintenanceRequests)
+      .set({ createdBy: null, updatedAt: new Date() })
+      .where(eq(maintenanceRequests.createdBy, userId));
 
-  return db.delete(users).where(eq(users.id, userId));
+    await tx
+      .update(roomReservations)
+      .set({ userId: null })
+      .where(eq(roomReservations.userId, userId));
+
+    await tx
+      .update(userInvitations)
+      .set({ invitedByUserId: null, updatedAt: new Date() })
+      .where(eq(userInvitations.invitedByUserId, userId));
+
+    await tx
+      .update(purchaseRequests)
+      .set({ createdBy: null, updatedAt: new Date() })
+      .where(eq(purchaseRequests.createdBy, userId));
+
+    return tx.delete(users).where(eq(users.id, userId));
+  });
 }
 
 // ============ AUDITORIA ============
