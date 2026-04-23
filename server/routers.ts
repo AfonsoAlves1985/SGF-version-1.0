@@ -352,6 +352,7 @@ async function dispatchPurchaseRequestWebhook(input: {
         headers: {
           "Content-Type": "application/json",
         },
+        redirect: "manual",
         signal: controller.signal,
         body: JSON.stringify({
           event: `purchase_request.${input.action}`,
@@ -371,7 +372,11 @@ async function dispatchPurchaseRequestWebhook(input: {
       });
 
       lastStatusCode = response.status;
-      if (response.ok || response.status === 202) {
+      if (
+        response.ok ||
+        response.status === 202 ||
+        (response.status >= 300 && response.status < 400)
+      ) {
         return {
           attempted: true,
           delivered: true,
