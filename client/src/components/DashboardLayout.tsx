@@ -60,6 +60,11 @@ const menuItems = [
     path: "/purchase-requests",
   },
   {
+    icon: ShoppingCart,
+    label: "Gestão de Compras",
+    path: "/purchase-management",
+  },
+  {
     icon: ShieldCheck,
     label: "Administração de Acessos",
     path: "/access-management",
