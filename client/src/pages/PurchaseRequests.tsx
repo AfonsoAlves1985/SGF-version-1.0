@@ -1070,116 +1070,222 @@ export default function PurchaseRequests() {
         return;
       }
 
-      const rows = rawRows.map(row => {
-        const normalized: Record<string, unknown> = {};
-        for (const [key, value] of Object.entries(row)) {
-          normalized[normalizeSpreadsheetKey(key)] = value;
-        }
-        return normalized;
-      });
+      const toNormalizedRows = (inputRows: Record<string, unknown>[]) =>
+        inputRows.map(row => {
+          const normalized: Record<string, unknown> = {};
+          for (const [key, value] of Object.entries(row)) {
+            normalized[normalizeSpreadsheetKey(key)] = value;
+          }
+          return normalized;
+        });
 
-      const first = rows[0];
-      const read = (aliases: string[]) => {
-        for (const alias of aliases) {
-          const value = first[alias];
-          if (value !== undefined && value !== null && String(value).trim() !== "") {
-            return String(value).trim();
+      const buildImportPayload = (rowsInput: Record<string, unknown>[]) => {
+        const first = rowsInput[0] || {};
+
+        const read = (aliases: string[]) => {
+          for (const alias of aliases) {
+            const value = first[alias];
+            if (value !== undefined && value !== null && String(value).trim() !== "") {
+              return String(value).trim();
+            }
+          }
+          return "";
+        };
+
+        const importedForm: RequestFormState = {
+          ...INITIAL_FORM,
+          documentNumber:
+            read(["documento", "numero_documento", "documentnumber"]) ||
+            form.documentNumber,
+          requestDate:
+            parseSpreadsheetDate(
+              first.data_solicitacao ?? first.requestdate ?? first.request_date
+            ) || form.requestDate,
+          neededDate: parseSpreadsheetDate(
+            first.data_necessaria ?? first.neededdate ?? first.needed_date
+          ),
+          urgency: normalizeUrgency(
+            read(["urgencia", "prioridade", "urgency", "priority"])
+          ),
+          company: read(["empresa", "company"]),
+          costCenter: read(["centro_custo", "costcenter", "cost_center"]),
+          purchaseType: read(["tipo_compra", "purchasetype", "purchase_type"]),
+          requesterName: read(["solicitante_nome", "requestername", "requester_name"]),
+          requesterRegistration: read([
+            "solicitante_matricula",
+            "requesterregistration",
+            "requester_registration",
+          ]),
+          requesterRole: read([
+            "solicitante_cargo",
+            "requesterrole",
+            "requester_role",
+          ]),
+          requesterEmail: read([
+            "solicitante_email",
+            "requesteremail",
+            "requester_email",
+          ]),
+          requesterPhone: read([
+            "solicitante_telefone",
+            "requesterphone",
+            "requester_phone",
+          ]),
+          supplierName: read(["fornecedor", "suppliername", "supplier_name"]),
+          supplierDocument: read([
+            "fornecedor_documento",
+            "supplierdocument",
+            "supplier_document",
+          ]),
+          supplierContact: read([
+            "fornecedor_contato",
+            "suppliercontact",
+            "supplier_contact",
+          ]),
+          supplierDeliveryEstimate: read([
+            "prazo_estimado",
+            "supplierdeliveryestimate",
+            "supplier_delivery_estimate",
+          ]),
+          justification: read(["justificativa", "justification"]),
+          observations: read(["observacoes", "observations"]),
+          financeApproved: false,
+          billingCnpj: read(["cnpj_faturamento", "billingcnpj", "billing_cnpj"]),
+          paymentTerms: read(["condicao_pagamento", "paymentterms", "payment_terms"]),
+          status: normalizeStatus(read(["status", "estado"])),
+        };
+
+        const importedItems = rowsInput
+          .map((row, index) => ({
+            description: String(
+              row.item_descricao ??
+                row.descricao_item ??
+                row.descricao_do_item ??
+                row.item_description ??
+                row.descricao_produto ??
+                row.produto ??
+                row.descricao ??
+                row.item ??
+                ""
+            ).trim(),
+            unit: String(
+              row.item_unidade ?? row.unidade_item ?? row.unidade ?? row.unit ?? "UN"
+            ).trim() || "UN",
+            quantity: Math.max(
+              0,
+              parseSpreadsheetNumber(
+                row.item_quantidade ??
+                  row.quantidade_item ??
+                  row.quantidade ??
+                  row.qtde ??
+                  row.qtd ??
+                  row.quantity
+              )
+            ),
+            unitPrice: Math.max(
+              0,
+              parseSpreadsheetNumber(
+                row.item_valor_unitario ??
+                  row.valor_unitario_item ??
+                  row.valor_unitario ??
+                  row.preco_unitario ??
+                  row.valor ??
+                  row.unit_price
+              )
+            ),
+            supplierSuggestion: String(
+              row.item_fornecedor_sugerido ??
+                row.fornecedor_item ??
+                row.fornecedor_sugerido ??
+                row.supplier_suggestion ??
+                ""
+            ).trim(),
+            itemOrder: index + 1,
+          }))
+          .filter(item => item.description.length > 0);
+
+        return {
+          importedForm,
+          importedItems,
+        };
+      };
+
+      let rows = toNormalizedRows(rawRows);
+      let payload = buildImportPayload(rows);
+
+      if (payload.importedItems.length === 0) {
+        const matrix = XLSX.utils.sheet_to_json<unknown[]>(sheet, {
+          header: 1,
+          defval: "",
+          raw: true,
+        });
+
+        const scanRows = matrix.slice(0, 12);
+        let bestHeaderIndex = -1;
+        let bestScore = 0;
+
+        scanRows.forEach((row, rowIndex) => {
+          const normalizedCells = row.map(cell =>
+            normalizeSpreadsheetKey(String(cell ?? ""))
+          );
+          const score = normalizedCells.filter(cell =>
+            [
+              "documento",
+              "empresa",
+              "solicitante_nome",
+              "item_descricao",
+              "descricao",
+              "quantidade",
+              "qtd",
+              "valor_unitario",
+              "preco_unitario",
+            ].some(token => cell.includes(token))
+          ).length;
+
+          if (score > bestScore) {
+            bestScore = score;
+            bestHeaderIndex = rowIndex;
+          }
+        });
+
+        if (bestHeaderIndex >= 0 && bestScore >= 2) {
+          const header = matrix[bestHeaderIndex].map(cell =>
+            normalizeSpreadsheetKey(String(cell ?? ""))
+          );
+
+          const mappedRows = matrix
+            .slice(bestHeaderIndex + 1)
+            .map(row => {
+              const mapped: Record<string, unknown> = {};
+              header.forEach((key, index) => {
+                if (key) mapped[key] = row[index];
+              });
+              return mapped;
+            })
+            .filter(row =>
+              Object.values(row).some(
+                value => value !== null && value !== undefined && String(value).trim() !== ""
+              )
+            );
+
+          if (mappedRows.length > 0) {
+            rows = mappedRows;
+            payload = buildImportPayload(rows);
           }
         }
-        return "";
-      };
+      }
 
-      const importedForm: RequestFormState = {
-        ...INITIAL_FORM,
-        documentNumber:
-          read(["documento", "numero_documento", "documentnumber"]) ||
-          form.documentNumber,
-        requestDate:
-          parseSpreadsheetDate(
-            first.data_solicitacao ?? first.requestdate ?? first.request_date
-          ) || form.requestDate,
-        neededDate: parseSpreadsheetDate(
-          first.data_necessaria ?? first.neededdate ?? first.needed_date
-        ),
-        urgency: normalizeUrgency(
-          read(["urgencia", "prioridade", "urgency", "priority"])
-        ),
-        company: read(["empresa", "company"]),
-        costCenter: read(["centro_custo", "costcenter", "cost_center"]),
-        purchaseType: read(["tipo_compra", "purchasetype", "purchase_type"]),
-        requesterName: read(["solicitante_nome", "requestername", "requester_name"]),
-        requesterRegistration: read([
-          "solicitante_matricula",
-          "requesterregistration",
-          "requester_registration",
-        ]),
-        requesterRole: read(["solicitante_cargo", "requesterrole", "requester_role"]),
-        requesterEmail: read(["solicitante_email", "requesteremail", "requester_email"]),
-        requesterPhone: read([
-          "solicitante_telefone",
-          "requesterphone",
-          "requester_phone",
-        ]),
-        supplierName: read(["fornecedor", "suppliername", "supplier_name"]),
-        supplierDocument: read([
-          "fornecedor_documento",
-          "supplierdocument",
-          "supplier_document",
-        ]),
-        supplierContact: read(["fornecedor_contato", "suppliercontact", "supplier_contact"]),
-        supplierDeliveryEstimate: read([
-          "prazo_estimado",
-          "supplierdeliveryestimate",
-          "supplier_delivery_estimate",
-        ]),
-        justification: read(["justificativa", "justification"]),
-        observations: read(["observacoes", "observations"]),
-        financeApproved: false,
-        billingCnpj: read(["cnpj_faturamento", "billingcnpj", "billing_cnpj"]),
-        paymentTerms: read(["condicao_pagamento", "paymentterms", "payment_terms"]),
-        status: normalizeStatus(read(["status", "estado"])),
-      };
-
-      const importedItems = rows
-        .map((row, index) => ({
-          description: String(
-            row.item_descricao ?? row.descricao_item ?? row.descricao ?? row.item ?? ""
-          ).trim(),
-          unit: String(row.item_unidade ?? row.unidade ?? row.unit ?? "UN").trim() || "UN",
-          quantity: Math.max(
-            0,
-            parseSpreadsheetNumber(
-              row.item_quantidade ?? row.quantidade ?? row.qtd ?? row.quantity
-            )
-          ),
-          unitPrice: Math.max(
-            0,
-            parseSpreadsheetNumber(
-              row.item_valor_unitario ??
-                row.valor_unitario ??
-                row.preco_unitario ??
-                row.unit_price
-            )
-          ),
-          supplierSuggestion: String(
-            row.item_fornecedor_sugerido ??
-              row.fornecedor_sugerido ??
-              row.supplier_suggestion ??
-              ""
-          ).trim(),
-          itemOrder: index + 1,
-        }))
-        .filter(item => item.description.length > 0);
-
-      if (importedItems.length === 0) {
-        toast.error("Nenhum item válido encontrado na planilha");
+      if (payload.importedItems.length === 0) {
+        toast.error(
+          "Nenhum item válido encontrado. Verifique a coluna de descrição (ex.: item_descricao)."
+        );
         return;
       }
 
       setEditingId(null);
-      setForm(importedForm);
+      setForm(payload.importedForm);
       setItems(
-        importedItems.map(item => ({
+        payload.importedItems.map(item => ({
           description: item.description,
           unit: item.unit,
           quantity: item.quantity > 0 ? item.quantity : 1,
@@ -1190,7 +1296,7 @@ export default function PurchaseRequests() {
       setAttachments([]);
 
       toast.success(
-        `Planilha importada: ${importedItems.length} item(ns) carregado(s).`
+        `Planilha importada: ${payload.importedItems.length} item(ns) carregado(s).`
       );
     } catch (error) {
       console.error(error);
