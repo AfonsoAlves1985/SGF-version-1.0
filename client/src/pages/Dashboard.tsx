@@ -177,6 +177,28 @@ export default function Dashboard() {
     roomStatusByCurrentDate.set(room.id, occupiedNow ? "ocupada" : "disponivel");
   }
 
+  const roomHasFutureScheduleById = new Map<number, boolean>();
+  for (const room of rooms as any[]) {
+    roomHasFutureScheduleById.set(room.id, false);
+  }
+
+  for (const reservation of reservations as any[]) {
+    if (reservation.status === "cancelada") continue;
+    const start = parseReservationDate(reservation.startTime);
+    if (!start) continue;
+    if (start.getTime() > now.getTime()) {
+      roomHasFutureScheduleById.set(Number(reservation.roomId), true);
+    }
+  }
+
+  for (const room of rooms as any[]) {
+    const roomStart = parseRoomDateTime(room.startDate, room.startTime);
+    if (!roomStart) continue;
+    if (roomStart.getTime() > now.getTime()) {
+      roomHasFutureScheduleById.set(room.id, true);
+    }
+  }
+
   const updateRoomMutation = trpc.rooms.update.useMutation({
     onSuccess: () => {
       toast.success("Sala reservada com sucesso!");
@@ -477,6 +499,11 @@ export default function Dashboard() {
                     <div className="font-medium text-green-700">
                       {room.name}
                     </div>
+                    {roomHasFutureScheduleById.get(room.id) && (
+                      <div className="mt-1 inline-flex rounded-full border border-sky-300 bg-sky-50 px-2 py-0.5 text-[11px] font-medium text-sky-700">
+                        Agendada (futuro)
+                      </div>
+                    )}
                     <div className="text-sm text-green-600">
                       Localização: {room.location || "Não informada"}
                     </div>

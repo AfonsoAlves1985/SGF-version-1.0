@@ -295,6 +295,22 @@ export default function Rooms() {
     source: "reserva" | "uso";
   }>;
 
+  const roomHasFutureScheduleById = useMemo(() => {
+    const map = new Map<number, boolean>();
+
+    for (const room of rooms as any[]) {
+      map.set(room.id, false);
+    }
+
+    for (const item of scheduleItems) {
+      if (item.start.getTime() > now.getTime()) {
+        map.set(item.roomId, true);
+      }
+    }
+
+    return map;
+  }, [now, rooms, scheduleItems]);
+
   const hasScheduleOnDate = (date: Date) => {
     const dayStart = new Date(date);
     dayStart.setHours(0, 0, 0, 0);
@@ -1129,6 +1145,9 @@ export default function Rooms() {
 
               // Sala sem datas = disponível para uso
               if (!occupiedByRoomPeriod && !reservedOnSelectedDate) {
+                const hasFutureSchedule =
+                  roomHasFutureScheduleById.get(room.id) || false;
+
                 return (
                   <Card
                     key={room.id}
@@ -1158,6 +1177,11 @@ export default function Rooms() {
                           <p className="text-white font-semibold text-sm">
                             {room.name}
                           </p>
+                          {hasFutureSchedule && (
+                            <p className="mt-1 inline-flex rounded-full border border-sky-500/30 bg-sky-900/30 px-2 py-0.5 text-[11px] font-medium text-sky-200">
+                              Agendada (futuro)
+                            </p>
+                          )}
                           <p className="text-gray-400 text-xs">
                             Capacidade: {room.capacity} pessoas
                           </p>
@@ -1172,6 +1196,11 @@ export default function Rooms() {
                           <p className="text-xs text-gray-400">
                             Disponível para a data consultada
                           </p>
+                          {hasFutureSchedule && (
+                            <p className="text-xs text-sky-200 mt-1">
+                              Há agendamento futuro para esta sala
+                            </p>
+                          )}
                           <Button
                             onClick={() => handleOpenUseRoom(room)}
                             className="mt-2 w-full bg-sky-600 hover:bg-sky-700 text-white text-xs py-1"
