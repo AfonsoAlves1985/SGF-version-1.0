@@ -22,7 +22,7 @@ const translations: Translations = {
     "nav.inventory": "Inventário",
     "nav.consumables": "Consumíveis",
     "nav.rooms": "Salas",
-    "nav.maintenance": "Manutenção",
+    "nav.maintenance": "Chamados e suporte",
     "nav.suppliers": "Fornecedores",
     "nav.logout": "Terminar Sessão",
     
@@ -35,7 +35,7 @@ const translations: Translations = {
     "home.consumables.desc": "Gestão de consumo e tendências de estoque",
     "home.rooms": "Salas",
     "home.rooms.desc": "Calendário visual com status em tempo real",
-    "home.maintenance": "Manutenção",
+    "home.maintenance": "Chamados e suporte",
     "home.maintenance.desc": "Preventiva e correctiva com priorização",
     "home.suppliers": "Fornecedores",
     "home.suppliers.desc": "Alertas de vencimento e histórico",
@@ -108,7 +108,7 @@ const translations: Translations = {
     "rooms.maintenance": "Em Manutenção",
     
     // Maintenance
-    "maintenance.title": "Manutenção",
+    "maintenance.title": "Chamados e suporte",
     "maintenance.subtitle": "Gestão de chamados preventivos e correctivos",
     "maintenance.new": "Novo Chamado",
     "maintenance.space": "Unidade",
@@ -201,7 +201,7 @@ const translations: Translations = {
     "nav.inventory": "Inventário",
     "nav.consumables": "Consumíveis",
     "nav.rooms": "Salas",
-    "nav.maintenance": "Manutenção",
+    "nav.maintenance": "Chamados e suporte",
     "nav.suppliers": "Fornecedores",
     "nav.logout": "Sair",
     
@@ -214,7 +214,7 @@ const translations: Translations = {
     "home.consumables.desc": "Gestão de consumo e tendências de estoque",
     "home.rooms": "Salas",
     "home.rooms.desc": "Calendário visual com status em tempo real",
-    "home.maintenance": "Manutenção",
+    "home.maintenance": "Chamados e suporte",
     "home.maintenance.desc": "Preventiva e corretiva com priorização",
     "home.suppliers": "Fornecedores",
     "home.suppliers.desc": "Alertas de vencimento e histórico",
@@ -287,7 +287,7 @@ const translations: Translations = {
     "rooms.maintenance": "Em Manutenção",
     
     // Maintenance
-    "maintenance.title": "Manutenção",
+    "maintenance.title": "Chamados e suporte",
     "maintenance.subtitle": "Gestão de chamados preventivos e corretivos",
     "maintenance.new": "Novo Chamado",
     "maintenance.space": "Unidade",
@@ -380,7 +380,7 @@ const translations: Translations = {
     "nav.inventory": "Inventory",
     "nav.consumables": "Consumables",
     "nav.rooms": "Rooms",
-    "nav.maintenance": "Maintenance",
+    "nav.maintenance": "Support tickets",
     "nav.suppliers": "Suppliers",
     "nav.logout": "Logout",
     
@@ -393,7 +393,7 @@ const translations: Translations = {
     "home.consumables.desc": "Consumption management and stock trends",
     "home.rooms": "Rooms",
     "home.rooms.desc": "Visual calendar with real-time status",
-    "home.maintenance": "Maintenance",
+    "home.maintenance": "Support tickets",
     "home.maintenance.desc": "Preventive and corrective with prioritization",
     "home.suppliers": "Suppliers",
     "home.suppliers.desc": "Expiration alerts and history",
@@ -466,7 +466,7 @@ const translations: Translations = {
     "rooms.maintenance": "Under Maintenance",
     
     // Maintenance
-    "maintenance.title": "Maintenance",
+    "maintenance.title": "Support tickets",
     "maintenance.subtitle": "Management of preventive and corrective calls",
     "maintenance.new": "New Call",
     "maintenance.space": "Unit",
@@ -559,7 +559,7 @@ const translations: Translations = {
     "nav.inventory": "Inventario",
     "nav.consumables": "Consumibles",
     "nav.rooms": "Salas",
-    "nav.maintenance": "Mantenimiento",
+    "nav.maintenance": "Soporte y tickets",
     "nav.suppliers": "Proveedores",
     "nav.logout": "Cerrar Sesión",
     
@@ -572,7 +572,7 @@ const translations: Translations = {
     "home.consumables.desc": "Gestión de consumo y tendencias de stock",
     "home.rooms": "Salas",
     "home.rooms.desc": "Calendario visual con estado en tiempo real",
-    "home.maintenance": "Mantenimiento",
+    "home.maintenance": "Soporte y tickets",
     "home.maintenance.desc": "Preventivo y correctivo con priorización",
     "home.suppliers": "Proveedores",
     "home.suppliers.desc": "Alertas de vencimiento e historial",
@@ -645,7 +645,7 @@ const translations: Translations = {
     "rooms.maintenance": "En Mantenimiento",
     
     // Maintenance
-    "maintenance.title": "Mantenimiento",
+    "maintenance.title": "Soporte y tickets",
     "maintenance.subtitle": "Gestión de llamadas preventivas y correctivas",
     "maintenance.new": "Nueva Llamada",
     "maintenance.space": "Unidad",

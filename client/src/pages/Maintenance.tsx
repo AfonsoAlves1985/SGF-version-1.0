@@ -373,7 +373,7 @@ export default function Maintenance() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-white">Manutenção</h1>
+        <h1 className="text-3xl font-bold text-white">Chamados e suporte</h1>
         <p className="text-gray-400 mt-1">
           Gestão de chamados preventivos e correctivos
         </p>
@@ -382,7 +382,7 @@ export default function Maintenance() {
       {/* Space Manager */}
       <Card className="bg-slate-800/50 border-sky-700/30">
         <CardHeader>
-          <CardTitle className="text-white">Unidades de Manutenção</CardTitle>
+          <CardTitle className="text-white">Unidades de Chamados e suporte</CardTitle>
           <CardDescription className="text-gray-400">
             Crie e gerencie unidades para organizar chamados
           </CardDescription>
@@ -597,7 +597,7 @@ export default function Maintenance() {
             <Card className="bg-slate-800/50 border-sky-700/30">
               <CardHeader>
                 <CardTitle className="text-white">
-                  Chamados de Manutenção
+                  Chamados e suporte
                 </CardTitle>
                 <CardDescription className="text-gray-400">
                   {requests.length} chamados encontrados

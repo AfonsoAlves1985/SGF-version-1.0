@@ -52,7 +52,7 @@ const menuItems = [
   { icon: Package, label: "Consumíveis", path: "/consumables" },
 
   { icon: Building2, label: "Salas", path: "/rooms" },
-  { icon: Wrench, label: "Manutenção", path: "/maintenance" },
+  { icon: Wrench, label: "Chamados e suporte", path: "/maintenance" },
   { icon: FileText, label: "Fornecedores", path: "/suppliers" },
   {
     icon: ShoppingCart,
