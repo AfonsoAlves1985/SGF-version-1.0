@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { type ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
 import {
@@ -292,6 +292,85 @@ function parseMaskedDate(value?: string | null) {
   return parsed;
 }
 
+function normalizeSpreadsheetKey(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
+function formatDateToMask(date: Date) {
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const year = date.getFullYear();
+  return `${day}-${month}-${year}`;
+}
+
+function parseSpreadsheetDate(value: unknown): string {
+  if (value === null || value === undefined) return "";
+
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return formatDateToMask(value);
+  }
+
+  if (typeof value === "number" && Number.isFinite(value)) {
+    const excelEpoch = Date.UTC(1899, 11, 30);
+    const millis = excelEpoch + Math.round(value * 24 * 60 * 60 * 1000);
+    const parsed = new Date(millis);
+    if (!Number.isNaN(parsed.getTime())) {
+      return formatDateToMask(parsed);
+    }
+  }
+
+  const text = String(value).trim();
+  if (!text) return "";
+
+  if (/^\d{2}-\d{2}-\d{4}$/.test(text)) return text;
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(text)) {
+    const [year, month, day] = text.split("-");
+    return `${day}-${month}-${year}`;
+  }
+
+  const parsed = new Date(text);
+  if (Number.isNaN(parsed.getTime())) return "";
+  return formatDateToMask(parsed);
+}
+
+function parseSpreadsheetNumber(value: unknown) {
+  if (typeof value === "number") return Number.isFinite(value) ? value : 0;
+  const normalized = String(value ?? "")
+    .trim()
+    .replace(/\./g, "")
+    .replace(",", ".")
+    .replace(/[^\d.-]/g, "");
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function normalizeUrgency(value: string): PurchaseRequestUrgency {
+  const normalized = normalizeSpreadsheetKey(value);
+  if (normalized.includes("alta") || normalized.includes("urgente")) return "alta";
+  if (normalized.includes("baixa")) return "baixa";
+  return "normal";
+}
+
+function normalizeStatus(value: string): PurchaseRequestStatus {
+  const normalized = normalizeSpreadsheetKey(value);
+  if (normalized.includes("rascunho")) return "rascunho";
+  if (normalized.includes("cotacao")) return "cotacao";
+  if (normalized.includes("financeiro")) return "financeiro";
+  if (normalized.includes("aprovado")) return "aprovado";
+  if (normalized.includes("pedido_emitido") || normalized.includes("pedidoemitido")) {
+    return "pedido_emitido";
+  }
+  if (normalized.includes("recebido")) return "recebido";
+  if (normalized.includes("cancelado")) return "cancelado";
+  return "solicitado";
+}
+
 function isDateInCurrentWeek(date: Date) {
   const target = new Date(date);
   target.setHours(0, 0, 0, 0);
@@ -361,6 +440,7 @@ function toAttachmentMeta(files: FileList | null): AttachmentMeta[] {
 
 export default function PurchaseRequests() {
   const utils = trpc.useUtils();
+  const importInputRef = useRef<HTMLInputElement | null>(null);
   const [isWebhookDialogOpen, setIsWebhookDialogOpen] = useState(false);
   const [webhookUrl, setWebhookUrl] = useState(
     () => localStorage.getItem(WEBHOOK_URL_KEY) || ""
@@ -960,6 +1040,167 @@ export default function PurchaseRequests() {
   }, [selectedRequest]);
 
   const selectedRequestTotalAmount = Number(selectedRequest?.totalAmount || 0);
+
+  const handleImportSpreadsheet = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const XLSX = await import("xlsx");
+      const buffer = await file.arrayBuffer();
+      const workbook = XLSX.read(buffer, {
+        type: "array",
+        cellDates: true,
+      });
+
+      const firstSheetName = workbook.SheetNames[0];
+      if (!firstSheetName) {
+        toast.error("Planilha sem abas para importação");
+        return;
+      }
+
+      const sheet = workbook.Sheets[firstSheetName];
+      const rawRows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, {
+        defval: "",
+        raw: true,
+      });
+
+      if (rawRows.length === 0) {
+        toast.error("Planilha vazia");
+        return;
+      }
+
+      const rows = rawRows.map(row => {
+        const normalized: Record<string, unknown> = {};
+        for (const [key, value] of Object.entries(row)) {
+          normalized[normalizeSpreadsheetKey(key)] = value;
+        }
+        return normalized;
+      });
+
+      const first = rows[0];
+      const read = (aliases: string[]) => {
+        for (const alias of aliases) {
+          const value = first[alias];
+          if (value !== undefined && value !== null && String(value).trim() !== "") {
+            return String(value).trim();
+          }
+        }
+        return "";
+      };
+
+      const importedForm: RequestFormState = {
+        ...INITIAL_FORM,
+        documentNumber:
+          read(["documento", "numero_documento", "documentnumber"]) ||
+          form.documentNumber,
+        requestDate:
+          parseSpreadsheetDate(
+            first.data_solicitacao ?? first.requestdate ?? first.request_date
+          ) || form.requestDate,
+        neededDate: parseSpreadsheetDate(
+          first.data_necessaria ?? first.neededdate ?? first.needed_date
+        ),
+        urgency: normalizeUrgency(
+          read(["urgencia", "prioridade", "urgency", "priority"])
+        ),
+        company: read(["empresa", "company"]),
+        costCenter: read(["centro_custo", "costcenter", "cost_center"]),
+        purchaseType: read(["tipo_compra", "purchasetype", "purchase_type"]),
+        requesterName: read(["solicitante_nome", "requestername", "requester_name"]),
+        requesterRegistration: read([
+          "solicitante_matricula",
+          "requesterregistration",
+          "requester_registration",
+        ]),
+        requesterRole: read(["solicitante_cargo", "requesterrole", "requester_role"]),
+        requesterEmail: read(["solicitante_email", "requesteremail", "requester_email"]),
+        requesterPhone: read([
+          "solicitante_telefone",
+          "requesterphone",
+          "requester_phone",
+        ]),
+        supplierName: read(["fornecedor", "suppliername", "supplier_name"]),
+        supplierDocument: read([
+          "fornecedor_documento",
+          "supplierdocument",
+          "supplier_document",
+        ]),
+        supplierContact: read(["fornecedor_contato", "suppliercontact", "supplier_contact"]),
+        supplierDeliveryEstimate: read([
+          "prazo_estimado",
+          "supplierdeliveryestimate",
+          "supplier_delivery_estimate",
+        ]),
+        justification: read(["justificativa", "justification"]),
+        observations: read(["observacoes", "observations"]),
+        financeApproved: false,
+        billingCnpj: read(["cnpj_faturamento", "billingcnpj", "billing_cnpj"]),
+        paymentTerms: read(["condicao_pagamento", "paymentterms", "payment_terms"]),
+        status: normalizeStatus(read(["status", "estado"])),
+      };
+
+      const importedItems = rows
+        .map((row, index) => ({
+          description: String(
+            row.item_descricao ?? row.descricao_item ?? row.descricao ?? row.item ?? ""
+          ).trim(),
+          unit: String(row.item_unidade ?? row.unidade ?? row.unit ?? "UN").trim() || "UN",
+          quantity: Math.max(
+            0,
+            parseSpreadsheetNumber(
+              row.item_quantidade ?? row.quantidade ?? row.qtd ?? row.quantity
+            )
+          ),
+          unitPrice: Math.max(
+            0,
+            parseSpreadsheetNumber(
+              row.item_valor_unitario ??
+                row.valor_unitario ??
+                row.preco_unitario ??
+                row.unit_price
+            )
+          ),
+          supplierSuggestion: String(
+            row.item_fornecedor_sugerido ??
+              row.fornecedor_sugerido ??
+              row.supplier_suggestion ??
+              ""
+          ).trim(),
+          itemOrder: index + 1,
+        }))
+        .filter(item => item.description.length > 0);
+
+      if (importedItems.length === 0) {
+        toast.error("Nenhum item válido encontrado na planilha");
+        return;
+      }
+
+      setEditingId(null);
+      setForm(importedForm);
+      setItems(
+        importedItems.map(item => ({
+          description: item.description,
+          unit: item.unit,
+          quantity: item.quantity > 0 ? item.quantity : 1,
+          unitPrice: item.unitPrice,
+          supplierSuggestion: item.supplierSuggestion,
+        }))
+      );
+      setAttachments([]);
+
+      toast.success(
+        `Planilha importada: ${importedItems.length} item(ns) carregado(s).`
+      );
+    } catch (error) {
+      console.error(error);
+      toast.error("Falha ao importar planilha. Verifique o arquivo.");
+    } finally {
+      if (event.target) {
+        event.target.value = "";
+      }
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -1696,6 +1937,38 @@ export default function PurchaseRequests() {
             <Workflow className="h-4 w-4 mr-2" />
             Configurar webhook
           </Button>
+        </CardContent>
+      </Card>
+
+      <Card className="bg-slate-800/50 border-slate-700">
+        <CardContent className="pt-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div>
+            <p className="text-xs uppercase tracking-wider text-gray-400">
+              Importação
+            </p>
+            <p className="text-sm text-gray-300 mt-1">
+              Importe planilha (.xlsx, .xls, .csv) para preencher os dados da
+              solicitação e itens automaticamente.
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <input
+              ref={importInputRef}
+              type="file"
+              accept=".xlsx,.xls,.csv"
+              className="hidden"
+              onChange={handleImportSpreadsheet}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              className="border-slate-600 text-gray-300 hover:bg-slate-800"
+              onClick={() => importInputRef.current?.click()}
+            >
+              <FilePlus2 className="h-4 w-4 mr-2" />
+              Importar planilha
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
