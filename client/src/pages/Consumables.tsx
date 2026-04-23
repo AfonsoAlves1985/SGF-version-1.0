@@ -517,13 +517,13 @@ export default function Consumables() {
   };
 
   const getStockStatus = (current: number, min: number, max: number) => {
-    if (current < min) {
+    if (current <= min) {
       return {
         label: "Repor Estoque",
         color: "bg-red-600",
         icon: AlertTriangle,
       };
-    } else if (current > max) {
+    } else if (current >= max) {
       return {
         label: "Acima do Estoque",
         color: "bg-yellow-600",
