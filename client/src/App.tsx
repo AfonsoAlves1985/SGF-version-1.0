@@ -15,7 +15,6 @@ const SuppliersAndPurchases = lazy(
   () => import("./pages/SuppliersAndPurchases")
 );
 const PurchaseRequests = lazy(() => import("./pages/PurchaseRequests"));
-const PurchaseManagement = lazy(() => import("./pages/PurchaseManagement"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Consumables = lazy(() => import("./pages/Consumables"));
 const AccessManagement = lazy(() => import("./pages/AccessManagement"));
@@ -120,7 +119,6 @@ function Router() {
           <Route path={"/maintenance"} component={Maintenance} />
           <Route path={"/suppliers"} component={SuppliersAndPurchases} />
           <Route path={"/purchase-requests"} component={PurchaseRequests} />
-          <Route path={"/purchase-management"} component={PurchaseManagement} />
           <Route path={"/consumables"} component={Consumables} />
           <Route path={"/dashboard"} component={Dashboard} />
           <Route path={"/access-management"} component={AccessManagement} />
