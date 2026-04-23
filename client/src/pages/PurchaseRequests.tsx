@@ -1099,7 +1099,10 @@ export default function PurchaseRequests() {
             form.documentNumber,
           requestDate:
             parseSpreadsheetDate(
-              first.data_solicitacao ?? first.requestdate ?? first.request_date
+              first.data_solicitacao ??
+                first.data_do_pedido ??
+                first.requestdate ??
+                first.request_date
             ) || form.requestDate,
           neededDate: parseSpreadsheetDate(
             first.data_necessaria ?? first.neededdate ?? first.needed_date
@@ -1108,7 +1111,7 @@ export default function PurchaseRequests() {
             read(["urgencia", "prioridade", "urgency", "priority"])
           ),
           company: read(["empresa", "company"]),
-          costCenter: read(["centro_custo", "costcenter", "cost_center"]),
+          costCenter: read(["centro_custo", "setor", "costcenter", "cost_center"]),
           purchaseType: read(["tipo_compra", "purchasetype", "purchase_type"]),
           requesterName: read(["solicitante_nome", "requestername", "requester_name"]),
           requesterRegistration: read([
@@ -1148,10 +1151,20 @@ export default function PurchaseRequests() {
             "supplier_delivery_estimate",
           ]),
           justification: read(["justificativa", "justification"]),
-          observations: read(["observacoes", "observations"]),
+          observations: read([
+            "observacoes",
+            "observacao_link",
+            "observa_o_link",
+            "observations",
+          ]),
           financeApproved: false,
           billingCnpj: read(["cnpj_faturamento", "billingcnpj", "billing_cnpj"]),
-          paymentTerms: read(["condicao_pagamento", "paymentterms", "payment_terms"]),
+          paymentTerms: read([
+            "condicao_pagamento",
+            "forma_de_pagamento",
+            "paymentterms",
+            "payment_terms",
+          ]),
           status: normalizeStatus(read(["status", "estado"])),
         };
 
@@ -1159,13 +1172,14 @@ export default function PurchaseRequests() {
           .map((row, index) => ({
             description: String(
               row.item_descricao ??
-                row.descricao_item ??
-                row.descricao_do_item ??
-                row.item_description ??
-                row.descricao_produto ??
-                row.produto ??
-                row.descricao ??
-                row.item ??
+              row.descricao_item ??
+              row.descricao_do_item ??
+              row.descricao_do_produto_servico ??
+              row.item_description ??
+              row.descricao_produto ??
+              row.produto ??
+              row.descricao ??
+              row.item ??
                 ""
             ).trim(),
             unit: String(
@@ -1186,6 +1200,7 @@ export default function PurchaseRequests() {
               0,
               parseSpreadsheetNumber(
                 row.item_valor_unitario ??
+                  row.valor_unit_r ??
                   row.valor_unitario_item ??
                   row.valor_unitario ??
                   row.preco_unitario ??
