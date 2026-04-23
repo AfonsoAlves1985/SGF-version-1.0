@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import {
@@ -179,11 +179,67 @@ export default function Rooms() {
     data: rooms = [],
     isLoading,
     refetch,
-  } = trpc.rooms.list.useQuery({
-    status,
-  });
+  } = trpc.rooms.list.useQuery();
 
   const { data: reservations = [] } = trpc.roomReservations.list.useQuery();
+
+  const now = new Date();
+
+  const activeReservationRoomIds = useMemo(() => {
+    const roomIds = new Set<number>();
+
+    for (const reservation of reservations as any[]) {
+      if (reservation.status === "cancelada") continue;
+
+      const start = parseReservationDate(reservation.startTime);
+      const end = parseReservationDate(reservation.endTime);
+      if (!start || !end) continue;
+
+      if (now >= start && now <= end) {
+        roomIds.add(Number(reservation.roomId));
+      }
+    }
+
+    return roomIds;
+  }, [now, reservations]);
+
+  const roomCurrentStatusById = useMemo(() => {
+    const map = new Map<number, "disponivel" | "ocupada" | "manutencao">();
+
+    for (const room of rooms as any[]) {
+      if (room.status === "manutencao") {
+        map.set(room.id, "manutencao");
+        continue;
+      }
+
+      const roomStart = parseRoomDateTime(room.startDate, room.startTime);
+      const roomEnd = parseRoomDateTime(room.endDate, room.endTime, true);
+
+      const roomUsageActiveNow =
+        !!roomStart && !!roomEnd && now >= roomStart && now <= roomEnd;
+
+      const occupiedNow =
+        roomUsageActiveNow || activeReservationRoomIds.has(Number(room.id));
+
+      if (occupiedNow) {
+        map.set(room.id, "ocupada");
+        continue;
+      }
+
+      map.set(room.id, "disponivel");
+    }
+
+    return map;
+  }, [activeReservationRoomIds, now, rooms]);
+
+  const displayedRooms = useMemo(() => {
+    if (status === "all") return rooms;
+
+    return (rooms as any[]).filter(room => {
+      const currentStatus = roomCurrentStatusById.get(room.id) || "disponivel";
+      return currentStatus === status;
+    });
+  }, [roomCurrentStatusById, rooms, status]);
 
   const selectedScheduleDate = parseMaskedDate(scheduleDate) || new Date();
   const selectedScheduleStart = new Date(selectedScheduleDate);
@@ -1001,7 +1057,7 @@ export default function Rooms() {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {rooms.map((room: any) => {
+            {displayedRooms.map((room: any) => {
               const roomStart = parseRoomDateTime(room.startDate, room.startTime);
               const roomEnd = parseRoomDateTime(room.endDate, room.endTime, true);
               const reservedOnSelectedDate = hasReservationOnSelectedDate(room.id);
@@ -1012,7 +1068,10 @@ export default function Rooms() {
                 roomEnd.getTime() >= selectedScheduleStart.getTime();
 
               // Sala em manutenção: sempre destacar em amarelo
-              if (room.status === "manutencao") {
+              const currentStatus =
+                roomCurrentStatusById.get(room.id) || "disponivel";
+
+              if (currentStatus === "manutencao") {
                 return (
                   <Card
                     key={room.id}
@@ -1175,7 +1234,7 @@ export default function Rooms() {
               }
 
               const cardStatusLabel =
-                reservedOnSelectedDate || room.status === "ocupada"
+                reservedOnSelectedDate || currentStatus === "ocupada"
                   ? "Ocupada"
                   : alertText;
 
@@ -1266,8 +1325,7 @@ export default function Rooms() {
                               ? `Faltam ${Math.ceil(remainingTime / (1000 * 60 * 60 * 24))} dias`
                               : "Prazo expirado"}
                         </p>
-                        {(room.status === "ocupada" ||
-                          room.status === "manutencao") && (
+                        {currentStatus === "ocupada" && (
                           <Button
                             onClick={() => handleReleaseRoom(room.id)}
                             className="mt-2 w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs py-1"
@@ -1284,10 +1342,14 @@ export default function Rooms() {
             })}
           </div>
 
-          {rooms.length === 0 && (
+          {displayedRooms.length === 0 && (
             <div className="text-center py-8">
               <Calendar className="w-12 h-12 text-gray-600 mx-auto mb-2" />
-              <p className="text-gray-400">Nenhuma sala cadastrada</p>
+              <p className="text-gray-400">
+                {rooms.length === 0
+                  ? "Nenhuma sala cadastrada"
+                  : "Nenhuma sala no status selecionado"}
+              </p>
             </div>
           )}
         </CardContent>

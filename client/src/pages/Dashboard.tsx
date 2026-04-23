@@ -43,6 +43,18 @@ import {
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 
+function normalizeDateToMask(value?: string) {
+  if (!value) return "";
+  if (/^\d{2}-\d{2}-\d{4}$/.test(value)) return value;
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const [year, month, day] = value.split("-");
+    return `${day}-${month}-${year}`;
+  }
+
+  return value;
+}
+
 function parseMaskedDate(value?: string) {
   if (!value || !/^\d{2}-\d{2}-\d{4}$/.test(value)) return null;
 
@@ -74,6 +86,39 @@ function isDateRangeValid(startDate?: string, endDate?: string) {
   return end.getTime() >= start.getTime();
 }
 
+function parseRoomDateTime(dateValue?: string, timeValue?: string, end = false) {
+  if (!dateValue) return null;
+
+  const normalizedDate = normalizeDateToMask(dateValue);
+  const maskedDate = parseMaskedDate(normalizedDate);
+  if (!maskedDate) return null;
+
+  const parsed = new Date(maskedDate);
+
+  if (timeValue) {
+    const [h, m] = timeValue.split(":").map(Number);
+    if (!Number.isNaN(h) && !Number.isNaN(m)) {
+      parsed.setHours(h, m, 0, 0);
+      return parsed;
+    }
+  }
+
+  if (end) {
+    parsed.setHours(23, 59, 59, 999);
+  } else {
+    parsed.setHours(0, 0, 0, 0);
+  }
+
+  return parsed;
+}
+
+function parseReservationDate(value?: string | Date | null) {
+  if (!value) return null;
+  const parsed = value instanceof Date ? new Date(value) : new Date(String(value));
+  if (Number.isNaN(parsed.getTime())) return null;
+  return parsed;
+}
+
 export default function Dashboard() {
   const [isCriticalDialogOpen, setIsCriticalDialogOpen] = useState(false);
   const [isUrgentMaintenanceDialogOpen, setIsUrgentMaintenanceDialogOpen] =
@@ -96,6 +141,41 @@ export default function Dashboard() {
 
   const { data: teams = [] } = trpc.teams.list.useQuery();
   const { data: stockAlerts = [] } = trpc.dashboard.getStockAlerts.useQuery();
+
+  const now = new Date();
+
+  const activeReservationRoomIds = new Set<number>();
+  for (const reservation of reservations as any[]) {
+    if (reservation.status === "cancelada") continue;
+    const start = parseReservationDate(reservation.startTime);
+    const end = parseReservationDate(reservation.endTime);
+    if (!start || !end) continue;
+    if (now >= start && now <= end) {
+      activeReservationRoomIds.add(Number(reservation.roomId));
+    }
+  }
+
+  const roomStatusByCurrentDate = new Map<
+    number,
+    "disponivel" | "ocupada" | "manutencao"
+  >();
+
+  for (const room of rooms as any[]) {
+    if (room.status === "manutencao") {
+      roomStatusByCurrentDate.set(room.id, "manutencao");
+      continue;
+    }
+
+    const roomStart = parseRoomDateTime(room.startDate, room.startTime);
+    const roomEnd = parseRoomDateTime(room.endDate, room.endTime, true);
+    const roomUsageActiveNow =
+      !!roomStart && !!roomEnd && now >= roomStart && now <= roomEnd;
+
+    const occupiedNow =
+      roomUsageActiveNow || activeReservationRoomIds.has(Number(room.id));
+
+    roomStatusByCurrentDate.set(room.id, occupiedNow ? "ocupada" : "disponivel");
+  }
 
   const updateRoomMutation = trpc.rooms.update.useMutation({
     onSuccess: () => {
@@ -134,7 +214,9 @@ export default function Dashboard() {
       (m: any) => m.status === "aberto" || m.status === "em_progresso"
     ).length,
     maintenanceUrgent: urgentMaintenancePending.length,
-    roomsAvailable: rooms.filter((r: any) => r.status === "disponivel").length,
+    roomsAvailable: (rooms as any[]).filter(
+      (r: any) => roomStatusByCurrentDate.get(r.id) === "disponivel"
+    ).length,
     roomsTotal: rooms.length,
     reservationsToday: reservations.filter((r: any) => {
       const today = new Date().toDateString();
@@ -144,8 +226,8 @@ export default function Dashboard() {
     teamMembers: teams.length,
   };
 
-  const availableRooms = rooms.filter(
-    (room: any) => room.status === "disponivel"
+  const availableRooms = (rooms as any[]).filter(
+    (room: any) => roomStatusByCurrentDate.get(room.id) === "disponivel"
   );
 
   const handleOpenUseRoom = (room: any) => {
@@ -240,15 +322,21 @@ export default function Dashboard() {
   const roomOccupancy = [
     {
       name: "Disponível",
-      value: rooms.filter((r: any) => r.status === "disponivel").length,
+      value: (rooms as any[]).filter(
+        (r: any) => roomStatusByCurrentDate.get(r.id) === "disponivel"
+      ).length,
     },
     {
       name: "Ocupada",
-      value: rooms.filter((r: any) => r.status === "ocupada").length,
+      value: (rooms as any[]).filter(
+        (r: any) => roomStatusByCurrentDate.get(r.id) === "ocupada"
+      ).length,
     },
     {
       name: "Manutenção",
-      value: rooms.filter((r: any) => r.status === "manutencao").length,
+      value: (rooms as any[]).filter(
+        (r: any) => roomStatusByCurrentDate.get(r.id) === "manutencao"
+      ).length,
     },
   ];
 
