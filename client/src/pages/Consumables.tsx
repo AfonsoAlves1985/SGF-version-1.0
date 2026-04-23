@@ -42,6 +42,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Download,
+  ArrowRight,
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
@@ -112,6 +113,62 @@ export default function Consumables() {
     "-" +
     String(weekStartDate.getDate()).padStart(2, "0");
 
+  const getPurchaseCycle = (date: Date) => {
+    const d = new Date(date);
+    const day = d.getDate();
+
+    const startDate = new Date(d);
+    const endDate = new Date(d);
+    let month: number;
+    let year: number;
+
+    if (day >= 20) {
+      startDate.setDate(20);
+      endDate.setMonth(endDate.getMonth() + 1);
+      endDate.setDate(19);
+      month = endDate.getMonth() + 1;
+      year = endDate.getFullYear();
+    } else {
+      startDate.setMonth(startDate.getMonth() - 1);
+      startDate.setDate(20);
+      endDate.setDate(19);
+      month = endDate.getMonth() + 1;
+      year = endDate.getFullYear();
+    }
+
+    const nextCycleStart = new Date(endDate);
+    nextCycleStart.setDate(20);
+
+    return {
+      month,
+      year,
+      startDate,
+      endDate,
+      nextCycleStart,
+      label: `${String(startDate.getDate()).padStart(2, "0")}/${String(
+        startDate.getMonth() + 1
+      ).padStart(2, "0")}/${startDate.getFullYear()} - ${String(
+        endDate.getDate()
+      ).padStart(2, "0")}/${String(endDate.getMonth() + 1).padStart(
+        2,
+        "0"
+      )}/${endDate.getFullYear()}`,
+    };
+  };
+
+  const purchaseCycle = getPurchaseCycle(selectedDate);
+
+  const handleCloseCycle = () => {
+    const next = new Date(purchaseCycle.nextCycleStart);
+    setSelectedDate(next);
+    toast.success(
+      `Ciclo fechado. Novo ciclo iniciado em ${String(next.getDate()).padStart(
+        2,
+        "0"
+      )}/${String(next.getMonth() + 1).padStart(2, "0")}/${next.getFullYear()}.`
+    );
+  };
+
   const {
     data: consumables = [],
     isLoading,
@@ -120,8 +177,8 @@ export default function Consumables() {
     {
       spaceId: selectedSpace || undefined,
       weekStartDate: weekStartDateStr as any,
-      month: selectedDate.getMonth() + 1,
-      year: selectedDate.getFullYear(),
+      month: purchaseCycle.month,
+      year: purchaseCycle.year,
       ...filters,
     },
     {
@@ -217,8 +274,8 @@ export default function Consumables() {
     updateMonthlyPurchasedMutation.mutate({
       consumableId: input.consumableId,
       spaceId: selectedSpace,
-      month: selectedDate.getMonth() + 1,
-      year: selectedDate.getFullYear(),
+      month: purchaseCycle.month,
+      year: purchaseCycle.year,
       purchasedAmount: input.purchasedAmount,
     });
 
@@ -651,6 +708,28 @@ export default function Consumables() {
       {/* Week Selector */}
       <Card className="bg-slate-800/50 border-slate-700">
         <CardContent className="pt-6">
+          <div className="mb-4 rounded-lg border border-slate-700 bg-slate-900/40 p-3">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-xs uppercase tracking-wide text-gray-400">
+                  Ciclo de compra ativo
+                </p>
+                <p className="text-sm font-medium text-white">
+                  {purchaseCycle.label}
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleCloseCycle}
+                className="border-slate-600 text-gray-200 hover:bg-slate-700"
+              >
+                Fechar ciclo
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+
           <div className="flex items-center justify-between gap-4">
             <button
               onClick={handlePreviousWeek}
