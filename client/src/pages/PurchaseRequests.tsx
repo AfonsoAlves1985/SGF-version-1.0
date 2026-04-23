@@ -329,6 +329,11 @@ function parseSpreadsheetDate(value: unknown): string {
 
   if (/^\d{2}-\d{2}-\d{4}$/.test(text)) return text;
 
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(text)) {
+    const [day, month, year] = text.split("/");
+    return `${day}-${month}-${year}`;
+  }
+
   if (/^\d{4}-\d{2}-\d{2}$/.test(text)) {
     const [year, month, day] = text.split("-");
     return `${day}-${month}-${year}`;
@@ -360,6 +365,7 @@ function normalizeUrgency(value: string): PurchaseRequestUrgency {
 function normalizeStatus(value: string): PurchaseRequestStatus {
   const normalized = normalizeSpreadsheetKey(value);
   if (normalized.includes("rascunho")) return "rascunho";
+  if (normalized.includes("pendente")) return "solicitado";
   if (normalized.includes("cotacao")) return "cotacao";
   if (normalized.includes("financeiro")) return "financeiro";
   if (normalized.includes("aprovado")) return "aprovado";
@@ -367,6 +373,9 @@ function normalizeStatus(value: string): PurchaseRequestStatus {
     return "pedido_emitido";
   }
   if (normalized.includes("recebido")) return "recebido";
+  if (normalized.includes("comprado") || normalized.includes("comprados")) {
+    return "recebido";
+  }
   if (normalized.includes("cancelado")) return "cancelado";
   return "solicitado";
 }
@@ -1294,6 +1303,125 @@ export default function PurchaseRequests() {
         toast.error(
           "Nenhum item válido encontrado. Verifique a coluna de descrição (ex.: item_descricao)."
         );
+        return;
+      }
+
+      const hasControlSheetColumns = rows.some(
+        row =>
+          row.data_do_pedido !== undefined ||
+          row.setor !== undefined ||
+          row.descricao_do_produto_servico !== undefined ||
+          row.descri_o_do_produto_servi_o !== undefined
+      );
+
+      if (hasControlSheetColumns) {
+        const parseDocumentNumber = (base: string, index: number) => {
+          const match = base.match(/^(.*?)(\d+)$/);
+          if (!match) return `${base}-${index + 1}`;
+          const prefix = match[1];
+          const start = Number(match[2]);
+          const size = match[2].length;
+          return `${prefix}${String(start + index).padStart(size, "0")}`;
+        };
+
+        const baseDocumentNumber =
+          nextDocQuery.data || (await nextDocQuery.refetch()).data || "SC-IMPORT-0001";
+
+        const lineRequests = rows
+          .map((row, index) => {
+            const description = String(
+              row.descricao_do_produto_servico ??
+                row.descri_o_do_produto_servi_o ??
+                row.item_descricao ??
+                row.descricao ??
+                ""
+            ).trim();
+
+            if (!description) return null;
+
+            const quantity = Math.max(
+              1,
+              parseSpreadsheetNumber(
+                row.item_quantidade ?? row.quantidade ?? row.qtd ?? 1
+              )
+            );
+            const unitPrice = Math.max(
+              0,
+              parseSpreadsheetNumber(
+                row.item_valor_unitario ??
+                  row.valor_unit_r ??
+                  row.valor_unitario ??
+                  row.preco_unitario ??
+                  0
+              )
+            );
+
+            const requestDate =
+              parseSpreadsheetDate(row.data_do_pedido ?? row.data_solicitacao) ||
+              form.requestDate ||
+              formatDateToMask(new Date());
+
+            const normalizedStatus = normalizeStatus(String(row.status ?? ""));
+            const company = String(row.empresa ?? "").trim() || "Pendente";
+            const sector = String(row.setor ?? "").trim() || "Pendente";
+            const supplier = String(row.fornecedor ?? "").trim();
+
+            return {
+              payload: {
+                documentNumber:
+                  String(row.documento ?? "").trim() ||
+                  parseDocumentNumber(baseDocumentNumber, index),
+                requestDate,
+                neededDate: requestDate,
+                urgency: normalizeUrgency(String(row.urgencia ?? row.prioridade ?? "")),
+                company,
+                costCenter: sector,
+                purchaseType: "Outros",
+                requesterName: "Importação por planilha",
+                requesterRegistration: "",
+                requesterRole: sector,
+                requesterEmail: "compras.importacao@frzgroup.com.br",
+                requesterPhone: "",
+                supplierName: supplier,
+                supplierDocument: "",
+                supplierContact: "",
+                supplierDeliveryEstimate: "",
+                justification:
+                  String(row.observacao_link ?? row.observacoes ?? "").trim() ||
+                  "Pedido importado via planilha de compras.",
+                observations: String(row.observacao_link ?? row.observacoes ?? "").trim(),
+                financeApproved: false,
+                billingCnpj: "",
+                paymentTerms: String(row.forma_de_pagamento ?? "").trim(),
+                status: normalizedStatus,
+                items: [
+                  {
+                    description,
+                    unit: String(row.item_unidade ?? row.unidade ?? "UN").trim() || "UN",
+                    quantity,
+                    unitPrice,
+                    supplierSuggestion: supplier || undefined,
+                  },
+                ],
+              },
+            };
+          })
+          .filter(Boolean) as Array<{ payload: any }>;
+
+        if (lineRequests.length === 0) {
+          toast.error("Nenhuma linha válida para criar solicitações.");
+          return;
+        }
+
+        let created = 0;
+        for (const line of lineRequests) {
+          await createMutation.mutateAsync(line.payload);
+          created += 1;
+        }
+
+        requestsQuery.refetch();
+        nextDocQuery.refetch();
+        toast.success(`Importação concluída: ${created} solicitação(ões) criada(s).`);
         return;
       }
 
