@@ -145,6 +145,9 @@ export default function Rooms() {
   const [scheduleDate, setScheduleDate] = useState(() =>
     formatDateToMask(new Date())
   );
+  const [scheduleViewFilter, setScheduleViewFilter] = useState<
+    "ativos" | "historico" | "todos"
+  >("ativos");
   const [editingRoom, setEditingRoom] = useState<any>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [inlineEditingId, setInlineEditingId] = useState<number | null>(null);
@@ -283,6 +286,7 @@ export default function Rooms() {
   const roomsById = new Map<number, any>(rooms.map((room: any) => [room.id, room]));
 
   const reservationScheduleItems = (reservations as any[])
+    .filter(reservation => reservation.status !== "cancelada")
     .map(reservation => {
       const start = parseReservationDate(reservation.startTime);
       const end = parseReservationDate(reservation.endTime);
@@ -352,6 +356,18 @@ export default function Rooms() {
 
   const scheduleItems = [...reservationScheduleItems, ...fallbackRoomUsageItems];
 
+  const isSelectedDateToday =
+    formatDateToMask(selectedScheduleDate) === formatDateToMask(now);
+
+  const getScheduleItemTemporalStatus = (item: {
+    start: Date;
+    end: Date;
+  }): "ativo" | "historico" | "futuro" => {
+    if (item.end.getTime() <= now.getTime()) return "historico";
+    if (item.start.getTime() > now.getTime()) return "futuro";
+    return "ativo";
+  };
+
   const hasScheduleOnDate = (date: Date) => {
     const dayStart = new Date(date);
     dayStart.setHours(0, 0, 0, 0);
@@ -372,12 +388,20 @@ export default function Rooms() {
         selectedScheduleEnd
       )
     )
+    .filter(item => {
+      if (scheduleViewFilter === "todos") return true;
+      const temporalStatus = getScheduleItemTemporalStatus(item);
+
+      if (scheduleViewFilter === "historico") {
+        return temporalStatus === "historico";
+      }
+
+      if (!isSelectedDateToday) return true;
+      return temporalStatus !== "historico";
+    })
     .sort((a, b) => a.start.getTime() - b.start.getTime());
 
   const hasReservationOnSelectedDate = (roomId: number) => {
-    const isSelectedDateToday =
-      formatDateToMask(selectedScheduleDate) === formatDateToMask(now);
-
     return scheduleItems.some(item => {
       if (item.roomId !== roomId) return false;
       const overlapsSelectedDay = overlapsDayRange(
@@ -1522,12 +1546,33 @@ export default function Rooms() {
             </div>
 
             <div className="rounded-lg border border-slate-700 bg-slate-900/40 p-4">
-              <p className="text-sm font-medium text-gray-200">
-                Salas agendadas em {scheduleDate}
-              </p>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-sm font-medium text-gray-200">
+                  Salas agendadas em {scheduleDate}
+                </p>
+                <div className="w-full sm:w-52">
+                  <Select
+                    value={scheduleViewFilter}
+                    onValueChange={value =>
+                      setScheduleViewFilter(
+                        value as "ativos" | "historico" | "todos"
+                      )
+                    }
+                  >
+                    <SelectTrigger className="h-9 bg-slate-800 border-slate-600 text-white">
+                      <SelectValue placeholder="Filtro de consulta" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ativos">Em andamento/futuro</SelectItem>
+                      <SelectItem value="historico">Encerrados</SelectItem>
+                      <SelectItem value="todos">Todos</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
               {scheduleItemsOnSelectedDate.length === 0 ? (
                 <p className="mt-3 text-sm text-gray-400">
-                  Nenhum agendamento para esta data.
+                  Nenhum agendamento para este filtro nesta data.
                 </p>
               ) : (
                 <div className="mt-3 space-y-2">
@@ -1544,9 +1589,18 @@ export default function Rooms() {
                         <span className="font-medium text-white">
                           {item.roomName}
                         </span>
-                        <span className="text-xs text-sky-300">
-                          {item.source === "reserva" ? "Reserva" : "Uso"}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-sky-300">
+                            {item.source === "reserva" ? "Reserva" : "Uso"}
+                          </span>
+                          <span className="rounded-full border border-slate-600 px-2 py-0.5 text-[11px] text-gray-300">
+                            {getScheduleItemTemporalStatus(item) === "historico"
+                              ? "Encerrado"
+                              : getScheduleItemTemporalStatus(item) === "futuro"
+                                ? "Futuro"
+                                : "Em andamento"}
+                          </span>
+                        </div>
                       </div>
                       <span className="text-gray-400">
                         {item.start.toLocaleString("pt-BR", {
@@ -1713,6 +1767,18 @@ export default function Rooms() {
                     {selectedScheduleItem.source === "reserva"
                       ? "Reserva"
                       : "Uso de sala"}
+                  </p>
+                </div>
+                <div className="rounded-md border border-slate-700 bg-slate-900/50 p-3">
+                  <p className="text-xs text-gray-400">Situação</p>
+                  <p className="text-white mt-1">
+                    {getScheduleItemTemporalStatus(selectedScheduleItem) ===
+                    "historico"
+                      ? "Encerrado"
+                      : getScheduleItemTemporalStatus(selectedScheduleItem) ===
+                          "futuro"
+                        ? "Futuro"
+                        : "Em andamento"}
                   </p>
                 </div>
                 <div className="rounded-md border border-slate-700 bg-slate-900/50 p-3">
