@@ -1808,14 +1808,16 @@ export default function Rooms() {
                   <p className="text-xs text-gray-400">Data da solicitação</p>
                   <p className="text-white mt-1">
                     {selectedScheduleItem.requestedAt
-                      ? selectedScheduleItem.requestedAt.toLocaleString("pt-BR")
+                      ? selectedScheduleItem.requestedAt.toLocaleDateString(
+                          "pt-BR"
+                        )
                       : "Não disponível"}
                   </p>
                 </div>
                 <div className="rounded-md border border-slate-700 bg-slate-900/50 p-3">
                   <p className="text-xs text-gray-400">Data de entrega</p>
                   <p className="text-white mt-1">
-                    {selectedScheduleItem.end.toLocaleString("pt-BR")}
+                    {selectedScheduleItem.end.toLocaleDateString("pt-BR")}
                   </p>
                 </div>
                 <div className="rounded-md border border-slate-700 bg-slate-900/50 p-3">
