@@ -473,9 +473,21 @@ export default function Rooms() {
     });
 
     for (const reservation of activeReservations) {
+      const reservationEndDate = parseReservationDate(reservation.endTime);
+      const releasedAtWithOriginalDate = reservationEndDate
+        ? new Date(reservationEndDate)
+        : new Date(nowDate);
+
+      releasedAtWithOriginalDate.setHours(
+        nowDate.getHours(),
+        nowDate.getMinutes(),
+        nowDate.getSeconds(),
+        nowDate.getMilliseconds()
+      );
+
       await updateReservationMutation.mutateAsync({
         id: Number(reservation.id),
-        endTime: nowDate,
+        endTime: releasedAtWithOriginalDate,
       });
     }
 
