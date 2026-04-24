@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import {
@@ -160,6 +160,17 @@ export default function Rooms() {
     startTime: "",
     endTime: "",
   });
+  const [now, setNow] = useState(() => new Date());
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setNow(new Date());
+    }, 10000);
+
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, []);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -182,8 +193,6 @@ export default function Rooms() {
   } = trpc.rooms.list.useQuery();
 
   const { data: reservations = [] } = trpc.roomReservations.list.useQuery();
-
-  const now = new Date();
 
   const activeReservationRoomIds = useMemo(() => {
     const roomIds = new Set<number>();
@@ -1189,22 +1198,24 @@ export default function Rooms() {
               const startDate = roomStart || selectedScheduleStart;
               const endDate = roomEnd || selectedScheduleEnd;
 
-              const nowBrasilia = selectedScheduleDate;
+              const isSelectedDateToday =
+                formatDateToMask(selectedScheduleDate) === formatDateToMask(now);
+              const nowReference = isSelectedDateToday ? now : selectedScheduleDate;
 
               const totalDuration = endDate.getTime() - startDate.getTime();
               // Calcular tempo decorrido considerando os limites [startDate, endDate]
               let elapsedTime = 0;
-              if (nowBrasilia >= startDate && nowBrasilia <= endDate) {
+              if (nowReference >= startDate && nowReference <= endDate) {
                 // Dentro do intervalo: tempo desde o início até agora
-                elapsedTime = nowBrasilia.getTime() - startDate.getTime();
-              } else if (nowBrasilia > endDate) {
+                elapsedTime = nowReference.getTime() - startDate.getTime();
+              } else if (nowReference > endDate) {
                 // Após o fim: tempo total (100%)
                 elapsedTime = totalDuration;
               }
-              // Se nowBrasilia < startDate, elapsedTime permanece 0
+              // Se nowReference < startDate, elapsedTime permanece 0
 
               const remainingTime = Math.max(
-                endDate.getTime() - nowBrasilia.getTime(),
+                endDate.getTime() - nowReference.getTime(),
                 0
               );
               const usagePercentage =
@@ -1214,7 +1225,7 @@ export default function Rooms() {
               let alertColor = "bg-green-900/30 border-green-700/30";
               let alertText = "Normal";
 
-              if (nowBrasilia < startDate) {
+              if (nowReference < startDate) {
                 // Ainda não começou
                 alertStatus = "aguardando";
                 alertColor = "bg-slate-800/50 border-slate-600/30";
@@ -1319,8 +1330,8 @@ export default function Rooms() {
                           <span className="text-sky-400">{cardStatusLabel}</span>
                         </p>
                         <p className="text-xs text-gray-400">
-                          {selectedScheduleDate < startDate
-                            ? `Inicia em ${Math.ceil((startDate.getTime() - selectedScheduleDate.getTime()) / (1000 * 60 * 60 * 24))} dia(s)`
+                          {nowReference < startDate
+                            ? `Inicia em ${Math.ceil((startDate.getTime() - nowReference.getTime()) / (1000 * 60 * 60 * 24))} dia(s)`
                             : remainingTime > 0
                               ? `Faltam ${Math.ceil(remainingTime / (1000 * 60 * 60 * 24))} dias`
                               : "Prazo expirado"}
