@@ -228,7 +228,7 @@ export default function Rooms() {
       const end = parseReservationDate(reservation.endTime);
       if (!start || !end) continue;
 
-      if (now >= start && now <= end) {
+      if (now >= start && now < end) {
         roomIds.add(Number(reservation.roomId));
       }
     }
@@ -460,12 +460,13 @@ export default function Rooms() {
       const end = parseReservationDate(reservation.endTime);
       if (!start || !end) return false;
 
-      return nowDate >= start && nowDate <= end;
+      return nowDate >= start && nowDate < end;
     });
 
     for (const reservation of activeReservations) {
       await updateReservationMutation.mutateAsync({
         id: Number(reservation.id),
+        status: "cancelada",
         endTime: nowDate,
       });
     }
