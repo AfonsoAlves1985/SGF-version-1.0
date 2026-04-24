@@ -59,6 +59,10 @@ export default function CorporateLines() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [formData, setFormData] = useState(initialForm);
+  const [isAddingDepartment, setIsAddingDepartment] = useState(false);
+  const [newDepartmentName, setNewDepartmentName] = useState("");
+  const [isAddingCompany, setIsAddingCompany] = useState(false);
+  const [newCompanyName, setNewCompanyName] = useState("");
 
   const linesQuery = trpc.corporateLines.list.useQuery(
     {
@@ -75,6 +79,10 @@ export default function CorporateLines() {
       toast.success("Linha corporativa cadastrada com sucesso");
       setIsDialogOpen(false);
       setFormData(initialForm);
+      setIsAddingDepartment(false);
+      setNewDepartmentName("");
+      setIsAddingCompany(false);
+      setNewCompanyName("");
       await linesQuery.refetch();
     },
     onError: error => toast.error(error.message),
@@ -86,6 +94,10 @@ export default function CorporateLines() {
       setIsDialogOpen(false);
       setEditingId(null);
       setFormData(initialForm);
+      setIsAddingDepartment(false);
+      setNewDepartmentName("");
+      setIsAddingCompany(false);
+      setNewCompanyName("");
       await linesQuery.refetch();
     },
     onError: error => toast.error(error.message),
@@ -117,6 +129,22 @@ export default function CorporateLines() {
     [lines]
   );
 
+  const departmentOptions = useMemo(() => {
+    if (!formData.department || availableDepartments.includes(formData.department)) {
+      return availableDepartments;
+    }
+
+    return [...availableDepartments, formData.department].sort();
+  }, [availableDepartments, formData.department]);
+
+  const companyOptions = useMemo(() => {
+    if (!formData.company || availableCompanies.includes(formData.company)) {
+      return availableCompanies;
+    }
+
+    return [...availableCompanies, formData.company].sort();
+  }, [availableCompanies, formData.company]);
+
   if (!canAccess) {
     return (
       <div className="space-y-6">
@@ -146,6 +174,10 @@ export default function CorporateLines() {
           onClick={() => {
             setEditingId(null);
             setFormData(initialForm);
+            setIsAddingDepartment(false);
+            setNewDepartmentName("");
+            setIsAddingCompany(false);
+            setNewCompanyName("");
             setIsDialogOpen(true);
           }}
         >
@@ -250,6 +282,10 @@ export default function CorporateLines() {
                             phoneNumber: line.phoneNumber,
                             notes: line.notes || "",
                           });
+                          setIsAddingDepartment(false);
+                          setNewDepartmentName("");
+                          setIsAddingCompany(false);
+                          setNewCompanyName("");
                           setIsDialogOpen(true);
                         }}
                       >
@@ -312,23 +348,125 @@ export default function CorporateLines() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <Label>Departamento</Label>
-                <Input
-                  value={formData.department}
-                  onChange={event =>
-                    setFormData({ ...formData, department: event.target.value })
-                  }
-                  className="mt-1 bg-slate-700 border-slate-600 text-white"
-                />
+                <div className="mt-1 flex gap-2">
+                  <Select
+                    value={formData.department || ""}
+                    onValueChange={value =>
+                      setFormData({ ...formData, department: value })
+                    }
+                  >
+                    <SelectTrigger className="bg-slate-700 border-slate-600 text-white">
+                      <SelectValue placeholder="Selecione um departamento" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {departmentOptions.map(department => (
+                        <SelectItem key={department} value={department}>
+                          {department}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="border-slate-600 text-gray-300 px-3"
+                    onClick={() => {
+                      setIsAddingDepartment(true);
+                      setNewDepartmentName("");
+                    }}
+                    title="Adicionar novo departamento"
+                  >
+                    +
+                  </Button>
+                </div>
+                {isAddingDepartment && (
+                  <div className="mt-2 flex gap-2">
+                    <Input
+                      value={newDepartmentName}
+                      onChange={event => setNewDepartmentName(event.target.value)}
+                      placeholder="Novo departamento"
+                      className="bg-slate-700 border-slate-600 text-white"
+                    />
+                    <Button
+                      type="button"
+                      className="bg-sky-600 hover:bg-sky-700"
+                      onClick={() => {
+                        const normalized = newDepartmentName.trim();
+                        if (!normalized) {
+                          toast.error("Informe o nome do departamento");
+                          return;
+                        }
+
+                        setFormData({ ...formData, department: normalized });
+                        setIsAddingDepartment(false);
+                        setNewDepartmentName("");
+                      }}
+                    >
+                      Adicionar
+                    </Button>
+                  </div>
+                )}
               </div>
               <div>
                 <Label>Empresa</Label>
-                <Input
-                  value={formData.company}
-                  onChange={event =>
-                    setFormData({ ...formData, company: event.target.value })
-                  }
-                  className="mt-1 bg-slate-700 border-slate-600 text-white"
-                />
+                <div className="mt-1 flex gap-2">
+                  <Select
+                    value={formData.company || ""}
+                    onValueChange={value =>
+                      setFormData({ ...formData, company: value })
+                    }
+                  >
+                    <SelectTrigger className="bg-slate-700 border-slate-600 text-white">
+                      <SelectValue placeholder="Selecione uma empresa" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {companyOptions.map(company => (
+                        <SelectItem key={company} value={company}>
+                          {company}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="border-slate-600 text-gray-300 px-3"
+                    onClick={() => {
+                      setIsAddingCompany(true);
+                      setNewCompanyName("");
+                    }}
+                    title="Adicionar nova empresa"
+                  >
+                    +
+                  </Button>
+                </div>
+                {isAddingCompany && (
+                  <div className="mt-2 flex gap-2">
+                    <Input
+                      value={newCompanyName}
+                      onChange={event => setNewCompanyName(event.target.value)}
+                      placeholder="Nova empresa"
+                      className="bg-slate-700 border-slate-600 text-white"
+                    />
+                    <Button
+                      type="button"
+                      className="bg-sky-600 hover:bg-sky-700"
+                      onClick={() => {
+                        const normalized = newCompanyName.trim();
+                        if (!normalized) {
+                          toast.error("Informe o nome da empresa");
+                          return;
+                        }
+
+                        setFormData({ ...formData, company: normalized });
+                        setIsAddingCompany(false);
+                        setNewCompanyName("");
+                      }}
+                    >
+                      Adicionar
+                    </Button>
+                  </div>
+                )}
               </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
