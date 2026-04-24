@@ -475,7 +475,6 @@ export default function Rooms() {
     for (const reservation of activeReservations) {
       await updateReservationMutation.mutateAsync({
         id: Number(reservation.id),
-        status: "cancelada",
         endTime: nowDate,
       });
     }
