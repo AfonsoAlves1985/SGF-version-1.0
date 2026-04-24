@@ -249,7 +249,7 @@ export default function Rooms() {
       const roomEnd = parseRoomDateTime(room.endDate, room.endTime, true);
 
       const roomUsageActiveNow =
-        !!roomStart && !!roomEnd && now >= roomStart && now <= roomEnd;
+        !!roomStart && !!roomEnd && now >= roomStart && now < roomEnd;
 
       const occupiedNow =
         roomUsageActiveNow || activeReservationRoomIds.has(Number(room.id));
@@ -357,14 +357,23 @@ export default function Rooms() {
     .sort((a, b) => a.start.getTime() - b.start.getTime());
 
   const hasReservationOnSelectedDate = (roomId: number) => {
+    const isSelectedDateToday =
+      formatDateToMask(selectedScheduleDate) === formatDateToMask(now);
+
     return scheduleItems.some(item => {
       if (item.roomId !== roomId) return false;
-      return overlapsDayRange(
+      const overlapsSelectedDay = overlapsDayRange(
         item.start,
         item.end,
         selectedScheduleStart,
         selectedScheduleEnd
       );
+
+      if (!overlapsSelectedDay) return false;
+
+      if (!isSelectedDateToday) return true;
+
+      return item.end.getTime() > now.getTime();
     });
   };
 
