@@ -1860,7 +1860,7 @@ export default function PurchaseRequests() {
                           </SelectContent>
                         </Select>
                       </div>
-                      <div className="md:pr-1">
+                      <div className="md:pr-3">
                         <Label className="text-gray-300">Empresa</Label>
                         <Select
                           value={dialogEdit.company}
@@ -1878,7 +1878,7 @@ export default function PurchaseRequests() {
                           </SelectContent>
                         </Select>
                       </div>
-                      <div className="md:pl-1">
+                      <div className="md:pl-3">
                         <Label className="text-gray-300">Centro de custo</Label>
                         <Select
                           value={dialogEdit.costCenter}
