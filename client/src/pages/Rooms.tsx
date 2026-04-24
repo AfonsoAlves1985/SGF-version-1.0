@@ -153,6 +153,18 @@ export default function Rooms() {
   const [viewMode, setViewMode] = useState<"table" | "kanban">("table");
   const [useRoomDialogOpen, setUseRoomDialogOpen] = useState(false);
   const [selectedRoomForUse, setSelectedRoomForUse] = useState<any>(null);
+  const [isScheduleDetailsDialogOpen, setIsScheduleDetailsDialogOpen] =
+    useState(false);
+  const [selectedScheduleItem, setSelectedScheduleItem] = useState<{
+    id: string;
+    roomId: number;
+    roomName: string;
+    start: Date;
+    end: Date;
+    source: "reserva" | "uso";
+    requesterName?: string;
+    requestedAt?: Date | null;
+  } | null>(null);
   const [useRoomForm, setUseRoomForm] = useState({
     responsibleUserName: "",
     startDate: "",
@@ -193,6 +205,12 @@ export default function Rooms() {
   } = trpc.rooms.list.useQuery();
 
   const { data: reservations = [] } = trpc.roomReservations.list.useQuery();
+
+  const createReservationMutation = trpc.roomReservations.create.useMutation({
+    onError: error => {
+      toast.error(`Erro ao registrar histórico de uso: ${error.message}`);
+    },
+  });
 
   const activeReservationRoomIds = useMemo(() => {
     const roomIds = new Set<number>();
@@ -276,6 +294,8 @@ export default function Rooms() {
           start,
           end,
           source: "reserva" as const,
+          requesterName: reservation.purpose || undefined,
+          requestedAt: parseReservationDate(reservation.createdAt),
         };
       })
       .filter(Boolean),
@@ -292,6 +312,8 @@ export default function Rooms() {
           start,
           end,
           source: "uso" as const,
+          requesterName: room.responsibleUserName || undefined,
+          requestedAt: parseReservationDate(room.updatedAt || room.createdAt),
         };
       })
       .filter(Boolean),
@@ -302,6 +324,8 @@ export default function Rooms() {
     start: Date;
     end: Date;
     source: "reserva" | "uso";
+    requesterName?: string;
+    requestedAt?: Date | null;
   }>;
 
   const hasScheduleOnDate = (date: Date) => {
@@ -448,7 +472,7 @@ export default function Rooms() {
     setUseRoomDialogOpen(true);
   };
 
-  const handleConfirmUseRoom = () => {
+  const handleConfirmUseRoom = async () => {
     if (!selectedRoomForUse) return;
     if (!useRoomForm.responsibleUserName.trim()) {
       toast.error("Informe o nome do solicitante");
@@ -471,6 +495,28 @@ export default function Rooms() {
       toast.error("A data de término não pode ser anterior à data de início");
       return;
     }
+
+    const startDate = parseRoomDateTime(
+      useRoomForm.startDate,
+      useRoomForm.startTime
+    );
+    const endDate = parseRoomDateTime(
+      useRoomForm.endDate,
+      useRoomForm.endTime,
+      true
+    );
+
+    if (!startDate || !endDate) {
+      toast.error("Datas ou horários inválidos para registrar o uso");
+      return;
+    }
+
+    await createReservationMutation.mutateAsync({
+      roomId: selectedRoomForUse.id,
+      startTime: startDate,
+      endTime: endDate,
+      purpose: useRoomForm.responsibleUserName,
+    });
 
     updateMutation.mutate({
       id: selectedRoomForUse.id,
@@ -1412,7 +1458,11 @@ export default function Rooms() {
                   {scheduleItemsOnSelectedDate.map(item => (
                     <div
                       key={item.id}
-                      className="flex flex-col gap-1 rounded-md border border-slate-700/70 bg-slate-800/50 p-3 text-sm"
+                      className="flex cursor-pointer flex-col gap-1 rounded-md border border-slate-700/70 bg-slate-800/50 p-3 text-sm transition-colors hover:border-sky-600/60 hover:bg-slate-800"
+                      onClick={() => {
+                        setSelectedScheduleItem(item);
+                        setIsScheduleDetailsDialogOpen(true);
+                      }}
                     >
                       <div className="flex items-center justify-between gap-2">
                         <span className="font-medium text-white">
@@ -1535,7 +1585,9 @@ export default function Rooms() {
               <Button
                 onClick={handleConfirmUseRoom}
                 className="flex-1 bg-sky-600 hover:bg-sky-700 text-white"
-                disabled={updateMutation.isPending}
+                disabled={
+                  updateMutation.isPending || createReservationMutation.isPending
+                }
               >
                 Confirmar Uso
               </Button>
@@ -1548,6 +1600,70 @@ export default function Rooms() {
               </Button>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={isScheduleDetailsDialogOpen}
+        onOpenChange={setIsScheduleDetailsDialogOpen}
+      >
+        <DialogContent className="w-[calc(100vw-2rem)] max-w-lg bg-slate-800 border-slate-700 text-white">
+          <DialogHeader>
+            <DialogTitle className="text-white">Detalhes do agendamento</DialogTitle>
+            <DialogDescription className="text-gray-400">
+              Consulta de informações do uso da sala.
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedScheduleItem ? (
+            <div className="space-y-3 text-sm">
+              <div className="rounded-md border border-slate-700 bg-slate-900/50 p-3">
+                <p className="text-xs text-gray-400">Sala</p>
+                <p className="text-base font-semibold text-white">
+                  {selectedScheduleItem.roomName}
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="rounded-md border border-slate-700 bg-slate-900/50 p-3">
+                  <p className="text-xs text-gray-400">Solicitante</p>
+                  <p className="text-white mt-1">
+                    {selectedScheduleItem.requesterName || "Não informado"}
+                  </p>
+                </div>
+                <div className="rounded-md border border-slate-700 bg-slate-900/50 p-3">
+                  <p className="text-xs text-gray-400">Origem</p>
+                  <p className="text-white mt-1">
+                    {selectedScheduleItem.source === "reserva"
+                      ? "Reserva"
+                      : "Uso de sala"}
+                  </p>
+                </div>
+                <div className="rounded-md border border-slate-700 bg-slate-900/50 p-3">
+                  <p className="text-xs text-gray-400">Data da solicitação</p>
+                  <p className="text-white mt-1">
+                    {selectedScheduleItem.requestedAt
+                      ? selectedScheduleItem.requestedAt.toLocaleString("pt-BR")
+                      : "Não disponível"}
+                  </p>
+                </div>
+                <div className="rounded-md border border-slate-700 bg-slate-900/50 p-3">
+                  <p className="text-xs text-gray-400">Data de entrega</p>
+                  <p className="text-white mt-1">
+                    {selectedScheduleItem.end.toLocaleString("pt-BR")}
+                  </p>
+                </div>
+              </div>
+
+              <div className="rounded-md border border-slate-700 bg-slate-900/50 p-3">
+                <p className="text-xs text-gray-400">Período</p>
+                <p className="text-white mt-1">
+                  {selectedScheduleItem.start.toLocaleString("pt-BR")} -{" "}
+                  {selectedScheduleItem.end.toLocaleString("pt-BR")}
+                </p>
+              </div>
+            </div>
+          ) : null}
         </DialogContent>
       </Dialog>
     </div>
