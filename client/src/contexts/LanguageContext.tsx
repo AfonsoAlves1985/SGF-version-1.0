@@ -1000,40 +1000,6 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     if (typeof document === "undefined") return;
 
     document.documentElement.lang = language;
-    applyLanguageToDom(language);
-
-    const root = document.getElementById("root");
-    if (!root) return;
-
-    const observer = new MutationObserver(mutations => {
-      mutations.forEach(mutation => {
-        if (mutation.type === "characterData") {
-          applyLanguageToDom(language);
-          return;
-        }
-
-        if (mutation.type === "attributes") {
-          applyLanguageToDom(language);
-          return;
-        }
-
-        if (mutation.addedNodes.length > 0) {
-          applyLanguageToDom(language);
-        }
-      });
-    });
-
-    observer.observe(root, {
-      childList: true,
-      subtree: true,
-      characterData: true,
-      attributes: true,
-      attributeFilter: ["placeholder", "title", "aria-label"],
-    });
-
-    return () => {
-      observer.disconnect();
-    };
   }, [language]);
 
   const setLanguage = (lang: Language) => {
