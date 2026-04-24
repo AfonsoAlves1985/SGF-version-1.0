@@ -20,6 +20,7 @@ import {
   ShieldCheck,
   ScrollText,
   ShoppingCart,
+  Smartphone,
 } from "lucide-react";
 import { getLoginUrl } from "@/const";
 import { useLocation } from "wouter";
@@ -151,6 +152,15 @@ export default function Home() {
             label: "Logs de Auditoria",
             description: "Histórico de cadastros e alterações por filtros",
             path: "/logs",
+            color:
+              "bg-sky-900/20 hover:bg-sky-900/30 border-sky-700/30",
+          },
+          {
+            icon: Smartphone,
+            label: "Linhas Corporativas",
+            description:
+              "Cadastro de linhas pré-pago e pós-pago por departamento",
+            path: "/corporate-lines",
             color:
               "bg-sky-900/20 hover:bg-sky-900/30 border-sky-700/30",
           },

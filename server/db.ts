@@ -33,6 +33,8 @@ import {
   roomReservations,
   InsertRoom,
   InsertRoomReservation,
+  corporateLines,
+  InsertCorporateLine,
   maintenanceRequests,
   InsertMaintenanceRequest,
   maintenanceSpaces,
@@ -93,6 +95,7 @@ const MIGRATION_FILES = [
   "0007_inventory_assets_responsavel.sql",
   "0008_purchase_requests_external_approval.sql",
   "0009_purchase_requests_integration_tracking.sql",
+  "0010_corporate_lines_module.sql",
 ] as const;
 
 const NON_FATAL_MIGRATION_ERROR_CODES = new Set([
@@ -559,6 +562,43 @@ async function ensureEssentialModuleTables(db: ReturnType<typeof drizzle>) {
       "status" varchar(32) NOT NULL DEFAULT 'confirmada',
       "createdAt" timestamp DEFAULT now() NOT NULL
     );
+  `);
+
+  await run(`
+    DO $$ BEGIN
+      CREATE TYPE "corporate_line_plan_type" AS ENUM ('pos_pago', 'pre_pago');
+    EXCEPTION
+      WHEN duplicate_object THEN null;
+    END $$;
+  `);
+
+  await run(`
+    CREATE TABLE IF NOT EXISTS "corporate_lines" (
+      "id" serial PRIMARY KEY,
+      "planType" "corporate_line_plan_type" NOT NULL,
+      "department" varchar(120) NOT NULL,
+      "company" varchar(160) NOT NULL,
+      "responsibleName" varchar(160) NOT NULL,
+      "phoneNumber" varchar(20) NOT NULL,
+      "notes" text,
+      "createdAt" timestamp DEFAULT now() NOT NULL,
+      "updatedAt" timestamp DEFAULT now() NOT NULL
+    );
+  `);
+
+  await run(`
+    CREATE INDEX IF NOT EXISTS "corporate_lines_planType_idx"
+    ON "corporate_lines" ("planType");
+  `);
+
+  await run(`
+    CREATE INDEX IF NOT EXISTS "corporate_lines_department_idx"
+    ON "corporate_lines" ("department");
+  `);
+
+  await run(`
+    CREATE INDEX IF NOT EXISTS "corporate_lines_company_idx"
+    ON "corporate_lines" ("company");
   `);
 
   essentialTablesEnsured = true;
@@ -1262,6 +1302,75 @@ export async function deleteRoomReservation(id: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   return db.delete(roomReservations).where(eq(roomReservations.id, id));
+}
+
+// ============ LINHAS CORPORATIVAS ============
+
+export async function listCorporateLines(filters?: {
+  planType?: "pos_pago" | "pre_pago";
+  department?: string;
+  company?: string;
+  search?: string;
+}) {
+  const db = await getDb();
+  if (!db) return [];
+
+  const conditions = [];
+
+  if (filters?.planType) {
+    conditions.push(eq(corporateLines.planType, filters.planType));
+  }
+
+  if (filters?.department) {
+    conditions.push(eq(corporateLines.department, filters.department));
+  }
+
+  if (filters?.company) {
+    conditions.push(eq(corporateLines.company, filters.company));
+  }
+
+  if (filters?.search && filters.search.trim()) {
+    const search = `%${filters.search.trim()}%`;
+    conditions.push(
+      or(
+        like(corporateLines.responsibleName, search),
+        like(corporateLines.phoneNumber, search),
+        like(corporateLines.notes, search)
+      )!
+    );
+  }
+
+  let query = db.select().from(corporateLines);
+  if (conditions.length > 0) {
+    // @ts-ignore - Drizzle ORM type inference issue
+    query = query.where(and(...conditions));
+  }
+
+  return (await query.orderBy(desc(corporateLines.createdAt))) as any;
+}
+
+export async function createCorporateLine(data: InsertCorporateLine) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  return db.insert(corporateLines).values(data);
+}
+
+export async function updateCorporateLine(
+  id: number,
+  data: Partial<InsertCorporateLine>
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  return db
+    .update(corporateLines)
+    .set({ ...data, updatedAt: new Date() })
+    .where(eq(corporateLines.id, id));
+}
+
+export async function deleteCorporateLine(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  return db.delete(corporateLines).where(eq(corporateLines.id, id));
 }
 
 // ============ MANUTENÇÃO ============

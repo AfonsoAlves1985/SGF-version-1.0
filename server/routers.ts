@@ -1440,6 +1440,75 @@ export const appRouter = router({
     }),
   }),
 
+  // ============ LINHAS CORPORATIVAS ============
+  corporateLines: router({
+    list: adminProcedure
+      .input(
+        z
+          .object({
+            planType: z.enum(["pos_pago", "pre_pago"]).optional(),
+            department: z.string().optional(),
+            company: z.string().optional(),
+            search: z.string().optional(),
+          })
+          .optional()
+      )
+      .query(async ({ input }) => {
+        return db.listCorporateLines(input);
+      }),
+
+    create: adminProcedure
+      .input(
+        z.object({
+          planType: z.enum(["pos_pago", "pre_pago"]),
+          department: z.string().min(1),
+          company: z.string().min(1),
+          responsibleName: z.string().min(1),
+          phoneNumber: z
+            .string()
+            .min(10)
+            .max(20)
+            .regex(/^[0-9()+\-\s]+$/, "Use apenas números e separadores"),
+          notes: z.string().optional(),
+        })
+      )
+      .mutation(async ({ input }) => {
+        return db.createCorporateLine({
+          ...input,
+          notes: input.notes?.trim() || null,
+        });
+      }),
+
+    update: adminProcedure
+      .input(
+        z.object({
+          id: z.number(),
+          planType: z.enum(["pos_pago", "pre_pago"]).optional(),
+          department: z.string().min(1).optional(),
+          company: z.string().min(1).optional(),
+          responsibleName: z.string().min(1).optional(),
+          phoneNumber: z
+            .string()
+            .min(10)
+            .max(20)
+            .regex(/^[0-9()+\-\s]+$/, "Use apenas números e separadores")
+            .optional(),
+          notes: z.string().optional(),
+        })
+      )
+      .mutation(async ({ input }) => {
+        const { id, ...data } = input;
+        return db.updateCorporateLine(id, {
+          ...data,
+          notes: data.notes?.trim() || null,
+        });
+      }),
+
+    delete: adminProcedure.input(z.number()).mutation(async ({ input }) => {
+      return db.deleteCorporateLine(input);
+    }),
+  }),
+
   // ============ MANUTENÇÃO ============
   maintenance: router({
     list: protectedProcedure

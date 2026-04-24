@@ -37,6 +37,7 @@ import {
   ShieldCheck,
   ScrollText,
   ShoppingCart,
+  Smartphone,
 } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
@@ -70,6 +71,12 @@ const menuItems = [
     icon: ScrollText,
     label: "Logs de Auditoria",
     path: "/logs",
+    requiresOwner: true,
+  },
+  {
+    icon: Smartphone,
+    label: "Linhas Corporativas",
+    path: "/corporate-lines",
     requiresOwner: true,
   },
 ];

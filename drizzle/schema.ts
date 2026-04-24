@@ -57,6 +57,10 @@ export const roomReservationStatusEnum = pgEnum("room_reservation_status", [
   "pendente",
   "cancelada",
 ]);
+export const corporateLinePlanTypeEnum = pgEnum("corporate_line_plan_type", [
+  "pos_pago",
+  "pre_pago",
+]);
 export const roomTypeEnum = pgEnum("room_type", [
   "sala",
   "auditorio",
@@ -394,6 +398,26 @@ export const roomReservations = pgTable("room_reservations", {
   createdAt: timestamp().defaultNow().notNull(),
 });
 
+export const corporateLines = pgTable(
+  "corporate_lines",
+  {
+    id: serial().primaryKey(),
+    planType: corporateLinePlanTypeEnum().notNull(),
+    department: varchar({ length: 120 }).notNull(),
+    company: varchar({ length: 160 }).notNull(),
+    responsibleName: varchar({ length: 160 }).notNull(),
+    phoneNumber: varchar({ length: 20 }).notNull(),
+    notes: text(),
+    createdAt: timestamp().defaultNow().notNull(),
+    updatedAt: timestamp().defaultNow().notNull(),
+  },
+  table => [
+    index("corporate_lines_planType_idx").on(table.planType),
+    index("corporate_lines_department_idx").on(table.department),
+    index("corporate_lines_company_idx").on(table.company),
+  ]
+);
+
 export const rooms = pgTable("rooms", {
   id: serial().primaryKey(),
   name: varchar({ length: 255 }).notNull(),
@@ -643,6 +667,9 @@ export type Room = typeof rooms.$inferSelect;
 
 export type InsertRoomReservation = typeof roomReservations.$inferInsert;
 export type RoomReservation = typeof roomReservations.$inferSelect;
+
+export type InsertCorporateLine = typeof corporateLines.$inferInsert;
+export type CorporateLine = typeof corporateLines.$inferSelect;
 
 export type InsertMaintenanceRequest = typeof maintenanceRequests.$inferInsert;
 export type MaintenanceRequest = typeof maintenanceRequests.$inferSelect;
