@@ -41,6 +41,7 @@ import {
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from "./DashboardLayoutSkeleton";
+import RoomUsageNotifier from "./RoomUsageNotifier";
 // import AssistantSidebar from "./AssistantSidebar";
 import { Button } from "./ui/button";
 import { Switch } from "./ui/switch";
@@ -204,6 +205,7 @@ function DashboardLayoutContent({
 
   return (
     <>
+      <RoomUsageNotifier />
       <div className="relative" ref={sidebarRef}>
         <Sidebar
           collapsible="icon"
