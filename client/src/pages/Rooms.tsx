@@ -212,6 +212,12 @@ export default function Rooms() {
     },
   });
 
+  const updateReservationMutation = trpc.roomReservations.update.useMutation({
+    onError: error => {
+      toast.error(`Erro ao atualizar reserva da sala: ${error.message}`);
+    },
+  });
+
   const activeReservationRoomIds = useMemo(() => {
     const roomIds = new Set<number>();
 
@@ -441,9 +447,28 @@ export default function Rooms() {
     setIsDialogOpen(true);
   };
 
-  const handleReleaseRoom = (roomId: number) => {
+  const handleReleaseRoom = async (roomId: number) => {
     const room = rooms.find((r: any) => r.id === roomId);
     if (!room) return;
+
+    const nowDate = new Date();
+    const activeReservations = (reservations as any[]).filter(reservation => {
+      if (reservation.status === "cancelada") return false;
+      if (Number(reservation.roomId) !== Number(roomId)) return false;
+
+      const start = parseReservationDate(reservation.startTime);
+      const end = parseReservationDate(reservation.endTime);
+      if (!start || !end) return false;
+
+      return nowDate >= start && nowDate <= end;
+    });
+
+    for (const reservation of activeReservations) {
+      await updateReservationMutation.mutateAsync({
+        id: Number(reservation.id),
+        endTime: nowDate,
+      });
+    }
 
     updateMutation.mutate({
       id: roomId,
@@ -1171,7 +1196,10 @@ export default function Rooms() {
                           <Button
                             onClick={() => handleReleaseRoom(room.id)}
                             className="mt-2 w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs py-1"
-                            disabled={updateMutation.isPending}
+                            disabled={
+                              updateMutation.isPending ||
+                              updateReservationMutation.isPending
+                            }
                           >
                             Liberar Sala
                           </Button>
@@ -1294,8 +1322,12 @@ export default function Rooms() {
                 reservedOnSelectedDate || currentStatus === "ocupada"
                   ? "Ocupada"
                   : alertText;
+              const hasActiveReservationNow = activeReservationRoomIds.has(
+                Number(room.id)
+              );
               const canReleaseRoom =
-                !!roomStart && !!roomEnd && !Boolean(room.isReleased);
+                !Boolean(room.isReleased) &&
+                ((!!roomStart && !!roomEnd) || hasActiveReservationNow);
 
               return (
                 <Card key={room.id} className={`${alertColor} border relative`}>
