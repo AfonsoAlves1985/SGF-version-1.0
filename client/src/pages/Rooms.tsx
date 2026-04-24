@@ -1709,6 +1709,15 @@ export default function Rooms() {
                     {selectedScheduleItem.end.toLocaleString("pt-BR")}
                   </p>
                 </div>
+                <div className="rounded-md border border-slate-700 bg-slate-900/50 p-3">
+                  <p className="text-xs text-gray-400">Liberado às</p>
+                  <p className="text-white mt-1">
+                    {selectedScheduleItem.end.toLocaleTimeString("pt-BR", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </p>
+                </div>
               </div>
 
               <div className="rounded-md border border-slate-700 bg-slate-900/50 p-3">
