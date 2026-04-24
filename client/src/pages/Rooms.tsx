@@ -45,6 +45,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+const USAGE_PURPOSE_PREFIX = "[USO] ";
+
 function formatDateInput(value: string) {
   const digits = value.replace(/\D/g, "").slice(0, 8);
 
@@ -94,6 +96,27 @@ function parseReservationDate(value?: string | Date | null) {
   const parsed = value instanceof Date ? new Date(value) : new Date(String(value));
   if (Number.isNaN(parsed.getTime())) return null;
   return parsed;
+}
+
+function getReservationSourceFromPurpose(
+  purpose?: string | null
+): "reserva" | "uso" {
+  if (typeof purpose === "string" && purpose.startsWith(USAGE_PURPOSE_PREFIX)) {
+    return "uso";
+  }
+
+  return "reserva";
+}
+
+function getRequesterNameFromPurpose(purpose?: string | null) {
+  if (!purpose) return undefined;
+
+  if (purpose.startsWith(USAGE_PURPOSE_PREFIX)) {
+    const name = purpose.slice(USAGE_PURPOSE_PREFIX.length).trim();
+    return name || undefined;
+  }
+
+  return purpose;
 }
 
 function parseRoomDateTime(dateValue?: string, timeValue?: string, end = false) {
@@ -301,8 +324,8 @@ export default function Rooms() {
         roomName,
         start,
         end,
-        source: "reserva" as const,
-        requesterName: reservation.purpose || undefined,
+        source: getReservationSourceFromPurpose(reservation.purpose),
+        requesterName: getRequesterNameFromPurpose(reservation.purpose),
         requestedAt: parseReservationDate(reservation.createdAt),
       };
     })
@@ -603,7 +626,7 @@ export default function Rooms() {
       roomId: selectedRoomForUse.id,
       startTime: startDate,
       endTime: endDate,
-      purpose: useRoomForm.responsibleUserName,
+      purpose: `${USAGE_PURPOSE_PREFIX}${useRoomForm.responsibleUserName.trim()}`,
     });
 
     updateMutation.mutate({
