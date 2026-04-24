@@ -248,11 +248,11 @@ export default function Rooms() {
       const roomStart = parseRoomDateTime(room.startDate, room.startTime);
       const roomEnd = parseRoomDateTime(room.endDate, room.endTime, true);
 
-      const roomUsageActiveNow =
-        !!roomStart && !!roomEnd && now >= roomStart && now < roomEnd;
+      const roomUsagePendingRelease =
+        !!roomStart && !!roomEnd && !Boolean(room.isReleased);
 
       const occupiedNow =
-        roomUsageActiveNow || activeReservationRoomIds.has(Number(room.id));
+        roomUsagePendingRelease || activeReservationRoomIds.has(Number(room.id));
 
       if (occupiedNow) {
         map.set(room.id, "ocupada");
