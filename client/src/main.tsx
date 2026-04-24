@@ -10,6 +10,32 @@ import "./index.css";
 
 const queryClient = new QueryClient();
 
+const patchDomRemoveChildSafety = () => {
+  if (typeof window === "undefined") return;
+
+  const patchFlag = "__sgf_remove_child_patch_applied__";
+  if ((window as any)[patchFlag]) return;
+
+  const nativeRemoveChild = Node.prototype.removeChild;
+
+  Node.prototype.removeChild = function <T extends Node>(child: T): T {
+    if (!child || child.parentNode !== this) {
+      return child;
+    }
+
+    try {
+      return nativeRemoveChild.call(this, child) as T;
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "NotFoundError") {
+        return child;
+      }
+      throw error;
+    }
+  };
+
+  (window as any)[patchFlag] = true;
+};
+
 const analyticsEndpoint = import.meta.env.VITE_ANALYTICS_ENDPOINT;
 const analyticsWebsiteId = import.meta.env.VITE_ANALYTICS_WEBSITE_ID;
 
@@ -83,6 +109,7 @@ const trpcClient = trpc.createClient({
 });
 
 loadAnalyticsScript();
+patchDomRemoveChildSafety();
 
 createRoot(document.getElementById("root")!).render(
   <trpc.Provider client={trpcClient} queryClient={queryClient}>
