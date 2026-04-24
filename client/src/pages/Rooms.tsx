@@ -282,8 +282,7 @@ export default function Rooms() {
 
   const roomsById = new Map<number, any>(rooms.map((room: any) => [room.id, room]));
 
-  const scheduleItems = (reservations as any[])
-    .filter(reservation => reservation.status !== "cancelada")
+  const reservationScheduleItems = (reservations as any[])
     .map(reservation => {
       const start = parseReservationDate(reservation.startTime);
       const end = parseReservationDate(reservation.endTime);
@@ -313,6 +312,45 @@ export default function Rooms() {
     requesterName?: string;
     requestedAt?: Date | null;
   }>;
+
+  const fallbackRoomUsageItems = (rooms as any[])
+    .map(room => {
+      const start = parseRoomDateTime(room.startDate, room.startTime);
+      const end = parseRoomDateTime(room.endDate, room.endTime, true);
+      if (!start || !end) return null;
+
+      const alreadyRepresentedByReservation = reservationScheduleItems.some(
+        item =>
+          Number(item.roomId) === Number(room.id) &&
+          item.start.getTime() === start.getTime() &&
+          item.end.getTime() === end.getTime()
+      );
+
+      if (alreadyRepresentedByReservation) return null;
+
+      return {
+        id: `room-usage-${room.id}-${start.getTime()}`,
+        roomId: room.id,
+        roomName: room.name,
+        start,
+        end,
+        source: "uso" as const,
+        requesterName: room.responsibleUserName || undefined,
+        requestedAt: parseReservationDate(room.createdAt),
+      };
+    })
+    .filter(Boolean) as Array<{
+    id: string;
+    roomId: number;
+    roomName: string;
+    start: Date;
+    end: Date;
+    source: "reserva" | "uso";
+    requesterName?: string;
+    requestedAt?: Date | null;
+  }>;
+
+  const scheduleItems = [...reservationScheduleItems, ...fallbackRoomUsageItems];
 
   const hasScheduleOnDate = (date: Date) => {
     const dayStart = new Date(date);
