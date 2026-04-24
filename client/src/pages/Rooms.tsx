@@ -1150,7 +1150,6 @@ export default function Rooms() {
             {displayedRooms.map((room: any) => {
               const roomStart = parseRoomDateTime(room.startDate, room.startTime);
               const roomEnd = parseRoomDateTime(room.endDate, room.endTime, true);
-              const reservedOnSelectedDate = hasReservationOnSelectedDate(room.id);
               const occupiedByRoomPeriod =
                 !!roomStart &&
                 !!roomEnd &&
@@ -1220,8 +1219,9 @@ export default function Rooms() {
                 );
               }
 
-              // Sala sem datas = disponível para uso
-              if (!occupiedByRoomPeriod && !reservedOnSelectedDate) {
+              // Operação da sala deve seguir apenas estado/uso atual,
+              // sem bloquear por histórico no calendário.
+              if (currentStatus !== "ocupada") {
                 return (
                   <Card
                     key={room.id}
