@@ -593,6 +593,33 @@ export default function PurchaseRequests() {
     [lookupQuery.data?.purchaseTypes]
   );
 
+  const dialogCompanyOptions = useMemo(() => {
+    const currentCompany = dialogEdit?.company?.trim();
+    if (!currentCompany || mergedCompanies.includes(currentCompany)) {
+      return mergedCompanies;
+    }
+
+    return [...mergedCompanies, currentCompany];
+  }, [dialogEdit?.company, mergedCompanies]);
+
+  const dialogCostCenterOptions = useMemo(() => {
+    const currentCostCenter = dialogEdit?.costCenter?.trim();
+    if (!currentCostCenter || mergedCostCenters.includes(currentCostCenter)) {
+      return mergedCostCenters;
+    }
+
+    return [...mergedCostCenters, currentCostCenter];
+  }, [dialogEdit?.costCenter, mergedCostCenters]);
+
+  const dialogPurchaseTypeOptions = useMemo(() => {
+    const currentPurchaseType = dialogEdit?.purchaseType?.trim();
+    if (!currentPurchaseType || mergedPurchaseTypes.includes(currentPurchaseType)) {
+      return mergedPurchaseTypes;
+    }
+
+    return [...mergedPurchaseTypes, currentPurchaseType];
+  }, [dialogEdit?.purchaseType, mergedPurchaseTypes]);
+
   const totals = useMemo(() => {
     const totalQuantity = items.reduce((sum, item) => sum + (item.quantity || 0), 0);
     const totalAmount = items.reduce(
@@ -1835,29 +1862,59 @@ export default function PurchaseRequests() {
                       </div>
                       <div>
                         <Label className="text-gray-300">Empresa</Label>
-                        <Input
+                        <Select
                           value={dialogEdit.company}
-                          onChange={event => setDialogField("company", event.target.value)}
-                          className="mt-1 bg-slate-800 border-slate-600 text-white"
-                        />
+                          onValueChange={value => setDialogField("company", value)}
+                        >
+                          <SelectTrigger className="mt-1 bg-slate-800 border-slate-600 text-white">
+                            <SelectValue placeholder="Selecione" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {dialogCompanyOptions.map(option => (
+                              <SelectItem key={option} value={option}>
+                                {option}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
                       <div>
                         <Label className="text-gray-300">Centro de custo</Label>
-                        <Input
+                        <Select
                           value={dialogEdit.costCenter}
-                          onChange={event => setDialogField("costCenter", event.target.value)}
-                          className="mt-1 bg-slate-800 border-slate-600 text-white"
-                        />
+                          onValueChange={value => setDialogField("costCenter", value)}
+                        >
+                          <SelectTrigger className="mt-1 bg-slate-800 border-slate-600 text-white">
+                            <SelectValue placeholder="Selecione" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {dialogCostCenterOptions.map(option => (
+                              <SelectItem key={option} value={option}>
+                                {option}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
                     </div>
 
                     <div>
                       <Label className="text-gray-300">Tipo de compra</Label>
-                      <Input
+                      <Select
                         value={dialogEdit.purchaseType}
-                        onChange={event => setDialogField("purchaseType", event.target.value)}
-                        className="mt-1 bg-slate-800 border-slate-600 text-white"
-                      />
+                        onValueChange={value => setDialogField("purchaseType", value)}
+                      >
+                        <SelectTrigger className="mt-1 bg-slate-800 border-slate-600 text-white">
+                          <SelectValue placeholder="Selecione" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {dialogPurchaseTypeOptions.map(option => (
+                            <SelectItem key={option} value={option}>
+                              {option}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
 
