@@ -1248,6 +1248,8 @@ export default function Rooms() {
                 reservedOnSelectedDate || currentStatus === "ocupada"
                   ? "Ocupada"
                   : alertText;
+              const canReleaseRoom =
+                !!roomStart && !!roomEnd && !Boolean(room.isReleased);
 
               return (
                 <Card key={room.id} className={`${alertColor} border relative`}>
@@ -1336,7 +1338,7 @@ export default function Rooms() {
                               ? `Faltam ${Math.ceil(remainingTime / (1000 * 60 * 60 * 24))} dias`
                               : "Prazo expirado"}
                         </p>
-                        {currentStatus === "ocupada" && (
+                        {canReleaseRoom && (
                           <Button
                             onClick={() => handleReleaseRoom(room.id)}
                             className="mt-2 w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs py-1"
