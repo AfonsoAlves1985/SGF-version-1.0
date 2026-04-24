@@ -1328,13 +1328,13 @@ export default function Rooms() {
                 alertText = "Aviso";
               }
 
-              const cardStatusLabel =
-                reservedOnSelectedDate || currentStatus === "ocupada"
-                  ? "Ocupada"
-                  : alertText;
               const hasActiveReservationNow = activeReservationRoomIds.has(
                 Number(room.id)
               );
+              const cardStatusLabel =
+                currentStatus === "ocupada" || hasActiveReservationNow
+                  ? "Ocupada"
+                  : alertText;
               const canReleaseRoom =
                 !Boolean(room.isReleased) &&
                 ((!!roomStart && !!roomEnd) || hasActiveReservationNow);
@@ -1430,7 +1430,10 @@ export default function Rooms() {
                           <Button
                             onClick={() => handleReleaseRoom(room.id)}
                             className="mt-2 w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs py-1"
-                            disabled={updateMutation.isPending}
+                            disabled={
+                              updateMutation.isPending ||
+                              updateReservationMutation.isPending
+                            }
                           >
                             Liberar Sala
                           </Button>
