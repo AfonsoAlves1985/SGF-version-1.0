@@ -282,48 +282,28 @@ export default function Rooms() {
 
   const roomsById = new Map<number, any>(rooms.map((room: any) => [room.id, room]));
 
-  const scheduleItems = [
-    ...(reservations as any[])
-      .filter(reservation => reservation.status !== "cancelada")
-      .map(reservation => {
-        const start = parseReservationDate(reservation.startTime);
-        const end = parseReservationDate(reservation.endTime);
-        if (!start || !end) return null;
+  const scheduleItems = (reservations as any[])
+    .filter(reservation => reservation.status !== "cancelada")
+    .map(reservation => {
+      const start = parseReservationDate(reservation.startTime);
+      const end = parseReservationDate(reservation.endTime);
+      if (!start || !end) return null;
 
-        const roomName =
-          roomsById.get(reservation.roomId)?.name || `Sala #${reservation.roomId}`;
+      const roomName =
+        roomsById.get(reservation.roomId)?.name || `Sala #${reservation.roomId}`;
 
-        return {
-          id: `reservation-${reservation.id}`,
-          roomId: reservation.roomId,
-          roomName,
-          start,
-          end,
-          source: "reserva" as const,
-          requesterName: reservation.purpose || undefined,
-          requestedAt: parseReservationDate(reservation.createdAt),
-        };
-      })
-      .filter(Boolean),
-    ...(rooms as any[])
-      .map(room => {
-        const start = parseRoomDateTime(room.startDate, room.startTime);
-        const end = parseRoomDateTime(room.endDate, room.endTime, true);
-        if (!start || !end) return null;
-
-        return {
-          id: `room-usage-${room.id}`,
-          roomId: room.id,
-          roomName: room.name,
-          start,
-          end,
-          source: "uso" as const,
-          requesterName: room.responsibleUserName || undefined,
-          requestedAt: parseReservationDate(room.updatedAt || room.createdAt),
-        };
-      })
-      .filter(Boolean),
-  ] as Array<{
+      return {
+        id: `reservation-${reservation.id}`,
+        roomId: reservation.roomId,
+        roomName,
+        start,
+        end,
+        source: "reserva" as const,
+        requesterName: reservation.purpose || undefined,
+        requestedAt: parseReservationDate(reservation.createdAt),
+      };
+    })
+    .filter(Boolean) as Array<{
     id: string;
     roomId: number;
     roomName: string;
