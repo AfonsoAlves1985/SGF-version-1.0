@@ -249,7 +249,7 @@ export default function Rooms() {
       const roomEnd = parseRoomDateTime(room.endDate, room.endTime, true);
 
       const roomUsagePendingRelease =
-        !!roomStart && !!roomEnd && !Boolean(room.isReleased);
+        !!roomStart && !!roomEnd && !Boolean(room.isReleased) && now >= roomStart;
 
       const occupiedNow =
         roomUsagePendingRelease || activeReservationRoomIds.has(Number(room.id));
@@ -1360,13 +1360,15 @@ export default function Rooms() {
               const hasActiveReservationNow = activeReservationRoomIds.has(
                 Number(room.id)
               );
+              const roomUsageStarted = !!roomStart && now >= roomStart;
               const cardStatusLabel =
                 currentStatus === "ocupada" || hasActiveReservationNow
                   ? "Ocupada"
                   : alertText;
               const canReleaseRoom =
                 !Boolean(room.isReleased) &&
-                ((!!roomStart && !!roomEnd) || hasActiveReservationNow);
+                ((!!roomStart && !!roomEnd && roomUsageStarted) ||
+                  hasActiveReservationNow);
 
               return (
                 <Card key={room.id} className={`${alertColor} border relative`}>
