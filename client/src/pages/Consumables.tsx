@@ -459,7 +459,7 @@ export default function Consumables() {
             link.download = `relatorio_consumo_${weekStartDateStr}.xlsx`;
             document.body.appendChild(link);
             link.click();
-            document.body.removeChild(link);
+            link.remove();
             toast.success("Relatório exportado com sucesso!");
           }
         },
@@ -497,7 +497,7 @@ export default function Consumables() {
             link.download = `relatorio_consumo_${weekStartDateStr}.pdf`;
             document.body.appendChild(link);
             link.click();
-            document.body.removeChild(link);
+            link.remove();
             toast.success("Relatório PDF exportado com sucesso!");
           }
         },
