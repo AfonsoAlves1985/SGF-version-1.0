@@ -24,6 +24,7 @@ interface MaintenanceRequest {
   id: number;
   title: string;
   description?: string;
+  requesterName?: string;
   department?: string;
   requestDate?: string;
   priority: "baixa" | "media" | "alta" | "urgente";
@@ -47,6 +48,7 @@ interface MaintenanceKanbanProps {
 type EditableRequestData = {
   title: string;
   description: string;
+  requesterName: string;
   department: string;
   requestDate: string;
   priority: "baixa" | "media" | "alta" | "urgente";
@@ -116,6 +118,7 @@ function toEditableData(request: MaintenanceRequest): EditableRequestData {
   return {
     title: request.title || "",
     description: request.description || "",
+    requesterName: request.requesterName || "",
     department: request.department || "",
     requestDate: request.requestDate || "",
     priority: request.priority,
@@ -240,6 +243,10 @@ export function MaintenanceKanban({
       payload.description = modalData.description || "";
     }
 
+    if ((modalData.requesterName || "") !== (activeRequest.requesterName || "")) {
+      payload.requesterName = modalData.requesterName.trim();
+    }
+
     if ((modalData.department || "") !== (activeRequest.department || "")) {
       payload.department = modalData.department || "";
     }
@@ -322,6 +329,12 @@ export function MaintenanceKanban({
                       {request.description && (
                         <p className="text-xs text-gray-400 mb-2 line-clamp-2">
                           {request.description}
+                        </p>
+                      )}
+
+                      {request.requesterName && (
+                        <p className="text-xs text-gray-300 mb-2">
+                          Solicitante: {request.requesterName}
                         </p>
                       )}
 
@@ -437,6 +450,19 @@ export function MaintenanceKanban({
                       <SelectItem value="correctiva">Corretiva</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-gray-400">Nome do Solicitante</Label>
+                  <Input
+                    value={modalData.requesterName}
+                    onChange={event =>
+                      updateModalField("requesterName", event.target.value)
+                    }
+                    className="bg-slate-800 border-slate-700 text-white"
+                    placeholder="Nome completo de quem solicitou"
+                    disabled={isLoading}
+                  />
                 </div>
 
                 <div className="space-y-1">
