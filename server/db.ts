@@ -96,6 +96,7 @@ const MIGRATION_FILES = [
   "0008_purchase_requests_external_approval.sql",
   "0009_purchase_requests_integration_tracking.sql",
   "0010_corporate_lines_module.sql",
+  "0011_maintenance_requester_name.sql",
 ] as const;
 
 const NON_FATAL_MIGRATION_ERROR_CODES = new Set([
@@ -247,6 +248,7 @@ async function ensureEssentialModuleTables(db: ReturnType<typeof drizzle>) {
       "id" serial PRIMARY KEY,
       "title" varchar(255) NOT NULL,
       "description" text,
+      "requesterName" varchar(255),
       "department" varchar(120),
       "requestDate" varchar(10),
       "priority" varchar(32) NOT NULL DEFAULT 'media',
@@ -264,6 +266,9 @@ async function ensureEssentialModuleTables(db: ReturnType<typeof drizzle>) {
 
   await run(
     `ALTER TABLE "maintenance_requests" ADD COLUMN IF NOT EXISTS "department" varchar(120);`
+  );
+  await run(
+    `ALTER TABLE "maintenance_requests" ADD COLUMN IF NOT EXISTS "requesterName" varchar(255);`
   );
   await run(
     `ALTER TABLE "maintenance_requests" ADD COLUMN IF NOT EXISTS "requestDate" varchar(10);`

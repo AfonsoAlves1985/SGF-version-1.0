@@ -1535,6 +1535,7 @@ export const appRouter = router({
         z.object({
           title: z.string(),
           description: z.string().optional(),
+          requesterName: z.string().optional(),
           department: z.string().optional(),
           requestDate: z
             .string()
@@ -1560,6 +1561,7 @@ export const appRouter = router({
           id: z.number(),
           title: z.string().optional(),
           description: z.string().optional(),
+          requesterName: z.string().optional(),
           department: z.string().optional(),
           requestDate: z
             .string()

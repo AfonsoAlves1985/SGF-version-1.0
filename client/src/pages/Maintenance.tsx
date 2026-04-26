@@ -61,6 +61,7 @@ export default function Maintenance() {
   const getInitialFormData = () => ({
     title: "",
     description: "",
+    requesterName: "",
     department: "",
     requestDate: "",
     priority: "media" as "urgente" | "alta" | "media" | "baixa",
@@ -221,6 +222,7 @@ export default function Maintenance() {
     setFormData({
       title: request.title,
       description: request.description,
+      requesterName: request.requesterName || "",
       department: request.department || "",
       requestDate: request.requestDate || "",
       priority: request.priority,
@@ -289,6 +291,11 @@ export default function Maintenance() {
       return;
     }
 
+    if (!formData.requesterName.trim()) {
+      toast.error("Informe o nome do solicitante");
+      return;
+    }
+
     if (!selectedSpace) {
       toast.error("Selecione uma unidade");
       return;
@@ -298,6 +305,7 @@ export default function Maintenance() {
       const updateData: any = {
         id: editingRequest.id,
         ...formData,
+        requesterName: formData.requesterName.trim(),
         department: formData.department || undefined,
         requestDate: formData.requestDate || undefined,
       };
@@ -306,6 +314,7 @@ export default function Maintenance() {
       const createData: any = {
         title: formData.title,
         description: formData.description,
+        requesterName: formData.requesterName.trim(),
         department: formData.department || undefined,
         requestDate: formData.requestDate || undefined,
         priority: formData.priority,
@@ -826,6 +835,21 @@ export default function Maintenance() {
                     }
                     className="bg-slate-700 border-slate-600 text-white mt-1"
                     placeholder="Descreva o problema"
+                  />
+                </div>
+
+                <div>
+                  <Label className="text-gray-300">Nome do Solicitante *</Label>
+                  <Input
+                    value={formData.requesterName}
+                    onChange={e =>
+                      setFormData({
+                        ...formData,
+                        requesterName: e.target.value,
+                      })
+                    }
+                    className="bg-slate-700 border-slate-600 text-white mt-1"
+                    placeholder="Nome completo de quem solicitou"
                   />
                 </div>
 
